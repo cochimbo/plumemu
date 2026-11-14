@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -22,6 +23,8 @@ public:
     void power();
     uint8_t read(uint8_t address) const { return regs_[address & 0x7F]; }
     void write(uint8_t address, uint8_t value);
+    // How many times voice `i` has been keyed on so far.
+    uint32_t keyOns(int i) const { return kons_[static_cast<size_t>(i & 7)]; }
     // One sample, added to `out` as left and right.
     void sample(std::vector<int16_t>& out);
 
@@ -114,7 +117,14 @@ public:
     void writePort(int port, uint8_t value) {
         catchUp();
         in_[static_cast<size_t>(port & 3)] = value;
+        if (portWatch) portWatch(port & 3, value);
     }
+    // Told of every write of the main processor to a port (Sacar canciones watches how
+    // the game asks the sound driver for its songs).
+    std::function<void(int port, uint8_t value)> portWatch;
+    // The SPC700's clock so far (1.024 MHz), and the DSP.
+    uint64_t smpClock() const { return dspSamples_ * 32 + dspClock_; }
+    const Dsp& dsp() const { return dsp_; }
     // The sound made, at the frontend's rate.
     void setSampleRate(double hz) { outRate_ = hz; }
     void takeSamples(std::vector<int16_t>& out);
