@@ -66,6 +66,10 @@ public:
     snes::Coprocessor* coprocessor() { return copro_.get(); }
     uint8_t vramByte(uint32_t address) const { return ppu_.peekVram(address); }
     std::array<uint8_t, 0x10000>& apuRam() { return apu_.ram(); }
+    std::vector<uint8_t> musicSnapshot(const std::string& name, int seconds) override {
+        apu_.catchUp();
+        return apu_.saveSpc(name, title(), seconds);
+    }
     // The first background's map as text, a line per row, its tiles taken as ASCII
     // from `first` on: test ROMs print in ASCII tiles.
     std::string screenText(int first = 0x20) const;

@@ -16,6 +16,9 @@ class Apu;
 namespace nes {
 class Apu;
 }
+namespace snes {
+class Apu;
+}
 
 // VGM is the usual file for game music as the sound chip played it: every register
 // write with the waits between them, at 44100 ticks a second (vgmrips.net has the music
@@ -72,13 +75,16 @@ struct VgmFile {
     size_t loop = 0;            // where it loops back to, 0 for none
     uint32_t samples = 0, loopSamples = 0;
     uint32_t gbClock = 0, nesClock = 0;  // the one it is for; the other 0
+    // Or an SPC, a Super Nintendo song: its sound processor as it was, which goes on
+    // playing it by itself (with no end: `samples` is how long its tag says to play it).
+    bool spc = false;
     std::string title, game;
-    // A .vgm or .vgz. False (and why, in Spanish) if it is not one this can play.
+    // A .vgm, .vgz or .spc. False (and why, in Spanish) if it is not one this can play.
     bool parse(std::vector<uint8_t> bytes, std::string* error);
     double seconds() const { return samples / 44100.0; }
 };
 
-// Plays a VGM on a sound chip of its own, without the game: its sound, and through the
+// Plays a VGM (or an SPC) on a sound chip of its own, without the game: its sound, and through the
 // synthesizer when given one, as the console would.
 class VgmPlayer {
 public:
@@ -114,6 +120,8 @@ private:
     VgmFile file_;
     std::unique_ptr<gb::Apu> apu_;
     std::unique_ptr<nes::Apu> nesApu_;
+    std::unique_ptr<snes::Apu> snesApu_;
+    void runSnes(uint64_t tick);
     std::vector<uint8_t> nesMemory_;  // what the file's data blocks put there, for the samples
     uint64_t nesCycles_ = 0, nesPoll_ = 0;
     SynthMusic* synth_ = nullptr;

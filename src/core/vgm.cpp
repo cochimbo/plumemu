@@ -6,6 +6,7 @@
 
 #include "gb/gb_apu.h"
 #include "nes/nes_apu.h"
+#include "snes/snes_apu.h"
 #include "i18n.h"
 #include "miniz.h"
 #include "synth_music.h"
@@ -267,6 +268,28 @@ bool VgmFile::parse(std::vector<uint8_t> bytes, std::string* error) {
     };
     std::vector<uint8_t> d;
     if (!gunzip(bytes, &d)) d = std::move(bytes);
+    spc = snes::Apu::isSpc(d);
+    if (spc) {
+        // The ID666 tag, in text: the song's title and game, and how many seconds to play it.
+        auto text = [&](size_t at, size_t length) {
+            std::string t(reinterpret_cast<const char*>(&d[at]), length);
+            t = t.substr(0, t.find('\0'));
+            while (!t.empty() && static_cast<unsigned char>(t.back()) <= ' ') t.pop_back();
+            return t;
+        };
+        const bool tagged = d[0x23] == 26;
+        title = tagged ? text(0x2E, 32) : std::string();
+        game = tagged ? text(0x4E, 32) : std::string();
+        int seconds = 0;
+        if (tagged)
+            for (size_t i = 0xA9; i < 0xAC && d[i] >= '0' && d[i] <= '9'; ++i) seconds = seconds * 10 + (d[i] - '0');
+        samples = static_cast<uint32_t>((seconds > 0 ? seconds : 180) * kTickRate);
+        loop = loopSamples = 0;
+        gbClock = nesClock = 0;
+        start = 0;
+        data = std::move(d);
+        return true;
+    }
     if (d.size() < 0x40 || std::memcmp(d.data(), "Vgm ", 4) != 0) return fail(tr("No es un archivo VGM."));
     const uint32_t version = get32(d, 0x08);
     gbClock = version >= 0x161 ? get32(d, 0x80) & 0x3FFFFFFF : 0;
@@ -294,7 +317,10 @@ bool VgmFile::parse(std::vector<uint8_t> bytes, std::string* error) {
 // ---------------------------------------------------------------------------------
 // Playing
 
-VgmPlayer::VgmPlayer() : apu_(std::make_unique<gb::Apu>()), nesApu_(std::make_unique<nes::Apu>()) {}
+VgmPlayer::VgmPlayer()
+    : apu_(std::make_unique<gb::Apu>()), nesApu_(std::make_unique<nes::Apu>()), snesApu_(std::make_unique<snes::Apu>()) {
+    snesApu_->setMasterRate(1024000);  // its time given in the sound processor's own cycles
+}
 
 VgmPlayer::~VgmPlayer() = default;
 
@@ -315,6 +341,7 @@ void VgmPlayer::restart() {
     cycles_ = 0;
     sequencer_ = 8192;
     finished_ = file_.data.empty();
+    if (file_.spc) snesApu_->loadSpc(file_.data);
     if (synth_) synth_->allNotesOff();
 }
 
@@ -328,7 +355,21 @@ void VgmPlayer::setSynth(SynthMusic* synth, int chipPercent) {
     if (!synth_) {
         apu_->setChannelGains(~0u, 0, 100);
         nesApu_->setChannelGains(~0u, 0, 100);
+        snesApu_->setVoiceGains(~0u, 0, 100);
     }
+    snesApu_->setSynth(synth_);
+}
+
+// An SPC: its sound processor runs on to 44100 Hz tick `tick`; it plays forever, so it
+// ends only where its length says, and only when not repeating.
+void VgmPlayer::runSnes(uint64_t tick) {
+    if (tick <= ticks_) return;
+    const uint64_t from = static_cast<uint64_t>(static_cast<double>(ticks_) * 1024000.0 / kTickRate);
+    const uint64_t to = static_cast<uint64_t>(static_cast<double>(tick) * 1024000.0 / kTickRate);
+    snesApu_->addTime(static_cast<uint32_t>(to - from));
+    snesApu_->catchUp();
+    ticks_ = tick;
+    if (!loop_ && ticks_ >= file_.samples) finished_ = true;
 }
 
 void VgmPlayer::runNes(uint64_t cycles) {
@@ -379,6 +420,10 @@ void VgmPlayer::runChip(uint64_t cycles) {
 
 // Runs the commands up to 44100 Hz tick `tick`, the chip along with them.
 void VgmPlayer::runTo(uint64_t tick) {
+    if (file_.spc) {
+        runSnes(tick);
+        return;
+    }
     const std::vector<uint8_t>& d = file_.data;
     auto chipTo = [&](uint64_t t) {
         if (file_.nesClock) {
@@ -441,6 +486,27 @@ void VgmPlayer::runTo(uint64_t tick) {
 }
 
 void VgmPlayer::play(double seconds, double rate, std::vector<int16_t>& out) {
+    if (file_.spc) {
+        snesApu_->setSampleRate(rate);
+        const size_t before = out.size() / 2;
+        if (synth_) {
+            synth_->setClock(32000.0);
+            synth_->beginFrame(snesApu_->musicClock());
+        }
+        if (!finished_) runTo(ticks_ + static_cast<uint64_t>(std::lround(seconds * kTickRate)));
+        snesApu_->takeSamples(out);
+        if (synth_) {
+            if (synthOutput_) {
+                synth_->endFrame(snesApu_->musicClock(), out, before, rate);
+                snesApu_->setVoiceGains(synth_->chipVoices(), synth_->silentVoices(), chipPercent_);
+            } else {
+                std::vector<int16_t> unheard(out.size() - before * 2, 0);
+                synth_->endFrame(snesApu_->musicClock(), unheard, 0, rate);
+                snesApu_->setVoiceGains(~0u, synth_->silentVoices(), 100);
+            }
+        }
+        return;
+    }
     const bool nes = file_.nesClock != 0;
     apu_->setSampleRate(rate);
     nesApu_->setSampleRate(rate);
@@ -479,6 +545,7 @@ void VgmPlayer::play(double seconds, double rate, std::vector<int16_t>& out) {
 void VgmPlayer::seek(double seconds) {
     SynthMusic* synth = synth_;
     synth_ = nullptr;
+    snesApu_->setSynth(nullptr);
     restart();
     const uint64_t target = static_cast<uint64_t>(std::max(0.0, seconds) * kTickRate);
     std::vector<int16_t> unheard;
@@ -488,8 +555,11 @@ void VgmPlayer::seek(double seconds) {
         apu_->takeSamples(unheard);
         unheard.clear();
         nesApu_->takeSamples(unheard);
+        unheard.clear();
+        snesApu_->takeSamples(unheard);
     }
     synth_ = synth;
+    snesApu_->setSynth(synth_);
     if (synth_) synth_->allNotesOff();
 }
 
@@ -499,7 +569,8 @@ std::map<uint32_t, SynthMusic::Seen> VgmPlayer::instruments(const VgmFile& file,
     p.load(file);
     p.setLoop(false);
     p.setSynth(&ear, 100);
-    const double length = std::min(maxSeconds, file.seconds() + 1.0);
+    // (An SPC's sound processor is slower to run, and its song comes round in a minute or two.)
+    const double length = std::min(file.spc ? std::min(maxSeconds, 60.0) : maxSeconds, file.seconds() + 1.0);
     std::vector<int16_t> out;
     for (double t = 0; t < length && !p.finished(); t += 1.0) {
         out.clear();

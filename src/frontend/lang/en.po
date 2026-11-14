@@ -186,6 +186,9 @@ msgstr "Open a ROM to save a 3D profile of its own."
 msgid "Abre una ROM, o elige un juego en la biblioteca con el botón derecho."
 msgstr "Open a ROM, or pick a game in the library with the right button."
 
+msgid "Abrir .spc..."
+msgstr "Open .spc..."
+
 msgid "Abrir .vgm..."
 msgstr "Open .vgm..."
 
@@ -1332,6 +1335,13 @@ msgstr "Record video"
 msgid "Grosor"
 msgstr "Thickness"
 
+msgid ""
+"Guarda la canción que suena en el juego como un .spc (Grabación 01...) y la abre\n"
+"aquí: sigue sonando como en el juego, sin él."
+msgstr ""
+"Saves the song playing in the game as an .spc (Recording 01...) and opens it\n"
+"here: it goes on playing as in the game, without it."
+
 msgid "Guardar el 3D solo para este juego"
 msgstr "Save the 3D just for this game"
 
@@ -1343,6 +1353,9 @@ msgstr "Save state (slot %d)"
 
 msgid "Guardar la pantalla ancha solo para este juego"
 msgstr "Save the widescreen only for this game"
+
+msgid "Guardar lo que suena"
+msgstr "Save what's playing"
 
 msgid "Guitarra de acero"
 msgstr "Steel guitar"
@@ -1460,6 +1473,9 @@ msgstr "Left"
 msgid "Japón (NTSC)"
 msgstr "Japan (NTSC)"
 
+msgid "Juega hasta que suene la canción que quieres probar y pulsa Guardar lo que suena, o abre un .spc con su música, de snesmusic.org por ejemplo. Aquí saldrán sus instrumentos; también los que suenan mientras juegas con el sintetizador puesto."
+msgstr "Play until the song you want to try is playing and press Save what's playing, or open an .spc with its music, from snesmusic.org for example. Its instruments will show up here; also the ones playing while you play with the synthesizer on."
+
 msgid "Juega hasta que suene lo que quieres probar y pulsa Parar. Para usar el teclado en el juego, haz clic fuera de esta ventana."
 msgstr "Play until what you want to try is heard, then press Stop. To use the keyboard in the game, click outside this window."
 
@@ -1522,12 +1538,12 @@ msgid "La base de trucos de libretro no tiene listas para este juego."
 msgstr "libretro's cheat database has no lists for this game."
 
 msgid ""
-"La carpeta de las canciones de este juego: lo que pongas en ella (.vgm, .vgz o\n"
-"el .zip de vgmrips) sale en la lista.\n"
+"La carpeta de las canciones de este juego: lo que pongas en ella (.vgm, .vgz,\n"
+".spc o un .zip de ellos) sale en la lista.\n"
 "%s"
 msgstr ""
-"The folder of this game's songs: whatever you put in it (.vgm, .vgz or\n"
-"the vgmrips .zip) shows up in the list.\n"
+"This game's songs folder: whatever you put in it (.vgm, .vgz,\n"
+".spc or a .zip of them) shows up in the list.\n"
 "%s"
 
 msgid ""
@@ -1854,8 +1870,8 @@ msgstr ""
 msgid "No se pudo abrir %s: %s"
 msgstr "%s could not be opened: %s"
 
-msgid "No se pudo abrir %s: no tiene ningún .vgm ni .vgz."
-msgstr "%s could not be opened: it has no .vgm or .vgz."
+msgid "No se pudo abrir %s: no tiene ningún .vgm, .vgz ni .spc."
+msgstr "Could not open %s: it has no .vgm, .vgz or .spc."
 
 msgid "No se pudo abrir el SoundFont %s: la música suena original."
 msgstr "Could not open the SoundFont %s: the music sounds original."
@@ -2766,10 +2782,12 @@ msgid "Título"
 msgstr "Title"
 
 msgid ""
-"Un .vgm o .vgz, o el .zip con todas las canciones del juego de vgmrips.net.\n"
+"Un .vgm o .vgz, o el .zip con todas las canciones del juego de vgmrips.net\n"
+"(de Super Nintendo, un .spc, o un .zip de ellos, de snesmusic.org).\n"
 "Se guarda con las pistas del juego, para tenerlo la próxima vez."
 msgstr ""
-"A .vgm or .vgz, or the .zip with all the game's songs from vgmrips.net.\n"
+"A .vgm or .vgz, or the .zip with all of the game's songs from vgmrips.net\n"
+"(for the Super Nintendo, an .spc, or a .zip of them, from snesmusic.org).\n"
 "It is kept with the game's tracks, to have it next time."
 
 msgid "Un panel a la derecha con la carátula, los datos y la descripción del juego elegido."

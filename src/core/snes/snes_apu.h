@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <map>
+#include <string>
 #include <vector>
 
 #include "../state_io.h"
@@ -125,6 +126,15 @@ public:
     void setVoiceGains(uint32_t full, uint32_t silent, int percent) { dsp_.setVoiceGains(full, silent, percent); }
 
     std::array<uint8_t, 0x10000>& ram() { return ram_; }
+
+    // The sound as an SPC file (the usual one for a SNES song: the sound processor's
+    // registers, its RAM and the DSP's, from which a player goes on with the music), with
+    // its title and game in the ID666 tag, and `seconds` its length to play before it
+    // fades (0: none given).
+    std::vector<uint8_t> saveSpc(const std::string& title, const std::string& game, int seconds) const;
+    // Goes on from an SPC file. False if it is not one.
+    bool loadSpc(const std::vector<uint8_t>& spc);
+    static bool isSpc(const std::vector<uint8_t>& data);
 
     template <class Ar>
     void state(Ar& ar) {

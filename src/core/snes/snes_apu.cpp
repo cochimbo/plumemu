@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 
 namespace plumnin::snes {
 
@@ -556,6 +557,115 @@ void Apu::takeSamples(std::vector<int16_t>& out) {
         lastR_ = r;
     }
     samples_.clear();
+}
+
+// ---- SPC files: the header and ID666 tag at 0, the RAM at 0x100, the DSP's registers at
+// 0x10100 and the 64 bytes under the IPL ROM at 0x101C0.
+
+namespace {
+constexpr char kSpcSignature[] = "SNES-SPC700 Sound File Data v0.30";
+constexpr size_t kSpcSize = 0x10200;
+// After the file, plumnin's own state of the sound processor and the DSP: with it the
+// notes that were sounding go on (an SPC alone has only the registers), and other players
+// ignore it.
+constexpr char kStateMark[16] = "plumnin APU 1";
+}  // namespace
+
+bool Apu::isSpc(const std::vector<uint8_t>& data) {
+    return data.size() >= kSpcSize && std::memcmp(data.data(), kSpcSignature, 27) == 0;
+}
+
+std::vector<uint8_t> Apu::saveSpc(const std::string& title, const std::string& game, int seconds) const {
+    std::vector<uint8_t> f(kSpcSize, 0);
+    std::memcpy(f.data(), kSpcSignature, sizeof kSpcSignature - 1);
+    f[0x21] = f[0x22] = 26;
+    f[0x23] = 26;  // an ID666 tag follows
+    f[0x24] = 30;  // version 0.30
+    const Smp::Regs& r = smp_.r;
+    f[0x25] = static_cast<uint8_t>(r.pc);
+    f[0x26] = static_cast<uint8_t>(r.pc >> 8);
+    f[0x27] = r.a;
+    f[0x28] = r.x;
+    f[0x29] = r.y;
+    f[0x2A] = r.p;
+    f[0x2B] = r.sp;
+    auto text = [&](size_t at, size_t length, const std::string& s) {
+        std::memcpy(&f[at], s.data(), std::min(length, s.size()));
+    };
+    text(0x2E, 32, title);
+    text(0x4E, 32, game);
+    text(0x7E, 16, "plumnin");
+    if (seconds > 0) {
+        const std::string length = std::to_string(std::min(seconds, 999));
+        text(0xA9, 3, length);
+        text(0xAC, 5, "10000");  // a fade of ten seconds
+    }
+    std::memcpy(&f[0x100], ram_.data(), 0x10000);
+    // The registers at F0-FF as the processor would find them going on: what the CPU
+    // last wrote to the ports, the timers' targets and outputs.
+    f[0x100 + 0xF0] = test_;
+    f[0x100 + 0xF1] = control_;
+    f[0x100 + 0xF2] = dspAddr_;
+    f[0x100 + 0xF3] = dsp_.read(dspAddr_);
+    for (int i = 0; i < 4; ++i) f[0x100 + 0xF4 + static_cast<size_t>(i)] = in_[static_cast<size_t>(i)];
+    for (int t = 0; t < 3; ++t) {
+        f[0x100 + 0xFA + static_cast<size_t>(t)] = timers_[static_cast<size_t>(t)].target;
+        f[0x100 + 0xFD + static_cast<size_t>(t)] = timers_[static_cast<size_t>(t)].output;
+    }
+    for (int i = 0; i < 128; ++i) f[0x10100 + static_cast<size_t>(i)] = dsp_.read(static_cast<uint8_t>(i));
+    std::memcpy(&f[0x101C0], &ram_[0xFFC0], 64);
+    StateWriter w;
+    const_cast<Apu*>(this)->state(w);
+    f.insert(f.end(), kStateMark, kStateMark + sizeof kStateMark);
+    f.insert(f.end(), w.data().begin(), w.data().end());
+    return f;
+}
+
+bool Apu::loadSpc(const std::vector<uint8_t>& f) {
+    if (!isSpc(f)) return false;
+    power();
+    std::memcpy(ram_.data(), &f[0x100], 0x10000);
+    std::memcpy(&ram_[0xFFC0], &f[0x101C0], 64);
+    Smp::Regs& r = smp_.r;
+    r.pc = static_cast<uint16_t>(f[0x25] | f[0x26] << 8);
+    r.a = f[0x27];
+    r.x = f[0x28];
+    r.y = f[0x29];
+    r.p = f[0x2A];
+    r.sp = f[0x2B];
+    test_ = 0x0A;
+    const uint8_t control = ram_[0xF1];
+    control_ = control & 0x87;  // (not its bits that clear the ports)
+    for (int t = 0; t < 3; ++t) {
+        Timer& tm = timers_[static_cast<size_t>(t)];
+        tm.enabled = control & (1 << t);
+        tm.target = ram_[0xFA + static_cast<size_t>(t)];
+        tm.output = ram_[0xFD + static_cast<size_t>(t)] & 0x0F;
+    }
+    dspAddr_ = ram_[0xF2];
+    for (int i = 0; i < 4; ++i) in_[static_cast<size_t>(i)] = out_[static_cast<size_t>(i)] = ram_[0xF4 + static_cast<size_t>(i)];
+    // The DSP: its registers as they were, then the voices that were keyed on, keyed on
+    // again (an SPC keeps no more of them than the registers).
+    const uint8_t* dsp = &f[0x10100];
+    for (int i = 0; i < 128; ++i) {
+        if (i == 0x4C || i == 0x5C) continue;  // KON, KOFF
+        dsp_.write(static_cast<uint8_t>(i), dsp[i]);
+    }
+    dsp_.write(0x5C, 0);
+    dsp_.write(0x4C, dsp[0x4C]);
+    // Saved by plumnin: exactly as it was.
+    if (f.size() > kSpcSize + sizeof kStateMark && std::memcmp(&f[kSpcSize], kStateMark, sizeof kStateMark) == 0) {
+        const std::array<uint8_t, 0x10000> ram = ram_;
+        StateReader r(&f[kSpcSize + sizeof kStateMark], f.size() - kSpcSize - sizeof kStateMark);
+        state(r);
+        if (!r.ok()) {  // broken: the registers, as from any SPC
+            ram_ = ram;
+            return true;
+        }
+        samples_.clear();
+        budget_ = 0;
+    }
+    return true;
 }
 
 }  // namespace plumnin::snes

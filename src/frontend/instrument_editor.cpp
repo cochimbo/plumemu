@@ -56,7 +56,9 @@ bool endsWith(const std::string& name, const char* ext) {
     const size_t n = std::char_traits<char>::length(ext);
     return l.size() > n && l.compare(l.size() - n, n, ext) == 0;
 }
-bool isTrack(const std::string& name) { return endsWith(name, ".vgm") || endsWith(name, ".vgz"); }
+bool isTrack(const std::string& name) {
+    return endsWith(name, ".vgm") || endsWith(name, ".vgz") || endsWith(name, ".spc");
+}
 bool isZip(const std::string& name) { return endsWith(name, ".zip"); }
 
 // The songs in a .zip, by name, with their contents.
@@ -278,7 +280,7 @@ bool InstrumentEditor::openTrack(const std::string& path) {
     addTracks(from);
     auto it = std::find_if(tracks_.begin(), tracks_.end(), [&](const Track& t) { return t.path == from; });
     if (it == tracks_.end()) {
-        message_ = isZip(path) ? trf("No se pudo abrir %s: no tiene ningún .vgm ni .vgz.", fileName(path).c_str())
+        message_ = isZip(path) ? trf("No se pudo abrir %s: no tiene ningún .vgm, .vgz ni .spc.", fileName(path).c_str())
                                : trf("No se pudo abrir %s.", fileName(path).c_str());
         return false;
     }
@@ -316,7 +318,8 @@ bool InstrumentEditor::loadTrack(const Track& track) {
 }
 
 ConsoleSystem InstrumentEditor::trackSystem() const {
-    if (!live_ && player_.loaded()) return player_.file().nesClock ? ConsoleSystem::Nes : ConsoleSystem::GameBoy;
+    if (!live_ && player_.loaded())
+        return player_.file().spc ? ConsoleSystem::Snes : player_.file().nesClock ? ConsoleSystem::Nes : ConsoleSystem::GameBoy;
     return system_;
 }
 
@@ -469,10 +472,16 @@ void InstrumentEditor::draw(const EditorView& view, EditorRequests& out) {
             ImGui::TextWrapped("%s", tr("Carga un juego, o ábrelo desde su menú en la biblioteca: aquí saldrán sus "
                                         "canciones y sus instrumentos."));
         else
-            ImGui::TextWrapped("%s", tr("Saca las canciones de la ROM del juego (Sacar canciones), graba un trozo del juego "
-                                        "(Grabar del juego, y juega hasta que suene la música que quieres probar) o abre un "
-                                        ".vgm con su música, de vgmrips.net por ejemplo. Aquí saldrán sus instrumentos; "
-                                        "también los que suenan mientras juegas con el sintetizador puesto."));
+            ImGui::TextWrapped("%s", system_ == ConsoleSystem::Snes
+                                         ? tr("Juega hasta que suene la canción que quieres probar y pulsa Guardar lo que "
+                                              "suena, o abre un .spc con su música, de snesmusic.org por ejemplo. Aquí saldrán "
+                                              "sus instrumentos; también los que suenan mientras juegas con el sintetizador "
+                                              "puesto.")
+                                         : tr("Saca las canciones de la ROM del juego (Sacar canciones), graba un trozo del "
+                                              "juego (Grabar del juego, y juega hasta que suene la música que quieres "
+                                              "probar) o abre un .vgm con su música, de vgmrips.net por ejemplo. Aquí "
+                                              "saldrán sus instrumentos; también los que suenan mientras juegas con el "
+                                              "sintetizador puesto."));
         ImGui::End();
         return;
     }
@@ -508,12 +517,13 @@ void InstrumentEditor::drawTrack(const EditorView& view, EditorRequests& out) {
         ImGui::EndCombo();
     }
     ImGui::SameLine();
-    if (ImGui::Button(tr("Abrir .vgm..."))) {
+    if (ImGui::Button(system_ == ConsoleSystem::Snes ? tr("Abrir .spc...") : tr("Abrir .vgm..."))) {
         stop();
         out.chooseTrack = true;
     }
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", tr("Un .vgm o .vgz, o el .zip con todas las canciones del juego de vgmrips.net.\n"
+        ImGui::SetTooltip("%s", tr("Un .vgm o .vgz, o el .zip con todas las canciones del juego de vgmrips.net\n"
+                                   "(de Super Nintendo, un .spc, o un .zip de ellos, de snesmusic.org).\n"
                                    "Se guarda con las pistas del juego, para tenerlo la próxima vez."));
     const bool ripping = ripThread_.joinable();
     if (!gameName_.empty()) {
@@ -525,8 +535,8 @@ void InstrumentEditor::drawTrack(const EditorView& view, EditorRequests& out) {
             listTracks();
         }
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(tr("La carpeta de las canciones de este juego: lo que pongas en ella (.vgm, .vgz o\n"
-                                 "el .zip de vgmrips) sale en la lista.\n%s"),
+            ImGui::SetTooltip(tr("La carpeta de las canciones de este juego: lo que pongas en ella (.vgm, .vgz,\n"
+                                 ".spc o un .zip de ellos) sale en la lista.\n%s"),
                               tracksFor(folder_, game_).c_str());
         ImGui::SameLine();
         const bool rippable = SongRipper::supported(system_);
@@ -547,6 +557,18 @@ void InstrumentEditor::drawTrack(const EditorView& view, EditorRequests& out) {
         ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), tr("Grabando %s"), minutes(writer_.seconds()).c_str());
         ImGui::TextWrapped("%s", tr("Juega hasta que suene lo que quieres probar y pulsa Parar. Para usar el teclado en el "
                                     "juego, haz clic fuera de esta ventana."));
+    } else if (view.console && view.console->system() == ConsoleSystem::Snes) {
+        // The Super Nintendo's sound processor plays a song by itself: what it is playing
+        // now, saved, goes on as the game would.
+        ImGui::BeginDisabled(ripping);
+        if (ImGui::Button(tr("Guardar lo que suena"))) {
+            stop();
+            saveSnapshot(view.console);
+        }
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", tr("Guarda la canción que suena en el juego como un .spc (Grabación 01...) y la abre\n"
+                                       "aquí: sigue sonando como en el juego, sin él."));
     } else if (view.console) {
         ImGui::BeginDisabled(!view.console->musicRecordable() || ripping);
         if (ImGui::Button(tr("Grabar del juego"))) {
@@ -886,6 +908,27 @@ void InstrumentEditor::stopRecording(Console* console, bool keep) {
     }
     const std::vector<uint8_t> file =
         writer_.finish({name, console ? console->title() : std::string(), tr("Grabado jugando con plumnin")});
+    if (!writeBytes(path, file.data(), file.size())) {
+        message_ = trf("No se pudo guardar la grabación en %s.", path.c_str());
+        return;
+    }
+    listTracks();
+    auto it = std::find_if(tracks_.begin(), tracks_.end(), [&](const Track& t) { return t.path == path; });
+    if (it != tracks_.end()) loadTrack(*it);
+}
+
+void InstrumentEditor::saveSnapshot(Console* console) {
+    const std::string dir = tracksFor(folder_, game_);
+    std::error_code ec;
+    fs::create_directories(fs::u8path(dir), ec);
+    std::string path, name;
+    for (int n = 1; n < 1000; ++n) {
+        name = trf("Grabación %02d", n);
+        path = dir + name + ".spc";
+        if (!fs::exists(fs::u8path(path), ec)) break;
+    }
+    const std::vector<uint8_t> file = console->musicSnapshot(name, 0);
+    if (file.empty()) return;
     if (!writeBytes(path, file.data(), file.size())) {
         message_ = trf("No se pudo guardar la grabación en %s.", path.c_str());
         return;
