@@ -134,7 +134,16 @@ there is:
   (Battletoads', for one). It also learns the game's **sound effects**: the instruments of
   the short sounds no song plays, kept in `sound/<game>.effects`; with **Sound > Original
   sound effects** (on by default) they keep the chip's sound and only the music goes
-  through the synthesizer. `plumnin-headless game.gb --rip-songs DIR` does it without a
+  through the synthesizer. On the Super Nintendo, **Get songs** runs the game for 80
+  seconds watching what it sends to the sound processor's ports and which byte of its
+  memory each value came from; then, from just before the game wrote that byte, runs it
+  again with every other number in its place. What starts other music on several voices
+  is a song, kept as an `.spc` from the moment it starts, its length that of its intro and
+  loop twice. Only the songs of the parts of the game it gets to are found, as the game
+  loads each part's music when it gets there: Super Mario World gives 24, Final Fantasy III
+  60, Secret of Mana 51, in two to eight minutes; Chrono Trigger, Donkey Kong Country and
+  Super Castlevania IV none yet.
+  `plumnin-headless game.gb --rip-songs DIR` does it without a
   window, `--vgm FILE` records a run, `--spc FILE` saves a SNES game's music after it, and a
   `.vgm`, `.vgz` or `.spc` given instead of a game is played to `--wav`.
 - The 2D and pseudo-3D views, with the xBR and Anime4K upscalers and the scanline and

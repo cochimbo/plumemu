@@ -2140,8 +2140,11 @@ msgstr "Cymbale ride 2"
 msgid "Platillo splash"
 msgstr "Cymbale splash"
 
-msgid "Por ahora, solo en los juegos de Game Boy, Game Boy Color y NES."
-msgstr "Pour l'instant, seulement dans les jeux Game Boy, Game Boy Color et NES."
+msgid "Por ahora, solo en los juegos de Game Boy, Game Boy Color, NES y Super Nintendo."
+msgstr "Pour l'instant, uniquement dans les jeux Game Boy, Game Boy Color, NES et Super Nintendo."
+
+msgid "No se ha encontrado cómo pide el juego sus canciones."
+msgstr "La façon dont le jeu demande ses morceaux n'a pas été trouvée."
 
 msgid "Por año"
 msgstr "Par année"
