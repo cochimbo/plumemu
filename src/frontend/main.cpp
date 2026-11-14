@@ -673,9 +673,9 @@ int main(int argc, char** argv) {
     const Console* synthConsole = nullptr;
     std::string synthGame;
     auto applySynth = [&] {
-        if (!app->console) return;
-        bool on = settings.synth && app->console->synthSupported();
-        if (on) {
+        // The SoundFont is loaded when the synthesizer is on, or the instrument editor is
+        // open (it plays the songs with it, game or no game).
+        if (settings.synth || ui->editorOpen()) {
             const std::string path = settings.soundfont.empty() ? paths.soundfont : settings.soundfont;
             if (path != synthFont) {
                 synthFont = path;
@@ -684,16 +684,20 @@ int main(int argc, char** argv) {
                 if (!synthFontOk)
                     ui->notify(trf("No se pudo abrir el SoundFont %s: la música suena original.", path.c_str()));
             }
-            on = synthFontOk;
         }
+        synth->setEffects(settings.reverb, settings.chorus);
+        if (!app->console) return;
+        const bool on = settings.synth && app->console->synthSupported() && synthFontOk;
         // Another game: what was learnt of the last one's instruments does not apply.
         if (app->console.get() != synthConsole || app->romPath != synthGame) {
             synthConsole = app->console.get();
             synthGame = app->romPath;
             synth->forget();
             synth->setAssignments(InstrumentEditor::load(soundDir, app->romPath));
+            synth->setSoundEffects(InstrumentEditor::effectsFor(soundDir, app->romPath), settings.effectsOriginal);
         }
-        synth->setEffects(settings.reverb, settings.chorus);
+        if (synth->soundEffectsOriginal() != settings.effectsOriginal)
+            synth->setSoundEffects(InstrumentEditor::effectsFor(soundDir, app->romPath), settings.effectsOriginal);
         app->console->setSynth(on ? synth.get() : nullptr, settings.chipMix);
     };
     auto applyConsole = [&] {
@@ -1026,8 +1030,8 @@ int main(int argc, char** argv) {
             // The overclock does change the game: in a netplay game the speed is the host's,
             // which came in the state both started from, and hardcore mode keeps the real one.
             if (!netPlaying()) app->console->setOverclock(hardcore() ? 100 : settings.overclock);
-            applySynth();
         }
+        applySynth();
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             input->handleEvent(e);  // first, so it sees every trigger pull and release

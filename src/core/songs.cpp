@@ -599,6 +599,7 @@ public:
         : system_(system), rom_(rom), options_(o), progress_(p) {}
 
     bool run(std::vector<SongRipper::Song>* songs, std::string* error, std::string* report);
+    std::set<uint32_t> effects;  // after run(): the instruments of the game's sound effects
 
 private:
     // A console of its own, the game in it.
@@ -1110,12 +1111,14 @@ bool Ripper::run(std::vector<SongRipper::Song>* songs, std::string* error, std::
     // The ways that play a song with a number the game itself asked for are the real
     // ones.
     std::vector<const Way*> real;
+    std::set<const Way*> effectWays;  // that played a sound effect for a number the game asked
     for (const Way& w : ways) {
         bool ok = false;
         for (uint8_t n : w.asked) {
             if (n == 0) continue;  // asking for nothing, or a byte merely cleared
             const Heard h = listen(probe, w, n);
             ok = ok || (h.song(mostNotes_) && !sameAsBefore(w, h));
+            if (!h.song(mostNotes_) && h.triggers >= 2 && !sameAsBefore(w, h)) effectWays.insert(&w);
             if (std::getenv("PLUMNIN_RIP_DEBUG") && std::getenv("PLUMNIN_RIP_DEBUG")[0] == '2')
                 std::fprintf(stderr, "    %d: ok %d, %d notes (%d late) on %d channels, same %d\n", n, h.ok, h.triggers, h.late,
                              h.channels, static_cast<int>(sameAsBefore(w, h)));
@@ -1141,6 +1144,8 @@ bool Ripper::run(std::vector<SongRipper::Song>* songs, std::string* error, std::
         if (error) *error = tr("Se ha encontrado el controlador de sonido, pero no cómo pide el juego las canciones.");
         return false;
     }
+    std::vector<std::pair<const Way*, int>> shorts;  // numbers that played a sound effect
+    std::set<uint32_t> shortOpenings;  // (each sound once: past a table, the same one again and again)
     for (int number = 0; number < 256 && !cancelled(); ++number) {
         for (const Way* way : real) {
             const Way& w = *way;
@@ -1152,6 +1157,14 @@ bool Ripper::run(std::vector<SongRipper::Song>* songs, std::string* error, std::
             if (songsHere >= 2 && dead >= 4 && !bit && !asked) continue;
             const Heard h = listen(probe, w, number);
             dead = h.song(mostNotes_) ? 0 : dead + 1;
+            // A few notes that are no song, nor what played anyway: a sound effect. Or the
+            // music that played anyway, with something else over its start: most drivers
+            // play their effects over the music, on one of its channels for a moment.
+            const Heard& before = baseline[&w];
+            if (shorts.size() < 40 && h.triggers >= 2 &&
+                ((!h.song(mostNotes_) && !sameAsBefore(w, h)) || (sameAsBefore(w, h) && h.opening != before.opening)) &&
+                shortOpenings.insert(h.opening).second)
+                shorts.push_back({&w, number});
             if (std::getenv("PLUMNIN_RIP_DEBUG") && number < 40 && !w.routine)
                 std::fprintf(stderr, "  %d via %s: ok %d, %d notes on %d channels\n", number, w.describe(*m_).c_str(), h.ok,
                              h.triggers, h.channels);
@@ -1233,6 +1246,49 @@ bool Ripper::run(std::vector<SongRipper::Song>* songs, std::string* error, std::
         }
         step();
     }
+    // The ways the game asks for its sound effects (not songs): their numbers too.
+    for (const Way* w : effectWays) {
+        if (std::find(real.begin(), real.end(), w) != real.end()) continue;
+        int dead = 0;
+        for (int number = 1; number < 128 && dead < 8 && shorts.size() < 64 && !cancelled(); ++number) {
+            const Heard h = listen(probe, *w, number);
+            if (h.triggers >= 2 && !h.song(mostNotes_) && !sameAsBefore(*w, h)) {
+                if (shortOpenings.insert(h.opening).second) shorts.push_back({w, number});
+                dead = 0;
+            } else {
+                ++dead;
+            }
+        }
+    }
+    // The sound effects: the instruments of the short sounds that no song plays (a
+    // synthesizer of its own listens to each, recorded for a moment).
+    if (!songs->empty() && !shorts.empty() && !cancelled()) {
+        std::set<uint32_t> music, sounds;
+        for (const SongRipper::Song& s : *songs) {
+            VgmFile f;
+            if (f.parse(s.vgz, nullptr))
+                for (const auto& [fp, seen] : VgmPlayer::instruments(f)) music.insert(fp);
+        }
+        const double longest = options_.maxSeconds;
+        options_.maxSeconds = 4;
+        for (const auto& [way, number] : shorts) {
+            if (cancelled()) break;
+            Take take;
+            if (!record(probe, *way, number, &take)) continue;
+            VgmFile f;
+            size_t n = 0;
+            if (f.parse(take.vgm->finish({}, &take.end), nullptr))
+                for (const auto& [fp, seen] : VgmPlayer::instruments(f)) sounds.insert(fp), ++n;
+            if (std::getenv("PLUMNIN_RIP_DEBUG") && std::getenv("PLUMNIN_RIP_DEBUG")[0] == '3')
+                std::fprintf(stderr, "  effect %d: %zu instruments\n", number, n);
+        }
+        options_.maxSeconds = longest;
+        for (uint32_t fp : sounds)
+            if (!music.count(fp)) effects.insert(fp);
+        if (std::getenv("PLUMNIN_RIP_DEBUG"))
+            std::fprintf(stderr, "effects: %zu numbers, %zu instruments, %zu only in them\n", shorts.size(), sounds.size(),
+                         effects.size());
+    }
     for (const auto& [w, n] : byWay) log += w->describe(*m_) + ": " + std::to_string(n) + " canciones\n";
     if (report) *report = log;
     return !songs->empty();
@@ -1245,7 +1301,7 @@ bool SongRipper::supported(ConsoleSystem s) {
 }
 
 bool SongRipper::run(const std::vector<uint8_t>& rom, const Options& options, Progress* progress,
-                       std::vector<Song>* songs, std::string* error, std::string* report) {
+                       std::vector<Song>* songs, std::string* error, std::string* report, std::set<uint32_t>* effects) {
     const ConsoleSystem system = detectSystemFromData(rom);
     if (!supported(system)) {
         if (error) *error = tr("Por ahora, solo en los juegos de Game Boy, Game Boy Color y NES.");
@@ -1268,6 +1324,7 @@ bool SongRipper::run(const std::vector<uint8_t>& rom, const Options& options, Pr
             r.skip = skip;
             r.starts = starts;
             ok = r.run(songs, error, report);
+            if (effects) *effects = r.effects;
             if (firstError.empty() && error) firstError = *error;
             driverFound = driverFound || r.driverTaken;
             if (ok || !r.driverTaken || (progress && progress->cancel)) break;

@@ -290,6 +290,7 @@ bool SynthMusic::loadSoundfont(const std::vector<uint8_t>& data) {
     if (!font) return false;
     if (synth_->font) tsf_close(synth_->font);
     synth_->font = font;
+    fontKey_ = font;
     synth_->rate = 0;
     for (Voice& v : voices_) v.on = v.midi = false;
     channels_ = {};
@@ -297,6 +298,20 @@ bool SynthMusic::loadSoundfont(const std::vector<uint8_t>& data) {
 }
 
 bool SynthMusic::ready() const { return synth_->font != nullptr; }
+
+bool SynthMusic::shareSoundfont(const SynthMusic& from) {
+    if (!from.synth_->font) return false;
+    if (fontKey_ == from.fontKey_ && synth_->font) return true;
+    tsf* font = tsf_copy(from.synth_->font);
+    if (!font) return false;
+    if (synth_->font) tsf_close(synth_->font);
+    synth_->font = font;
+    fontKey_ = from.fontKey_;
+    synth_->rate = 0;
+    for (Voice& v : voices_) v.on = v.midi = false;
+    channels_ = {};
+    return true;
+}
 
 void SynthMusic::setEffects(int reverb, int chorus) { synth_->effects.setAmounts(reverb, chorus); }
 
@@ -386,6 +401,21 @@ SynthMusic::Assignment SynthMusic::suggest(const Traits& t, const Heard& heard) 
 
 SynthMusic::Assignment SynthMusic::assignmentFor(uint32_t fingerprint) const {
     if (auto a = assigned_.find(fingerprint); a != assigned_.end()) return a->second;
+    return suggestionFor(fingerprint);
+}
+
+void SynthMusic::setSoundEffects(std::set<uint32_t> effects, bool original) {
+    effects_ = std::move(effects);
+    effectsOriginal_ = original;
+    updateChipVoices();
+}
+
+SynthMusic::Assignment SynthMusic::suggestionFor(uint32_t fingerprint) const {
+    if (effectsOriginal_ && effects_.count(fingerprint)) {
+        Assignment original;
+        original.original = true;
+        return original;
+    }
     auto r = rules_.find(fingerprint);
     if (r != rules_.end()) return suggest(r->second.traits, r->second.heard);
     Traits t;

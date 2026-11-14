@@ -559,7 +559,8 @@ int main(int argc, char** argv) {
         SongRipper::Progress progress;
         std::vector<SongRipper::Song> songs;
         const auto t0 = std::chrono::steady_clock::now();
-        const bool ok = SongRipper::run(rom, options, &progress, &songs, &error, &report);
+        std::set<uint32_t> effects;
+        const bool ok = SongRipper::run(rom, options, &progress, &songs, &error, &report, &effects);
         const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
         std::fputs(report.c_str(), stdout);
         if (!ok) {
@@ -573,6 +574,17 @@ int main(int argc, char** argv) {
             if (!writeFile(ripDir + file, s.vgz.data(), s.vgz.size())) return 1;
             std::printf("%d: %.1f s%s\n", s.number, s.seconds,
                         s.loopSeconds > 0 ? (", loop " + std::to_string(s.loopSeconds) + " s").c_str() : ", ends");
+        }
+        // The sound effects' instruments, as the instrument editor keeps them.
+        if (!effects.empty()) {
+            std::string text;
+            char line[16];
+            for (uint32_t fp : effects) {
+                std::snprintf(line, sizeof line, "%08x\n", fp);
+                text += line;
+            }
+            if (!writeFile(ripDir + "/effects.txt", text.data(), text.size())) return 1;
+            std::printf("%zu sound effect instruments\n", effects.size());
         }
         std::printf("%zu songs in %.1f s\n", songs.size(), took);
         return 0;

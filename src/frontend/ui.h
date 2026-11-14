@@ -126,6 +126,7 @@ public:
     void openInstrumentEditor() { editor_.open(); }
     // A song of the instrument editor is playing: the game waits, and this is its sound.
     bool songPlaying() const { return editor_.playing(); }
+    bool editorOpen() const { return editor_.isOpen(); }
     void playSong(double seconds, double rate, std::vector<int16_t>& out) { editor_.play(seconds, rate, out); }
     void setSynth(SynthMusic* synth, std::string soundFolder) {
         synth_ = synth;
@@ -224,6 +225,7 @@ private:
     void drawSoundMenu(UiActions& out);
     void drawSoundfontCombo(UiActions& out);
     void chooseSoundfont(UiActions& out);
+    void chooseTrack();
     void drawControls(UiActions& out);
     // The table of bindings of `c`: the console buttons, and the hotkeys too when not `game`.
     // Returns whether a binding was cleared (a new one arrives later, in finishCapture).
@@ -305,7 +307,7 @@ private:
     std::vector<std::string> localAddresses_;  // this computer's, for the host to share
     bool showFolders_ = false;  // the library's list of folders, unfolded
     // What the file browser (or the system dialog) is choosing a file or folder for.
-    enum class BrowseFor { Game, LibraryFolder, CoverImage, Soundfont };
+    enum class BrowseFor { Game, LibraryFolder, CoverImage, Soundfont, Track };
     std::string includedSoundfont_, soundfontFolder_;
     SynthMusic* synth_ = nullptr;
     InstrumentEditor editor_;

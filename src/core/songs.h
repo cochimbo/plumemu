@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -38,9 +39,12 @@ public:
 
     static bool supported(ConsoleSystem system);
     // Runs it all: from a few seconds to a minute. False, with the reason in Spanish, if no song was
-    // found. `report` says what it found and how, for the curious.
+    // found. `report` says what it found and how, for the curious, and `effects` the
+    // instruments (SynthMusic fingerprints) of the game's sound effects: those heard in
+    // the short sounds it skipped and in none of its songs.
     static bool run(const std::vector<uint8_t>& rom, const Options& options, Progress* progress,
-                    std::vector<Song>* songs, std::string* error, std::string* report = nullptr);
+                    std::vector<Song>* songs, std::string* error, std::string* report = nullptr,
+                    std::set<uint32_t>* effects = nullptr);
 };
 
 }  // namespace plumnin

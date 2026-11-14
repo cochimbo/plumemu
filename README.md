@@ -106,27 +106,32 @@ there is:
   strings otherwise; one that dies away: marimba, guitar or piano), and the DSP's noise
   is the drums too. `plumnin-headless --synth file.sf2 --wav out.wav` records it without
   a window.
-- **Sound > Instrument editor...** (or `--instruments`): while the game plays through the
-  synthesizer, its instruments as they are heard (pulses, waves, triangle, noise or
-  samples, lettered in the order they first sounded, green while they play), what each
-  is on the chip, its channels and notes, and what it sounds as: the rules' suggestion
-  until another General MIDI instrument (with its octave and volume), a piece of the drum
-  kit or **Original (the chip)** is chosen. **Hear only this one** silences the rest, on
-  the chip too, and **Suggestion** goes back to the rules. It is heard at once and saved
-  per game in `sound/<game>.ini`, in plumsg's format.
-  Its **Songs** tab has the game's music as VGM files (`sound/tracks/<game>/`), to hear
-  without playing: the game waits while one plays, through the synthesizer when it is
-  on, so its instruments can be changed as it plays. **Record the game's music** saves
-  what plays while you play. On the Game Boy, the Color and the NES, **Extract songs from the ROM**
-  finds them all by itself: it runs the game for a while watching the processor, finds
-  the sound driver (the routine called a few dozen times a second under which the chip
-  is written) and how the game asks it for a song (a routine called with its number, or
-  a byte the driver reads and clears), keeps the ways that play a song with a number the
+- **Sound > Instrument editor...** (or `--instruments`, or a game's menu in the library), as in plumsg: one
+  window with the game's songs (VGM files in `sound/tracks/<game>/`) above and their
+  instruments below. A song plays with **Play**, **To the start**, **Repeat** and a
+  position slider, as **Original** or through the **Synthesizer** (its SoundFont next to
+  it), while the game waits. Its instruments (pulses, waves, triangle, noise or samples,
+  lettered in the order they first sounded) show what each sounds as, its channels and
+  notes, and a tick to hear it; its channels can be soloed or silenced. Each can be given
+  another General MIDI instrument (with its octave and volume), a piece of the drum kit
+  or its **Original sound**, compared as it plays; **Hear only this one** silences the
+  rest and **Back to the suggestion** undoes it. With no song open and the game playing
+  through the synthesizer, it lists the instruments heard so far. It is heard at once in
+  the game and saved per game in `sound/<game>.ini`, in plumsg's format.
+  **Record from the game** saves what plays while you play, and **Open .vgm...** takes a
+  file or a vgmrips pack. On the Game Boy, the Color and the NES, **Get songs** finds
+  them all by itself: it runs the game for a while watching the processor, finds the
+  sound driver (the routine called a few dozen times a second under which the chip is
+  written) and how the game asks it for a song (a routine called with its number, or a
+  byte the driver reads and clears), keeps the ways that play a song with a number the
   game itself asked for, then asks for every number with only the driver running and
   records each song until the driver comes back to where it was, which is its loop.
   Tetris gives its 17 songs in a few seconds, Link's Awakening its 94 in a minute and a
-  half, Mega Man 2 on the NES its 59 in three; not every game's way of asking is found
-  yet (Battletoads' and Dr. Mario's, for two). `plumnin-headless game.gb --rip-songs DIR` does it without a
+  half, Mega Man 2 on the NES its 58 in four; not every game's way of asking is found yet
+  (Battletoads', for one). It also learns the game's **sound effects**: the instruments of
+  the short sounds no song plays, kept in `sound/<game>.effects`; with **Sound > Original
+  sound effects** (on by default) they keep the chip's sound and only the music goes
+  through the synthesizer. `plumnin-headless game.gb --rip-songs DIR` does it without a
   window, `--vgm FILE` records a run, and a `.vgm` or `.vgz` given instead of a game is
   played to `--wav`.
 - The 2D and pseudo-3D views, with the xBR and Anime4K upscalers and the scanline and

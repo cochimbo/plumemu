@@ -682,8 +682,20 @@ UiActions Ui::frame(const UiState& state) {
         if (running != editorRunning_ || !editor_.isOpen()) editorGame_.clear();
         editorRunning_ = running;
         const std::string& game = editorGame_.empty() ? running : editorGame_;
-        editor_.draw(*synth_, game, state.synthOn, state.romLoaded && game == running ? state.console : nullptr,
-                     settings_.chipMix);
+        EditorView view;
+        view.game = game;
+        view.console = state.romLoaded && game == running ? state.console : nullptr;
+        view.gameSynth = synth_;
+        view.synthOn = state.synthOn;
+        view.chipPercent = settings_.chipMix;
+        view.reverb = settings_.reverb;
+        view.chorus = settings_.chorus;
+        view.effectsOriginal = settings_.effectsOriginal;
+        view.drawSoundfont = [&] { drawSoundfontCombo(out); };
+        EditorRequests asked;
+        editor_.draw(view, asked);
+        if (!asked.load.empty()) out.load = asked.load;
+        if (asked.chooseTrack) chooseTrack();
     }
     // With no game running, the covers can take more of each frame.
     library_.update(state.romLoaded && !state.paused ? 3 : 10);
@@ -725,6 +737,7 @@ UiActions Ui::frame(const UiState& state) {
                 settings_.soundfont = picked;
                 out.settingsChanged = true;
                 break;
+            case BrowseFor::Track: editor_.openTrack(picked); break;
         }
     }
     osk_.draw();
@@ -1054,11 +1067,15 @@ void Ui::drawSoundMenu(UiActions& out) {
     ImGui::SetNextItemWidth(160);
     ImGui::SliderInt(tr("Chorus"), &settings_.chorus, 0, 100, "%d%%", ImGuiSliderFlags_AlwaysClamp);
     if (ImGui::IsItemDeactivatedAfterEdit()) out.settingsChanged = true;
+    if (ImGui::MenuItem(tr("Efectos de sonido originales"), nullptr, &settings_.effectsOriginal)) out.settingsChanged = true;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", tr("Los efectos de sonido del juego (los que Sacar canciones encuentra) suenan\n"
+                                   "con el chip, y solo la música pasa por el sintetizador."));
+    ImGui::EndDisabled();
     if (ImGui::MenuItem(tr("Editor de instrumentos..."), nullptr, editor_.isOpen())) editor_.open();
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", tr("Mientras juegas, cada instrumento del juego con lo que suena en el sintetizador:\n"
+        ImGui::SetTooltip("%s", tr("Las canciones del juego y sus instrumentos, con lo que suena en el sintetizador:\n"
                                    "elige otro instrumento General MIDI, una pieza de la batería o su sonido original."));
-    ImGui::EndDisabled();
 }
 
 void Ui::setSoundfonts(std::string included, std::string folder) {
@@ -1101,6 +1118,18 @@ void Ui::drawSoundfontCombo(UiActions& out) {
         ImGui::EndCombo();
     }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tr("El SoundFont del sintetizador"));
+}
+
+// A .vgm, .vgz or a .zip of them for the instrument editor.
+void Ui::chooseTrack() {
+    std::string chosen;
+    browseFor_ = BrowseFor::Track;
+    const bool fullscreen = (SDL_GetWindowFlags(window_) & SDL_WINDOW_FULLSCREEN) != 0;
+    switch (fullscreen ? DialogResult::Unavailable : openFileDialog(window_, settings_.lastFolder, Pick::AnyFile, &chosen)) {
+        case DialogResult::Chosen: editor_.openTrack(chosen); break;
+        case DialogResult::Cancelled: break;
+        case DialogResult::Unavailable: browser_.open(settings_.lastFolder, Pick::AnyFile); break;
+    }
 }
 
 void Ui::chooseSoundfont(UiActions& out) {
