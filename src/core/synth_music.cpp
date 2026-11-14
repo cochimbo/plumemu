@@ -375,17 +375,39 @@ SynthMusic::Assignment SynthMusic::suggest(const Traits& t, const Heard& heard) 
         }
         case Kind::Sample: {
             // A sample without a pitch, or a short one the game plays on one or two
-            // notes, is a drum, by how bright it is; the rest by how it holds its note.
+            // notes, is a drum, by how bright it is; a bright noise that loops a cymbal,
+            // by how long the game holds it.
             const bool drum = !t.pitched || (!t.looped && t.seconds < 0.35 && (heard.notes < 4 || heard.distinct() <= 2));
             if (drum) {
-                a.drum = t.brightness < 0.06 ? 36 : t.brightness < 0.18 ? 38 : t.seconds > 0.6 ? 49 : 42;
+                if (!t.pitched && t.looped && t.brightness >= 0.18) a.drum = held < 0.25 ? 42 : held < 0.6 ? 46 : 49;
+                else a.drum = t.brightness < 0.06 ? 36 : t.brightness < 0.18 ? 38 : t.seconds > 0.6 ? 49 : 42;
                 break;
             }
-            if (median < 48) a.program = t.looped ? 33 : 32;
-            else if (!t.looped) a.program = t.seconds < 0.5 ? 12 : median < 62 ? 24 : 0;
-            else if (t.fundamental > 0.8) a.program = 73;
-            else if (t.brightness > 0.25) a.program = 61;
-            else a.program = 48;
+            // The rest by how it holds its note, with the chip's envelope: one that dies
+            // away is struck or plucked, one that swells bowed or sung, and one that holds
+            // by its harmonics.
+            const bool swells = heard.held >= 3 && heard.swelled * 2 >= heard.held;
+            if (median < 48) {
+                if (!t.looped) a.program = 32;
+                else a.program = !plucked && t.brightness > 0.25 ? 38 : 33;
+            } else if (!t.looped) {
+                a.program = t.seconds < 0.5 ? 12 : median < 62 ? 24 : 0;
+            } else if (plucked) {
+                if (median >= 79) a.program = t.fundamental > 0.8 ? 10 : 8;
+                else if (t.fundamental > 0.8) a.program = 46;
+                else if (median < 60) a.program = t.brightness > 0.15 ? 25 : 24;
+                else a.program = 0;
+            } else if (swells) {
+                a.program = t.fundamental > 0.8 ? 52 : t.brightness > 0.25 ? 61 : 48;
+            } else if (t.fundamental > 0.8) {
+                a.program = median >= 64 ? 73 : 71;
+            } else if (t.odd > 0.8) {
+                a.program = 71;
+            } else if (t.brightness > 0.25) {
+                a.program = 61;
+            } else {
+                a.program = 48;
+            }
             break;
         }
         default: {
@@ -578,12 +600,14 @@ void SynthMusic::noteOn(int voice, const VoiceState& s, uint64_t clock) {
     ++seen.notes;
     seen.low = std::min(seen.low, pitch);
     seen.high = std::max(seen.high, pitch);
+    seen.heard = rule.heard;
     seen.rules = suggest(rule.traits, rule.heard);
 
     v.on = true;
     v.amplitude = std::max(s.amplitude, 1e-3);
     v.lowestRatio = 1;
-    v.start = clock;
+    v.start = v.peakAt = clock;
+    v.peakEnvelope = s.envelope;
     if (v.fingerprint != fp) {
         v.fingerprint = fp;
         updateChipVoices();
@@ -623,6 +647,7 @@ void SynthMusic::noteOff(int voice, uint64_t clock) {
             ++h.held;
             if (clock > v.start) h.heldSeconds += static_cast<double>(clock - v.start) / clockHz_;
             if (v.lowestRatio < 0.34) ++h.decayed;
+            if (v.peakEnvelope >= 0 && static_cast<double>(v.peakAt - v.start) > 0.1 * clockHz_) ++h.swelled;
         }
     }
     // Drums ring out by themselves, as on a GM module.
@@ -642,7 +667,7 @@ void SynthMusic::panTo(int voice, int pan, uint64_t clock) {
 
 void SynthMusic::expression(int voice, double amplitude, uint64_t clock) {
     Voice& v = voices_[static_cast<size_t>(voice)];
-    if (v.on) v.lowestRatio = std::min(v.lowestRatio, amplitude / v.amplitude);
+    if (v.on && v.peakEnvelope < 0) v.lowestRatio = std::min(v.lowestRatio, amplitude / v.amplitude);
     if (!v.midi || v.drum) return;
     Channel& c = channels_[static_cast<size_t>(voice)];
     const int e = std::clamp(static_cast<int>(127 * std::sqrt(amplitude / v.amplitude)), 0, 127);
@@ -752,7 +777,7 @@ double SynthMusic::analyzeSample(const int16_t* pcm, size_t count, size_t loopSt
         }
         t.brightness = total > 0 ? centre / total : 0;
         if (hz > 0) {
-            double first = 0, all = 0;
+            double first = 0, all = 0, odd = 0;
             for (int h = 1; h <= 12 && h * hz < rate / 2; ++h) {
                 double re = 0, im = 0;
                 for (size_t i = 0; i < kLength; ++i) {
@@ -762,9 +787,11 @@ double SynthMusic::analyzeSample(const int16_t* pcm, size_t count, size_t loopSt
                 }
                 const double e = re * re + im * im;
                 if (h == 1) first = e;
+                else if (h % 2) odd += e;
                 all += e;
             }
             t.fundamental = all > 0 ? first / all : 0;
+            t.odd = all > first ? odd / (all - first) : 0.5;
         }
     }
     if (traits) *traits = t;
@@ -780,6 +807,16 @@ void SynthMusic::update(int voice, const VoiceState& s, uint64_t clock) {
     Voice& v = voices_[static_cast<size_t>(voice)];
     const bool triggered = s.triggers != v.triggers;
     v.triggers = s.triggers;
+    // The chip's envelope, where it has one: how long the note took to swell, and whether
+    // it then died away (also when it dies out and the note ends with it).
+    if (v.on && !triggered && v.peakEnvelope >= 0 && s.envelope >= 0) {
+        if (s.envelope > v.peakEnvelope) {
+            v.peakEnvelope = s.envelope;
+            v.peakAt = clock;
+        } else if (v.peakEnvelope > 0) {
+            v.lowestRatio = std::min(v.lowestRatio, s.envelope / v.peakEnvelope);
+        }
+    }
     const bool noise = kindOf(s.fingerprint) == Kind::Noise;
     const bool audible = s.sounding && s.amplitude > 0 && s.fingerprint && (noise || (s.note > 12 && s.note < 120));
     if (!audible) {

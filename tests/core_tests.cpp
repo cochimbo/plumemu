@@ -2584,6 +2584,33 @@ void testSnesSynth() {
     for (const std::string& l : log) bent = bent || l.rfind("0 bend ", 0) == 0;
     check(bent && !logHas(log, "0 on 69") && !logHas(log, "0 on 70"), "snes synth: a slide bends the note");
     (void)Kind::Sample;
+
+    // The rules for a sample, by how the chip's envelope plays it.
+    SynthMusic::Traits t;
+    t.kind = Kind::Sample;
+    t.looped = true;
+    t.fundamental = 0.95;
+    t.brightness = 0.1;
+    SynthMusic::Heard heard;
+    for (int i = 0; i < 10; ++i) heard.add(i % 2 ? 67 : 72);
+    heard.held = 10;
+    heard.heldSeconds = 5;
+    check(SynthMusic::suggest(t, heard).program == 73, "snes rules: a held sine is a flute");
+    heard.decayed = 10;
+    check(SynthMusic::suggest(t, heard).program == 46, "snes rules: a sine that dies away is a harp");
+    heard.decayed = 0, heard.swelled = 10;
+    check(SynthMusic::suggest(t, heard).program == 52, "snes rules: a sine that swells is a choir");
+    heard.swelled = 0, heard.decayed = 10;
+    t.fundamental = 0.4;
+    check(SynthMusic::suggest(t, heard).program == 0, "snes rules: a rich sound that dies away is a piano");
+    SynthMusic::Traits hiss = t;
+    hiss.pitched = false;
+    hiss.brightness = 0.4;
+    SynthMusic::Heard hats;
+    hats.notes = 20, hats.held = 20, hats.heldSeconds = 2;
+    check(SynthMusic::suggest(hiss, hats).drum == 42, "snes rules: a short looped noise is a hi-hat");
+    hats.heldSeconds = 20;
+    check(SynthMusic::suggest(hiss, hats).drum == 49, "snes rules: a long one a crash");
 }
 
 int main() {

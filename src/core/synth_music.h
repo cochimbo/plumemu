@@ -75,6 +75,9 @@ public:
         bool keyed = false;
         // A sample's traits (analyzeSample()), for Kind::Sample.
         const Traits* traits = nullptr;
+        // The chip's own envelope on the note (0..1), where it has one apart from the
+        // volume (the SNES ADSR): how the note swells or dies away, for the rules only.
+        double envelope = -1;
     };
 
     // How the game has played an instrument so far, for the rules.
@@ -85,6 +88,7 @@ public:
         int held = 0;            // notes let go
         double heldSeconds = 0;  // how long those were held, in all
         int decayed = 0;         // of those, whose loudness fell below a third (plucked)
+        int swelled = 0;         // of those, that took more than a tenth of a second to swell
         void add(int note);
         int median() const;
     };
@@ -100,6 +104,9 @@ public:
         // highest frequency, 0..1) and how much of its sound is the fundamental (0..1).
         bool pitched = true, looped = true;
         double seconds = 1, brightness = 0.2, fundamental = 0.5;
+        // Of its harmonics above the fundamental, how much are the odd ones (0..1): a
+        // clarinet's, a square's, are nearly all odd.
+        double odd = 0.5;
     };
     static Assignment suggest(const Traits& traits, const Heard& heard);
     // What a sample sounds like: its traits, and the frequency of its note when played at
@@ -116,6 +123,7 @@ public:
         int low = 127, high = 0;
         int order = 0;  // when it was first heard: 0 the first instrument, 1 the next...
         Traits traits;  // what the rules saw of it
+        Heard heard;    // and how it was played, as of its last note
         Assignment rules;
     };
 
@@ -213,7 +221,8 @@ private:
         uint32_t triggers = 0;
         double amplitude = 1.0;  // at note on, for the expression after it
         double lastNote = 0, lastAmplitude = 0, lowestRatio = 1;
-        uint64_t start = 0;
+        double peakEnvelope = 0;  // the envelope's highest on this note, and when
+        uint64_t start = 0, peakAt = 0;
     };
     struct Rule {
         Traits traits;
