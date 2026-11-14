@@ -739,7 +739,9 @@ double SynthMusic::analyzeSample(const int16_t* pcm, size_t count, size_t loopSt
         for (int k = 1; k < 128; ++k) {
             const double f = k / 256.0;  // of the rate
             double re = 0, im = 0;
-            for (size_t i = 0; i < kLength; i += 2) {
+            // (Every sample: taking every other one folds the top half of the spectrum
+            // onto the bottom one, and every sound came out exactly half bright.)
+            for (size_t i = 0; i < kLength; ++i) {
                 const double a = 2 * 3.14159265358979 * f * static_cast<double>(i);
                 re += x[i] * std::cos(a);
                 im -= x[i] * std::sin(a);

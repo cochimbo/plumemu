@@ -76,7 +76,7 @@ public:
     // A song is playing: the game waits, and its sound is play()'s.
     bool playing() const { return open_ && playing_; }
     void play(double seconds, double rate, std::vector<int16_t>& out);
-    // Opens a .vgm or .vgz, or a .zip of them (a vgmrips pack). A file from elsewhere is
+    // Opens a .vgm, .vgz or .spc, or a .zip of them (a vgmrips pack). A file from elsewhere is
     // copied into the game's track folder, so it is there next time.
     bool openTrack(const std::string& path);
     // The folder of a game's songs.
@@ -115,6 +115,7 @@ private:
     void drawRip();
     void finishRip();
     void stopRecording(Console* console, bool keep);
+    void saveSnapshot(Console* console);  // the SNES's music now, as an .spc
     static int songsIn(const std::string& folder);  // .vgm, .vgz and .zip
     ConsoleSystem trackSystem() const;  // whose channels the lists show
 

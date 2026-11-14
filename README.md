@@ -119,7 +119,10 @@ there is:
   through the synthesizer, it lists the instruments heard so far. It is heard at once in
   the game and saved per game in `sound/<game>.ini`, in plumsg's format.
   **Record from the game** saves what plays while you play, and **Open .vgm...** takes a
-  file or a vgmrips pack. On the Game Boy, the Color and the NES, **Get songs** finds
+  file or a vgmrips pack. On the Super Nintendo, whose sound processor plays a song by
+  itself, **Save what's playing** keeps the song as an `.spc` that goes on exactly as in
+  the game (plumnin's own state of the processor rides after the file; other players read
+  the usual SPC), and **Open .spc...** takes those of snesmusic.org. On the Game Boy, the Color and the NES, **Get songs** finds
   them all by itself: it runs the game for a while watching the processor, finds the
   sound driver (the routine called a few dozen times a second under which the chip is
   written) and how the game asks it for a song (a routine called with its number, or a
@@ -132,8 +135,8 @@ there is:
   the short sounds no song plays, kept in `sound/<game>.effects`; with **Sound > Original
   sound effects** (on by default) they keep the chip's sound and only the music goes
   through the synthesizer. `plumnin-headless game.gb --rip-songs DIR` does it without a
-  window, `--vgm FILE` records a run, and a `.vgm` or `.vgz` given instead of a game is
-  played to `--wav`.
+  window, `--vgm FILE` records a run, `--spc FILE` saves a SNES game's music after it, and a
+  `.vgm`, `.vgz` or `.spc` given instead of a game is played to `--wav`.
 - The 2D and pseudo-3D views, with the xBR and Anime4K upscalers and the scanline and
   CRT filters.
 - Netplay over UDP with rollback.

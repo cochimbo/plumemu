@@ -88,6 +88,7 @@ Output
                         each to DIR as a .vgz with its loop, then exit
   --vgm FILE            the run's music as a VGM (gzip-compressed, .vgz), as the
                         instrument editor records it (Game Boy, Color and NES)
+  --spc FILE            the music as it is after the last frame, as an SPC (Super Nintendo)
   --gif FILE            the run as an animated GIF, as plumnin's Grabar GIF makes it
   --avi FILE            the run as a video with its sound (Motion JPEG and PCM)
                         (both at the console's own size, and not with netplay)
@@ -367,7 +368,7 @@ int main(int argc, char** argv) {
     std::vector<std::string> cheats, scripts, lines;
     ConsoleSystem testSystem = ConsoleSystem::Nes;
     long frames = 600, overclock = 100, pngEvery = 0, netPort = 0, inputDelay = 2, netLag = 0, netLoss = 0, synthChip = 0;
-    std::string synthFont, vgmOut, ripDir;
+    std::string synthFont, vgmOut, ripDir, spcOut;
     bool netHost = false;
     std::string netJoin;
     int wideLeft = 0, wideRight = 0;
@@ -441,6 +442,7 @@ int main(int argc, char** argv) {
         else if (a == "--synth-chip") number(&synthChip);
         else if (a == "--vgm") vgmOut = next();
         else if (a == "--rip-songs") ripDir = next();
+        else if (a == "--spc") spcOut = next();
         else if (a == "--gif") gifOut = next();
         else if (a == "--avi") aviOut = next();
         else if (a == "--save-state") stateOut = next();
@@ -520,7 +522,7 @@ int main(int argc, char** argv) {
         return s.size() >= n && std::equal(s.end() - static_cast<long>(n), s.end(), end,
                                            [](char a, char b) { return std::tolower(a) == b; });
     };
-    if (endsWith(game, ".vgm") || endsWith(game, ".vgz")) {
+    if (endsWith(game, ".vgm") || endsWith(game, ".vgz") || endsWith(game, ".spc")) {
         std::vector<uint8_t> data;
         VgmFile file;
         std::string error;
@@ -863,6 +865,11 @@ int main(int argc, char** argv) {
         const std::vector<uint8_t> file = vgm.finish({});
         if (!writeFile(vgmOut, file.data(), file.size())) ioError = true;
     }
+    if (!spcOut.empty()) {
+        const std::vector<uint8_t> file = md.musicSnapshot("", 0);
+        if (file.empty()) std::fprintf(stderr, "--spc: this console's music cannot be saved as an SPC\n");
+        if (file.empty() || !writeFile(spcOut, file.data(), file.size())) ioError = true;
+    }
     for (GameRecording* r : {&gifRecording, &aviRecording}) {
         std::string error;
         if (!r->finish(&error)) {
@@ -887,6 +894,18 @@ int main(int argc, char** argv) {
         std::printf("title: %s\nsystem: %s  region: %s\nframes: %ld  size: %dx%d  hash: %08x\n",
                     md.title().c_str(), system, pal ? "pal" : "ntsc", ran, f.width, f.height, lastHash);
         std::printf("audio hash: %08x\n", audioHash);
+        // With --synth: the instruments it heard and what each sounds as.
+        if (!synthFont.empty())
+            for (const auto& [fp, seen] : synth.seen()) {
+                const SynthMusic::Assignment a = synth.assignmentFor(fp);
+                const SynthMusic::Traits& t = seen.traits;
+                std::printf("instrument %08x: %d notes %d-%d voices %02x | %s%s %.2fs bright %.2f fund %.2f -> ",
+                            fp, seen.notes, seen.low, seen.high, seen.voices, t.pitched ? "pitched" : "unpitched",
+                            t.looped ? " looped" : "", t.seconds, t.brightness, t.fundamental);
+                if (a.original) std::printf("original\n");
+                else if (a.drum >= 0) std::printf("drum %d %s\n", a.drum, SynthMusic::drumName(a.drum) ? SynthMusic::drumName(a.drum) : "");
+                else std::printf("%d %s%s\n", a.program, SynthMusic::programName(a.program), a.octave ? " (octave shifted)" : "");
+            }
         std::printf("speed: %.0f fps (%.1fx)\n", fps, fps / md.refreshRate());
         if (netplay) std::printf("netplay: %ld frames run again, ping %d ms\n", rollbacks, ping);
         for (const std::string& s : failures) std::printf("FAILED: %s\n", s.c_str());

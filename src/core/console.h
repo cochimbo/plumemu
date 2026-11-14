@@ -119,6 +119,10 @@ public:
     bool recordMusic(VgmWriter* recorder);
     VgmWriter* musicRecorder() const { return recorder_; }
     virtual bool musicRecordable() const { return false; }
+    // The music as it is now, as a file that goes on playing it (the SNES's, an SPC: its
+    // sound processor keeps the song and plays it by itself); empty for the consoles
+    // that have none.
+    virtual std::vector<uint8_t> musicSnapshot(const std::string& /*title*/, int /*seconds*/) { return {}; }
 
     // The cartridge's battery-backed memory, if it has any.
     virtual bool hasSaveData() const { return false; }

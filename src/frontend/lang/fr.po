@@ -186,6 +186,9 @@ msgstr "Ouvrez une ROM pour lui sauvegarder un profil 3D propre."
 msgid "Abre una ROM, o elige un juego en la biblioteca con el botón derecho."
 msgstr "Ouvrez une ROM, ou choisissez un jeu dans la bibliothèque avec le bouton droit."
 
+msgid "Abrir .spc..."
+msgstr "Ouvrir un .spc..."
+
 msgid "Abrir .vgm..."
 msgstr "Ouvrir un .vgm..."
 
@@ -1332,6 +1335,13 @@ msgstr "Enregistrer une vidéo"
 msgid "Grosor"
 msgstr "Épaisseur"
 
+msgid ""
+"Guarda la canción que suena en el juego como un .spc (Grabación 01...) y la abre\n"
+"aquí: sigue sonando como en el juego, sin él."
+msgstr ""
+"Enregistre la chanson qui joue dans le jeu en .spc (Enregistrement 01...) et l'ouvre\n"
+"ici : elle continue de jouer comme dans le jeu, sans lui."
+
 msgid "Guardar el 3D solo para este juego"
 msgstr "Garder la 3D rien que pour ce jeu"
 
@@ -1343,6 +1353,9 @@ msgstr "Sauvegarder l'état (emplacement %d)"
 
 msgid "Guardar la pantalla ancha solo para este juego"
 msgstr "Enregistrer l'écran large seulement pour ce jeu"
+
+msgid "Guardar lo que suena"
+msgstr "Enregistrer ce qui joue"
 
 msgid "Guitarra de acero"
 msgstr "Guitare acier"
@@ -1460,6 +1473,9 @@ msgstr "Gauche"
 msgid "Japón (NTSC)"
 msgstr "Japon (NTSC)"
 
+msgid "Juega hasta que suene la canción que quieres probar y pulsa Guardar lo que suena, o abre un .spc con su música, de snesmusic.org por ejemplo. Aquí saldrán sus instrumentos; también los que suenan mientras juegas con el sintetizador puesto."
+msgstr "Joue jusqu'à ce que la chanson que tu veux essayer se fasse entendre et appuie sur Enregistrer ce qui joue, ou ouvre un .spc avec sa musique, de snesmusic.org par exemple. Ses instruments apparaîtront ici ; aussi ceux qui jouent pendant que tu joues avec le synthétiseur activé."
+
 msgid "Juega hasta que suene lo que quieres probar y pulsa Parar. Para usar el teclado en el juego, haz clic fuera de esta ventana."
 msgstr "Jouez jusqu'à entendre ce que vous voulez essayer et appuyez sur Arrêter. Pour utiliser le clavier dans le jeu, cliquez hors de cette fenêtre."
 
@@ -1522,12 +1538,12 @@ msgid "La base de trucos de libretro no tiene listas para este juego."
 msgstr "La base de codes de libretro n'a pas de listes pour ce jeu."
 
 msgid ""
-"La carpeta de las canciones de este juego: lo que pongas en ella (.vgm, .vgz o\n"
-"el .zip de vgmrips) sale en la lista.\n"
+"La carpeta de las canciones de este juego: lo que pongas en ella (.vgm, .vgz,\n"
+".spc o un .zip de ellos) sale en la lista.\n"
 "%s"
 msgstr ""
-"Le dossier des morceaux de ce jeu : ce que vous y mettez (.vgm, .vgz ou\n"
-"le .zip de vgmrips) apparaît dans la liste.\n"
+"Le dossier des chansons de ce jeu : ce que tu y mets (.vgm, .vgz,\n"
+".spc ou un .zip de ceux-ci) apparaît dans la liste.\n"
 "%s"
 
 msgid ""
@@ -1854,8 +1870,8 @@ msgstr ""
 msgid "No se pudo abrir %s: %s"
 msgstr "Impossible d'ouvrir %s : %s"
 
-msgid "No se pudo abrir %s: no tiene ningún .vgm ni .vgz."
-msgstr "Impossible d'ouvrir %s : il ne contient aucun .vgm ni .vgz."
+msgid "No se pudo abrir %s: no tiene ningún .vgm, .vgz ni .spc."
+msgstr "Impossible d'ouvrir %s : il ne contient aucun .vgm, .vgz ni .spc."
 
 msgid "No se pudo abrir el SoundFont %s: la música suena original."
 msgstr "Impossible d'ouvrir la SoundFont %s : la musique reste d'origine."
@@ -2766,10 +2782,12 @@ msgid "Título"
 msgstr "Titre"
 
 msgid ""
-"Un .vgm o .vgz, o el .zip con todas las canciones del juego de vgmrips.net.\n"
+"Un .vgm o .vgz, o el .zip con todas las canciones del juego de vgmrips.net\n"
+"(de Super Nintendo, un .spc, o un .zip de ellos, de snesmusic.org).\n"
 "Se guarda con las pistas del juego, para tenerlo la próxima vez."
 msgstr ""
-"Un .vgm ou .vgz, ou le .zip avec tous les morceaux du jeu de vgmrips.net.\n"
+"Un .vgm ou .vgz, ou le .zip avec toutes les chansons du jeu de vgmrips.net\n"
+"(pour la Super Nintendo, un .spc, ou un .zip de ceux-ci, de snesmusic.org).\n"
 "Il est gardé avec les pistes du jeu, pour l'avoir la prochaine fois."
 
 msgid "Un panel a la derecha con la carátula, los datos y la descripción del juego elegido."
