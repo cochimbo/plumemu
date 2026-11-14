@@ -385,6 +385,7 @@ void Dsp::musicVoice(int i, SynthMusic::VoiceState& out) {
     const int r = std::abs(static_cast<int>(static_cast<int8_t>(reg(i, VolR))));
     out.amplitude = std::min(1.0, std::max(l, r) / 127.0);
     out.pan = l + r ? std::clamp(64 + (r - l) * 63 / (l + r), 0, 127) : 64;
+    out.envelope = v.env / 2047.0;
     if (regs_[Non] & (1 << i)) {
         const uint8_t rate = regs_[Flg] & 0x1F;
         out.noise = rate / 2;

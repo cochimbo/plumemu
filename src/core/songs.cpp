@@ -1118,7 +1118,12 @@ bool Ripper::run(std::vector<SongRipper::Song>* songs, std::string* error, std::
             if (n == 0) continue;  // asking for nothing, or a byte merely cleared
             const Heard h = listen(probe, w, n);
             ok = ok || (h.song(mostNotes_) && !sameAsBefore(w, h));
-            if (!h.song(mostNotes_) && h.triggers >= 2 && !sameAsBefore(w, h)) effectWays.insert(&w);
+            // (A single note will do: a sword or a step is one sweep of the noise. And over
+            // the music that plays anyway, as most drivers play their effects, what starts
+            // differently from it.)
+            if (h.triggers >= 1 && ((!h.song(mostNotes_) && !sameAsBefore(w, h)) ||
+                                    (sameAsBefore(w, h) && h.opening != baseline[&w].opening)))
+                effectWays.insert(&w);
             if (std::getenv("PLUMNIN_RIP_DEBUG") && std::getenv("PLUMNIN_RIP_DEBUG")[0] == '2')
                 std::fprintf(stderr, "    %d: ok %d, %d notes (%d late) on %d channels, same %d\n", n, h.ok, h.triggers, h.late,
                              h.channels, static_cast<int>(sameAsBefore(w, h)));
@@ -1252,7 +1257,8 @@ bool Ripper::run(std::vector<SongRipper::Song>* songs, std::string* error, std::
         int dead = 0;
         for (int number = 1; number < 128 && dead < 8 && shorts.size() < 64 && !cancelled(); ++number) {
             const Heard h = listen(probe, *w, number);
-            if (h.triggers >= 2 && !h.song(mostNotes_) && !sameAsBefore(*w, h)) {
+            const bool over = sameAsBefore(*w, h) && h.opening != baseline[w].opening;
+            if (h.triggers >= 1 && ((!h.song(mostNotes_) && !sameAsBefore(*w, h)) || over)) {
                 if (shortOpenings.insert(h.opening).second) shorts.push_back({w, number});
                 dead = 0;
             } else {
