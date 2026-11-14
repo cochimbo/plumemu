@@ -439,11 +439,20 @@ SynthMusic::Assignment SynthMusic::suggestionFor(uint32_t fingerprint) const {
         original.original = true;
         return original;
     }
+    return ruled(fingerprint);
+}
+
+// What the rules say, of the instrument or of the one it follows.
+SynthMusic::Assignment SynthMusic::ruled(uint32_t fingerprint) const {
     auto r = rules_.find(fingerprint);
-    if (r != rules_.end()) return suggest(r->second.traits, r->second.heard);
-    Traits t;
-    t.kind = kindOf(fingerprint);
-    return suggest(t, Heard{});
+    if (r == rules_.end()) {
+        Traits t;
+        t.kind = kindOf(fingerprint);
+        return suggest(t, Heard{});
+    }
+    if (r->second.lead)
+        if (auto l = rules_.find(r->second.lead); l != rules_.end()) return suggest(l->second.traits, l->second.heard);
+    return suggest(r->second.traits, r->second.heard);
 }
 
 void SynthMusic::setAssignments(Assignments assigned) {
@@ -589,6 +598,20 @@ void SynthMusic::noteOn(int voice, const VoiceState& s, uint64_t clock) {
         rule.traits = *s.traits;
         rule.traits.kind = kindOf(fp);
     }
+    // A channel of the tune (a pulse or a wave: the chips' samples are each an
+    // instrument) that changes its sound for some notes plays on as the same instrument.
+    // A tune is the channel's notes with no more than five seconds between them.
+    if ((rule.traits.kind == Kind::Pulse || rule.traits.kind == Kind::Wave) && voice < 8) {
+        Lead& lead = leads_[static_cast<size_t>(voice)];
+        const bool fresh = rule.heard.notes == 0;
+        const auto l = rules_.find(lead.fingerprint);
+        if (!lead.fingerprint || l == rules_.end() || l->second.traits.kind != rule.traits.kind ||
+            static_cast<double>(clock - lead.last) > 5 * clockHz_)
+            lead.fingerprint = rule.lead ? rule.lead : fp;
+        else if (fresh && lead.fingerprint != fp)
+            rule.lead = lead.fingerprint;
+        lead.last = clock;
+    }
     const int pitch = static_cast<int>(std::lround(s.note));
     if (rule.traits.kind != Kind::Noise) rule.heard.add(pitch);
     else ++rule.heard.notes;
@@ -602,7 +625,7 @@ void SynthMusic::noteOn(int voice, const VoiceState& s, uint64_t clock) {
     seen.low = std::min(seen.low, pitch);
     seen.high = std::max(seen.high, pitch);
     seen.heard = rule.heard;
-    seen.rules = suggest(rule.traits, rule.heard);
+    seen.rules = ruled(fp);
 
     v.on = true;
     v.amplitude = std::max(s.amplitude, 1e-3);

@@ -362,6 +362,22 @@ bool readLog(const std::string& path, std::vector<LogLine>& log) {
 
 }  // namespace
 
+// The instruments the synthesizer heard and what each sounds as.
+static void printInstruments(SynthMusic& synth) {
+    for (const auto& [fp, seen] : synth.seen()) {
+        const SynthMusic::Assignment a = synth.assignmentFor(fp);
+        const SynthMusic::Traits& t = seen.traits;
+        std::printf("instrument %08x: %d notes %d-%d voices %02x | %s%s %.2fs bright %.2f fund %.2f odd %.2f"
+                    " | held %d decayed %d swelled %d -> ",
+                    fp, seen.notes, seen.low, seen.high, seen.voices, t.pitched ? "pitched" : "unpitched",
+                    t.looped ? " looped" : "", t.seconds, t.brightness, t.fundamental, t.odd, seen.heard.held,
+                    seen.heard.decayed, seen.heard.swelled);
+        if (a.original) std::printf("original\n");
+        else if (a.drum >= 0) std::printf("drum %d %s\n", a.drum, SynthMusic::drumName(a.drum) ? SynthMusic::drumName(a.drum) : "");
+        else std::printf("%d %s%s\n", a.program, SynthMusic::programName(a.program), a.octave ? " (octave shifted)" : "");
+    }
+}
+
 int main(int argc, char** argv) {
     std::string game, png, layers, wav, gifOut, aviOut, stateIn, stateOut, ramOut, hashLog, json, expectLog;
     std::string outDir = ".";
@@ -543,6 +559,7 @@ int main(int argc, char** argv) {
         std::vector<int16_t> out;
         for (long i = 0; i < frames && !player.finished(); ++i) player.play(1.0 / 60.0, 44100, out);
         if (!wav.empty() && !writeWav(wav, out, 44100)) return 1;
+        if (!synthFont.empty() && !quiet) printInstruments(synth);
         if (!quiet)
             std::printf("%s: %.1f s of %.1f (loop %.1f s), \"%s\" from \"%s\"\n", game.c_str(), player.position(),
                         player.file().seconds(), player.file().loopSamples / 44100.0, player.file().title.c_str(),
@@ -895,19 +912,7 @@ int main(int argc, char** argv) {
                     md.title().c_str(), system, pal ? "pal" : "ntsc", ran, f.width, f.height, lastHash);
         std::printf("audio hash: %08x\n", audioHash);
         // With --synth: the instruments it heard and what each sounds as.
-        if (!synthFont.empty())
-            for (const auto& [fp, seen] : synth.seen()) {
-                const SynthMusic::Assignment a = synth.assignmentFor(fp);
-                const SynthMusic::Traits& t = seen.traits;
-                std::printf("instrument %08x: %d notes %d-%d voices %02x | %s%s %.2fs bright %.2f fund %.2f odd %.2f"
-                            " | held %d decayed %d swelled %d -> ",
-                            fp, seen.notes, seen.low, seen.high, seen.voices, t.pitched ? "pitched" : "unpitched",
-                            t.looped ? " looped" : "", t.seconds, t.brightness, t.fundamental, t.odd, seen.heard.held,
-                            seen.heard.decayed, seen.heard.swelled);
-                if (a.original) std::printf("original\n");
-                else if (a.drum >= 0) std::printf("drum %d %s\n", a.drum, SynthMusic::drumName(a.drum) ? SynthMusic::drumName(a.drum) : "");
-                else std::printf("%d %s%s\n", a.program, SynthMusic::programName(a.program), a.octave ? " (octave shifted)" : "");
-            }
+        if (!synthFont.empty()) printInstruments(synth);
         std::printf("speed: %.0f fps (%.1fx)\n", fps, fps / md.refreshRate());
         if (netplay) std::printf("netplay: %ld frames run again, ping %d ms\n", rollbacks, ping);
         for (const std::string& s : failures) std::printf("FAILED: %s\n", s.c_str());

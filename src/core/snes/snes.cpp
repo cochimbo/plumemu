@@ -318,9 +318,15 @@ void Snes::write(uint32_t address, uint8_t value) {
 uint8_t Snes::busRead(uint32_t address) {
     const uint32_t bank = address >> 16;
     const uint16_t a = static_cast<uint16_t>(address);
-    if ((bank & 0xFE) == 0x7E) return wram_[address & 0x1FFFF];
+    if ((bank & 0xFE) == 0x7E) {
+        if (wramReadWatch) wramReadWatch(address & 0x1FFFF, wram_[address & 0x1FFFF]);
+        return wram_[address & 0x1FFFF];
+    }
     if (!(bank & 0x40)) {
-        if (a < 0x2000) return wram_[a];
+        if (a < 0x2000) {
+            if (wramReadWatch) wramReadWatch(a, wram_[a]);
+            return wram_[a];
+        }
         if (a < 0x6000) {
             if ((a & 0xFF00) == 0x2100) return bRead(static_cast<uint8_t>(a));
             if (a == 0x4016) return static_cast<uint8_t>((mdr_ & 0xFC) | ioRead(a));
@@ -349,11 +355,13 @@ void Snes::busWrite(uint32_t address, uint8_t value) {
     const uint32_t bank = address >> 16;
     const uint16_t a = static_cast<uint16_t>(address);
     if ((bank & 0xFE) == 0x7E) {
+        if (wramWatch) wramWatch(address & 0x1FFFF, value);
         wram_[address & 0x1FFFF] = value;
         return;
     }
     if (!(bank & 0x40)) {
         if (a < 0x2000) {
+            if (wramWatch) wramWatch(a, value);
             wram_[a] = value;
             return;
         }
@@ -392,6 +400,7 @@ void Snes::bWrite(uint8_t reg, uint8_t value) {
     } else if (reg < 0x80) {
         apu_.writePort(reg & 3, value);
     } else if (reg == 0x80) {
+        if (wramWatch) wramWatch(wmadd_, value);
         wram_[wmadd_] = value;
         wmadd_ = (wmadd_ + 1) & 0x1FFFF;
     } else if (reg == 0x81) {

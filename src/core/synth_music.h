@@ -228,7 +228,18 @@ private:
     struct Rule {
         Traits traits;
         Heard heard;
+        // The instrument it goes as, when it is another sound of the same channel's tune
+        // (a duty or a wave the driver changes from note to note): the first one heard on
+        // that channel. 0 for itself.
+        uint32_t lead = 0;
     };
+    // Each channel's tune: its first instrument, and its last note.
+    struct Lead {
+        uint32_t fingerprint = 0;
+        uint64_t last = 0;
+    };
+    std::array<Lead, 8> leads_{};
+    Assignment ruled(uint32_t fingerprint) const;
     struct Channel {
         int program = -1;
         int bend = 8192;

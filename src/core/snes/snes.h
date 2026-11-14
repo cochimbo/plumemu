@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -66,6 +67,13 @@ public:
     snes::Coprocessor* coprocessor() { return copro_.get(); }
     uint8_t vramByte(uint32_t address) const { return ppu_.peekVram(address); }
     std::array<uint8_t, 0x10000>& apuRam() { return apu_.ram(); }
+    snes::Apu& apu() { return apu_; }
+    // Told of every write to the work RAM (by its index, 0-1FFFF) before it is made, and
+    // may change the value written (Sacar canciones asks the game for other songs so).
+    std::function<void(uint32_t index, uint8_t& value)> wramWatch;
+    std::function<void(uint32_t index, uint8_t value)> wramReadWatch;  // and every read
+    uint8_t wramByte(uint32_t index) const { return wram_[index & 0x1FFFF]; }
+    void setWramByte(uint32_t index, uint8_t v) { wram_[index & 0x1FFFF] = v; }
     std::vector<uint8_t> musicSnapshot(const std::string& name, int seconds) override {
         apu_.catchUp();
         return apu_.saveSpc(name, title(), seconds);
