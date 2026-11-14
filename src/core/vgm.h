@@ -1,13 +1,15 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "synth_music.h"
+
 namespace plumnin {
 
-class SynthMusic;
 namespace gb {
 class Apu;
 }
@@ -84,7 +86,18 @@ public:
     ~VgmPlayer();
     void load(VgmFile file);
     const VgmFile& file() const { return file_; }
+    bool loaded() const { return !file_.data.empty(); }
     void restart();
+    // Back to its loop when it gets to the end (if it has one), or finished there.
+    void setLoop(bool loop) { loop_ = loop; }
+    // To `seconds` from the start, quickly, without sound.
+    void seek(double seconds);
+    // The synthesizer still follows the music but is not heard: the chip as it is (for
+    // comparing), with only what the synthesizer silences left out.
+    void setSynthOutput(bool on) { synthOutput_ = on; }
+    // The instruments of the whole file (one time through), as a synthesizer of its own
+    // hears them, without a sound.
+    static std::map<uint32_t, SynthMusic::Seen> instruments(const VgmFile& file, double maxSeconds = 600);
     // The synthesizer (not owned; null for the chip's own sound) and how loud the chip
     // stays under it.
     void setSynth(SynthMusic* synth, int chipPercent);
@@ -111,6 +124,8 @@ private:
     uint64_t cycles_ = 0;   // the chip's, at 4 MHz
     uint64_t sequencer_ = 0;  // cycles left to the next frame sequencer clock
     bool finished_ = false;
+    bool loop_ = true;
+    bool synthOutput_ = true;
 };
 
 }  // namespace plumnin

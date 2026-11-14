@@ -2,35 +2,53 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
 
 #include "../core/songs.h"
 #include "../core/synth_music.h"
+#include "../core/system.h"
 #include "../core/vgm.h"
 
 namespace plumnin {
 
 class Console;
 
-// The instrument editor (Sonido > Editor de instrumentos): while the game plays through
-// the synthesizer, it lists the instruments heard so far, what each sounds like on the
-// chip and what the rules give it, and lets each one be given another General MIDI
-// instrument (with its octave and volume), a piece of the drum kit, or its own sound
-// from the chip. "Oír solo este" silences the rest. What is chosen is heard at once and
-// kept per game in sound/<game>.ini, in plumsg's format.
+// What the editor needs to know about the emulator each frame.
+struct EditorView {
+    std::string game;            // the game it is for (its path), empty for none
+    Console* console = nullptr;  // that game's console, when it is the one running
+    SynthMusic* gameSynth = nullptr;  // the console's synthesizer: its SoundFont, and what it hears
+    bool synthOn = false;        // the game's music goes through it
+    int chipPercent = 0, reverb = 40, chorus = 20;
+    bool effectsOriginal = true;  // the game's sound effects keep the chip's sound
+    std::function<void()> drawSoundfont;  // the SoundFont drop-down, next to Sintetizador
+};
+
+// What the editor asks of the emulator.
+struct EditorRequests {
+    bool chooseTrack = false;  // pick a .vgm to open (then openTrack())
+    std::string load;          // play this game (to record it)
+};
+
+// The instrument editor (Sonido > Editor de instrumentos, or a game's menu in the
+// library), as plumsg's: plays a song of the game (taken out of the ROM with Sacar
+// canciones, recorded while playing, or opened from a .vgm), lists the instruments in it
+// and its channels, and lets each instrument be given a General MIDI one, a piece of the
+// drum kit or its own sound, comparing with the original as it plays. With no song open
+// and the game running through the synthesizer, the instruments heard so far.
 //
-// Its other tab, Canciones, has the game's songs as VGM files in sound/tracks/<game>/,
-// to hear them without playing (the game waits meanwhile), through the synthesizer
-// when it is on, so that its instruments can be changed while they play. They come
-// from recording the game as it plays, or, on the Game Boy, from Sacar canciones,
-// which finds every song in the ROM by itself (SongRipper).
+// What is chosen is kept per game in sound/<game>.ini, in plumsg's format, and heard at
+// once in the game. Its songs are in sound/tracks/<game>/; the instruments of its sound
+// effects (Sacar canciones finds them), in sound/<game>.effects.
 class InstrumentEditor {
 public:
-    InstrumentEditor() = default;
+    InstrumentEditor();
     ~InstrumentEditor();
     InstrumentEditor(const InstrumentEditor&) = delete;
     InstrumentEditor& operator=(const InstrumentEditor&) = delete;
@@ -43,6 +61,8 @@ public:
     // What a game (its path) has chosen, from its file; none if it has none.
     static SynthMusic::Assignments load(const std::string& folder, const std::string& game);
     static std::string fileFor(const std::string& folder, const std::string& game);
+    // A game's sound effects, as Sacar canciones found them (none if it was not run).
+    static std::set<uint32_t> effectsFor(const std::string& folder, const std::string& game);
 
     // The games with songs in their track folder (sound/tracks/<game>/), by file name
     // without extension, and how many: the library marks them with a note.
@@ -50,49 +70,82 @@ public:
 
     bool isOpen() const { return open_; }
     void open() { open_ = true; }
-    // Draws the window, between ImGui::NewFrame and ImGui::Render. `game` is the path
-    // of the game running (empty for none) and `console` its console, `on` whether the
-    // synthesizer is playing it, and `chipPercent` how loud the chip stays under it.
-    void draw(SynthMusic& synth, const std::string& game, bool on, Console* console, int chipPercent);
+    // Draws the window, between ImGui::NewFrame and ImGui::Render.
+    void draw(const EditorView& view, EditorRequests& out);
 
     // A song is playing: the game waits, and its sound is play()'s.
-    bool playing() const { return playing_; }
+    bool playing() const { return open_ && playing_; }
     void play(double seconds, double rate, std::vector<int16_t>& out);
+    // Opens a .vgm or .vgz, or a .zip of them (a vgmrips pack). A file from elsewhere is
+    // copied into the game's track folder, so it is there next time.
+    bool openTrack(const std::string& path);
     // The folder of a game's songs.
     static std::string tracksFor(const std::string& folder, const std::string& game);
 
 private:
-    void drawInstruments(SynthMusic& synth, bool on);
-    void drawSongs(SynthMusic& synth, bool on, Console* console, int chipPercent);
-    void scanSongs();
-    static int songsIn(const std::string& folder);  // .vgm and .vgz
-    void startSong(size_t index, SynthMusic& synth, bool on, int chipPercent);
-    void stopSong();
-    void stopRecording(Console* console, bool keep);
-    void finishRip();
+    struct Instrument {
+        uint32_t fingerprint = 0;
+        SynthMusic::Seen seen;
+        bool heard = false;  // in this song (else only in the game's file)
+        std::string label;   // "Pulso A", "Ruido B"...
+    };
+    struct Track {
+        std::string path;
+        std::string member;  // in a .zip; empty for a file
+        std::string title;
+        bool operator==(const Track& o) const { return path == o.path && member == o.member; }
+    };
 
-    void assign(SynthMusic& synth, uint32_t fingerprint, const SynthMusic::Assignment* a);  // null: the rules'
-    void save(const SynthMusic& synth);
-    void solo(SynthMusic& synth, uint32_t fingerprint);  // 0: everything heard again
+    void setGame(const EditorView& view);
+    void listTracks();
+    void addTracks(const std::string& path);
+    bool loadTrack(const Track& track);
+    void stop();
+    std::vector<Instrument> instruments(const SynthMusic& synth) const;
+    SynthMusic& listened(const EditorView& view);  // the synthesizer the lists are of
+    void applyListening(const EditorView& view);
+    void assign(const EditorView& view, uint32_t fingerprint, const SynthMusic::Assignment* a);
+    void resetAll(const EditorView& view);
+    void save(const EditorView& view);
+    void drawTrack(const EditorView& view, EditorRequests& out);
+    void drawInstruments(const EditorView& view, const std::vector<Instrument>& list);
+    void drawChannels(const EditorView& view, const std::vector<Instrument>& list);
+    void drawAssignment(const EditorView& view, const std::vector<Instrument>& list);
+    void startRip();
+    void drawRip();
+    void finishRip();
+    void stopRecording(Console* console, bool keep);
+    static int songsIn(const std::string& folder);  // .vgm, .vgz and .zip
+    ConsoleSystem trackSystem() const;  // whose channels the lists show
 
     std::string folder_;
-    std::string game_;
-    std::string error_;
     bool open_ = false;
-    uint32_t solo_ = 0;
+    std::string game_, gameName_;
+    ConsoleSystem system_ = ConsoleSystem::GameBoy;
+    bool live_ = false;  // listing what the game plays, not a song
 
-    struct Track {
-        std::string name, path;
-        double seconds = 0, loopSeconds = 0;
-    };
-    std::vector<Track> songs_;
-    bool scanned_ = false;
-    int musicVersion_ = 1, musicSeen_ = 0;  // a game's songs looked at again: read them all again
-    std::map<std::string, int> withMusic_;
+    SynthMusic synth_;  // the editor's own, for the songs
     VgmPlayer player_;
+    Track track_;
+    std::vector<Track> tracks_;
+    std::map<uint32_t, SynthMusic::Seen> trackSeen_;
     bool playing_ = false;
-    size_t current_ = 0;
-    SynthMusic* playSynth_ = nullptr;
+    bool synthOutput_ = true;
+    bool loop_ = true;
+    float seekTo_ = -1;
+    int chipPercent_ = 0;
+    SynthMusic::Assignments own_;
+    uint32_t selected_ = 0;
+    uint32_t mutedVoices_ = 0, soloVoices_ = 0;
+    uint32_t soloInstrument_ = 0;
+    std::set<uint32_t> silencedInstruments_;
+    bool pendingSlide_ = false;
+    std::string message_;
+    int effectsVersion_ = 0, effectsSeen_ = 0;  // the .effects file was written again
+
+    int musicVersion_ = 1, musicSeen_ = 0;  // songs changed: the library reads them again
+    std::map<std::string, int> withMusic_;
+
     // Recording the game's music.
     VgmWriter writer_;
     Console* recording_ = nullptr;
@@ -102,7 +155,8 @@ private:
     std::atomic<bool> ripDone_{false};
     bool ripOk_ = false;
     std::vector<SongRipper::Song> ripSongs_;
-    std::string ripError_, ripGame_, message_;
+    std::set<uint32_t> ripEffects_;
+    std::string ripError_, ripGame_;
 };
 
 }  // namespace plumnin

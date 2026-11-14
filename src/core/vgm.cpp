@@ -346,7 +346,8 @@ void VgmPlayer::runNes(uint64_t cycles) {
                 nesApu_->musicVoice(ch, hz, s);
                 synth_->update(ch, s, nesCycles_);
             }
-            nesApu_->setChannelGains(synth_->chipVoices(), synth_->silentVoices(), chipPercent_);
+            if (synthOutput_) nesApu_->setChannelGains(synth_->chipVoices(), synth_->silentVoices(), chipPercent_);
+            else nesApu_->setChannelGains(~0u, synth_->silentVoices(), 100);
         }
     }
 }
@@ -369,7 +370,8 @@ void VgmPlayer::runChip(uint64_t cycles) {
                     apu_->musicVoice(ch, s);
                     synth_->update(ch, s, cycles_);
                 }
-                apu_->setChannelGains(synth_->chipVoices(), synth_->silentVoices(), chipPercent_);
+                if (synthOutput_) apu_->setChannelGains(synth_->chipVoices(), synth_->silentVoices(), chipPercent_);
+                else apu_->setChannelGains(~0u, synth_->silentVoices(), 100);
             }
         }
     }
@@ -412,7 +414,7 @@ void VgmPlayer::runTo(uint64_t tick) {
         } else if (c >= 0x70 && c <= 0x7F) {
             wait = static_cast<uint64_t>(c - 0x70 + 1);
         } else if (c == 0x66) {
-            if (file_.loop) at_ = file_.loop;
+            if (file_.loop && loop_) at_ = file_.loop;
             else finished_ = true;
         } else if (c == 0x67 && at_ + 5 < d.size()) {  // a data block: the NES's samples, or skipped
             const uint8_t type = d[at_ + 1];
@@ -451,7 +453,12 @@ void VgmPlayer::play(double seconds, double rate, std::vector<int16_t>& out) {
     runTo(ticks_ + static_cast<uint64_t>(std::lround(seconds * kTickRate)));
     if (nes) nesApu_->takeSamples(out);
     else apu_->takeSamples(out);
-    if (synth_) synth_->endFrame(nes ? nesCycles_ : cycles_, out, before, rate);
+    if (synth_ && synthOutput_) {
+        synth_->endFrame(nes ? nesCycles_ : cycles_, out, before, rate);
+    } else if (synth_) {  // following the music, not heard
+        std::vector<int16_t> unheard(out.size() - before * 2, 0);
+        synth_->endFrame(nes ? nesCycles_ : cycles_, unheard, 0, rate);
+    }
     // The chip's outputs jump from nothing to their resting level as it is switched on,
     // which the console's capacitor takes a moment to absorb: a fade in of the first
     // 50 ms instead of a click.
@@ -467,6 +474,39 @@ void VgmPlayer::play(double seconds, double rate, std::vector<int16_t>& out) {
             }
         }
     }
+}
+
+void VgmPlayer::seek(double seconds) {
+    SynthMusic* synth = synth_;
+    synth_ = nullptr;
+    restart();
+    const uint64_t target = static_cast<uint64_t>(std::max(0.0, seconds) * kTickRate);
+    std::vector<int16_t> unheard;
+    while (ticks_ < target && !finished_) {
+        runTo(std::min(target, ticks_ + static_cast<uint64_t>(kTickRate)));
+        unheard.clear();
+        apu_->takeSamples(unheard);
+        unheard.clear();
+        nesApu_->takeSamples(unheard);
+    }
+    synth_ = synth;
+    if (synth_) synth_->allNotesOff();
+}
+
+std::map<uint32_t, SynthMusic::Seen> VgmPlayer::instruments(const VgmFile& file, double maxSeconds) {
+    SynthMusic ear;  // with no SoundFont: it hears, silently
+    VgmPlayer p;
+    p.load(file);
+    p.setLoop(false);
+    p.setSynth(&ear, 100);
+    const double length = std::min(maxSeconds, file.seconds() + 1.0);
+    std::vector<int16_t> out;
+    for (double t = 0; t < length && !p.finished(); t += 1.0) {
+        out.clear();
+        p.play(1.0, 8000, out);
+    }
+    p.setSynth(nullptr, 100);
+    return ear.seen();
 }
 
 }  // namespace plumnin

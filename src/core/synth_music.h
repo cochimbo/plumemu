@@ -127,6 +127,11 @@ public:
     // A SoundFont 2 file's contents. False if it is not one.
     bool loadSoundfont(const std::vector<uint8_t>& data);
     bool ready() const;
+    // The same SoundFont as `from`, sharing its samples (another player of the same
+    // music, the instrument editor's). False if `from` has none.
+    bool shareSoundfont(const SynthMusic& from);
+    // Which SoundFont is loaded: it changes when another one is (or shared from another).
+    const void* soundfontKey() const { return fontKey_; }
 
     void setEffects(int reverb, int chorus);  // 0..100 each
     // The equalizer: a gain in dB (-kEqRange..kEqRange) for each band, from the bass up.
@@ -140,6 +145,13 @@ public:
     void setAssignments(Assignments assigned);
     const Assignments& assignments() const { return assigned_; }
     Assignment assignmentFor(uint32_t fingerprint) const;
+    // What it plays when not chosen by hand: the rules', or its own sound for an effect.
+    Assignment suggestionFor(uint32_t fingerprint) const;
+    // The game's sound effects (instruments, as Sacar canciones found them), and whether
+    // they keep the chip's sound when not chosen by hand.
+    void setSoundEffects(std::set<uint32_t> effects, bool original);
+    bool isSoundEffect(uint32_t fingerprint) const { return effects_.count(fingerprint) != 0; }
+    bool soundEffectsOriginal() const { return effectsOriginal_; }
     // The voices whose chip sound should be heard: those playing an instrument left
     // original.
     uint32_t chipVoices() const { return chipVoices_; }
@@ -231,6 +243,9 @@ private:
     std::array<Channel, 16> channels_{};
     std::map<uint32_t, Rule> rules_;
     Assignments assigned_;
+    std::set<uint32_t> effects_;
+    bool effectsOriginal_ = false;
+    const void* fontKey_ = nullptr;
     std::map<uint32_t, Seen> seen_;
     uint32_t chipVoices_ = 0, silentVoices_ = 0;
     uint32_t mutedVoices_ = 0;

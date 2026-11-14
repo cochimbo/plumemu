@@ -12,17 +12,14 @@ msgstr ""
 "\n"
 "Ao ativá-lo, o jogo recomeça."
 
+msgid " (%+d oct.)"
+msgstr " (%+d oit.)"
+
 msgid " (hardcore)"
 msgstr " (hardcore)"
 
 msgid "%d / %d px"
 msgstr "%d / %d px"
-
-msgid "%d canciones encontradas"
-msgstr "%d músicas encontradas"
-
-msgid "%d canciones guardadas en %s"
-msgstr "%d músicas salvas em %s"
 
 msgid "%d carpetas"
 msgstr "%d pastas"
@@ -36,9 +33,6 @@ msgstr "%d jogos."
 msgid "%d juegos. Buscando carátulas, quedan %d..."
 msgstr "%d jogos. Procurando capas, faltam %d..."
 
-msgid "%d notas"
-msgstr "%d notas"
-
 msgid "%d resultados. Pulsa uno para verlo."
 msgstr "%d resultados. Clique num para o ver."
 
@@ -51,6 +45,9 @@ msgstr "%s não é uma imagem PNG ou JPEG"
 msgid "%s, %u puntos"
 msgstr "%s, %u pontos"
 
+msgid "%s: %d %s, de %s a %s. Sugerencia: %s."
+msgstr "%s: %d %s, de %s a %s. Sugestão: %s."
+
 msgid "%u de %u logros, %u de %u puntos%s"
 msgstr "%u de %u conquistas, %u de %u pontos%s"
 
@@ -59,6 +56,12 @@ msgstr "%u pontos"
 
 msgid "(atajo en Opciones > Controles)"
 msgstr "(atalho em Opções > Controles)"
+
+msgid "(efecto)"
+msgstr "(efeito)"
+
+msgid "(ninguna)"
+msgstr "(nenhuma)"
 
 msgid "(perfil de %s)"
 msgstr "(perfil de %s)"
@@ -71,6 +74,9 @@ msgstr "(ajustados em Vídeo com o jogo aberto)"
 
 msgid "(sin nombre)"
 msgstr "(sem nome)"
+
+msgid "(sugerido)"
+msgstr "(sugerido)"
 
 msgid ", %d sin encontrar"
 msgstr ", %d não encontradas"
@@ -156,6 +162,9 @@ msgstr "Em baixo à direita"
 msgid "Abajo a la izquierda"
 msgstr "Em baixo à esquerda"
 
+msgid "Abre el juego; luego pulsa Grabar del juego aquí."
+msgstr "Abre o jogo; depois clique aqui em Gravar do jogo."
+
 msgid "Abre primero el juego."
 msgstr "Abra o jogo primeiro."
 
@@ -176,6 +185,9 @@ msgstr "Abra uma ROM para salvar um perfil 3D próprio para ela."
 
 msgid "Abre una ROM, o elige un juego en la biblioteca con el botón derecho."
 msgstr "Abra uma ROM, ou escolha um jogo na biblioteca com o botão direito."
+
+msgid "Abrir .vgm..."
+msgstr "Abrir .vgm..."
 
 msgid "Abrir ROM"
 msgstr "Abrir ROM"
@@ -233,6 +245,9 @@ msgstr "Ajustar"
 
 msgid "Ajustes"
 msgstr "Ajustes"
+
+msgid "Al principio"
+msgstr "Do início"
 
 msgid "Al volver a descargar"
 msgstr "Ao voltar a descarregar"
@@ -360,6 +375,9 @@ msgstr "Baixo slap 1"
 msgid "Bajo slap 2"
 msgstr "Baixo slap 2"
 
+msgid "Bajos"
+msgstr "Baixos"
+
 msgid "Bandoneón"
 msgstr "Bandoneón"
 
@@ -368,6 +386,9 @@ msgstr "Banjo"
 
 msgid "Barra de menús"
 msgstr "Barra de menus"
+
+msgid "Batería"
+msgstr "Bateria"
 
 msgid "Batería: %s"
 msgstr "Bateria: %s"
@@ -408,11 +429,16 @@ msgstr "Garrafa soprada"
 msgid "Botones propios de este juego"
 msgstr "Botões próprios deste jogo"
 
-msgid "Bucle"
-msgstr "Loop"
-
-msgid "Busca cómo pide el juego su música y graba cada canción con su bucle. Suele tardar menos de un minuto, y en algunos juegos unos pocos."
-msgstr "Descobre como o jogo pede sua música e grava cada uma com seu loop. Costuma levar menos de um minuto, alguns em certos jogos."
+msgid ""
+"Busca cómo pide el juego su música y graba cada canción con su bucle\n"
+"(Canción 01, Canción 02...), con las pistas del juego. También aprende\n"
+"cuáles de sus instrumentos son efectos de sonido. Suele tardar menos\n"
+"de un minuto, y en algunos juegos unos pocos."
+msgstr ""
+"Procura como o jogo pede a sua música e grava cada música com o seu loop\n"
+"(Música 01, Música 02...), com as faixas do jogo. Também aprende\n"
+"quais dos seus instrumentos são efeitos sonoros. Costuma levar menos\n"
+"de um minuto, e alguns em certos jogos."
 
 msgid ""
 "Busca en ScreenScraper (internet) cada juego que aún no tenga sus medios: portada completa,\n"
@@ -483,6 +509,9 @@ msgstr "Sinos tubulares"
 msgid "Campanilla"
 msgstr "Sininho"
 
+msgid "Canal"
+msgstr "Canal"
+
 msgid "Canales"
 msgstr "Canais"
 
@@ -491,12 +520,6 @@ msgstr "Cancelado."
 
 msgid "Cancelar"
 msgstr "Cancelar"
-
-msgid "Canciones"
-msgstr "Músicas"
-
-msgid "Canción"
-msgstr "Música"
 
 msgid "Canción %02d"
 msgstr "Música %02d"
@@ -507,14 +530,17 @@ msgstr "Camadas"
 msgid "Captura"
 msgstr "Captura"
 
-msgid "Carga un juego y juega: sus instrumentos aparecen aquí a medida que suenan."
-msgstr "Carregue um jogo e jogue: seus instrumentos aparecem aqui à medida que soam."
+msgid "Carga un juego, o ábrelo desde su menú en la biblioteca: aquí saldrán sus canciones y sus instrumentos."
+msgstr "Carregue um jogo, ou abra isto pelo menu dele na biblioteca: aqui aparecerão as suas músicas e os seus instrumentos."
 
 msgid "Cargar estado"
 msgstr "Carregar estado"
 
 msgid "Cargar estado (ranura %d)"
 msgstr "Carregar estado (slot %d)"
+
+msgid "Carpeta"
+msgstr "Pasta"
 
 msgid "Carpeta: %s"
 msgstr "Pasta: %s"
@@ -614,6 +640,9 @@ msgstr "Conga aguda abafada"
 msgid "Conga grave"
 msgstr "Conga grave"
 
+msgid "Conjuntos"
+msgstr "Conjuntos"
+
 msgid "Conseguidos"
 msgstr "Conquistadas"
 
@@ -679,6 +708,9 @@ msgstr "Conta do ScreenScraper..."
 
 msgid "Cuenta..."
 msgstr "Conta..."
+
+msgid "Cuerdas"
+msgstr "Cordas"
 
 msgid "Cuerdas 1"
 msgstr "Cordas 1"
@@ -839,14 +871,17 @@ msgstr "Tiro"
 msgid "Distribuidora"
 msgstr "Distribuidora"
 
+msgid "Do"
+msgstr "Dó"
+
+msgid "Do#"
+msgstr "Dó#"
+
 msgid "Dos jugadores, cada uno en su ordenador y con el mismo juego abierto (la misma ROM). Quien aloja es el jugador 1 y quien se une, el jugador 2; cada uno juega con sus controles del jugador 1. La partida empieza donde la tenga el anfitrión."
 msgstr "Dois jogadores, cada um no seu computador e com o mesmo jogo aberto (a mesma ROM). Quem hospeda é o jogador 1 e quem entra, o jogador 2; cada um joga com seus controles do jogador 1. A partida começa onde o anfitrião estiver."
 
 msgid "Dulcémele"
 msgstr "Saltério"
-
-msgid "Dura"
-msgstr "Duração"
 
 msgid "EE. UU. (NTSC)"
 msgstr "EUA (NTSC)"
@@ -892,6 +927,15 @@ msgstr "Efeito ecos"
 
 msgid "Efecto lluvia"
 msgstr "Efeito chuva"
+
+msgid "Efectos de sonido"
+msgstr "Efeitos sonoros"
+
+msgid "Efectos de sonido originales"
+msgstr "Efeitos sonoros originais"
+
+msgid "Efectos sintetizados"
+msgstr "Efeitos sintetizados"
 
 msgid "El 3D se guarda ahora solo para %s"
 msgstr "O 3D agora é salvo só para %s"
@@ -962,9 +1006,6 @@ msgstr "Escolher imagem"
 msgid "Elegir otro (.sf2)..."
 msgstr "Escolher outro (.sf2)..."
 
-msgid "Elige Sonido > Sintetizador para que la música suene con el SoundFont; entonces sus instrumentos aparecen aquí a medida que suenan."
-msgstr "Escolha Som > Sintetizador para que a música toque com a SoundFont; os seus instrumentos aparecem então aqui à medida que soam."
-
 msgid "Elige la carpeta donde tienes tus juegos de Game Boy, Game Boy Color, NES o Super Nintendo."
 msgstr "Escolha a pasta onde tem os seus jogos de Game Boy, Game Boy Color, NES ou Super Nintendo."
 
@@ -983,8 +1024,8 @@ msgstr "No ScreenScraper: «%s»"
 msgid "En casa, tu amigo se une a %s:%d."
 msgstr "Em casa, seu amigo entra em %s:%d."
 
-msgid "En el chip"
-msgstr "No chip"
+msgid "En esta pista no suena música."
+msgstr "Não toca música nesta faixa."
 
 msgid "En modo hardcore no se pueden cargar estados"
 msgstr "No modo hardcore não dá para carregar estados"
@@ -1014,6 +1055,9 @@ msgstr "Enviando a partida ao outro jogador..."
 msgid "Error del servidor: %s"
 msgstr "Erro do servidor: %s"
 
+msgid "Es un efecto de sonido del juego."
+msgstr "É um efeito sonoro do jogo."
+
 msgid "Esc  mostrar u ocultar la barra de menús"
 msgstr "Esc  mostrar ou ocultar a barra de menus"
 
@@ -1032,8 +1076,8 @@ msgstr "Digite o endereço do anfitrião."
 msgid "Escribe un código."
 msgstr "Digite um código."
 
-msgid "Escuchar"
-msgstr "Ouvir"
+msgid "Escuchar solo este"
+msgstr "Ouvir só este"
 
 msgid "Espacio"
 msgstr "Espaço"
@@ -1122,6 +1166,12 @@ msgstr "F4 ou clique do analógico esquerdo  menu de estados, usável com o cont
 msgid "F5 / F8  guardar / cargar estado; F6 / F7  cambiar de ranura"
 msgstr "F5 / F8  salvar / carregar estado;  F6 / F7  mudar de slot"
 
+msgid "Fa"
+msgstr "Fá"
+
+msgid "Fa#"
+msgstr "Fá#"
+
 msgid "Fagot"
 msgstr "Fagote"
 
@@ -1148,6 +1198,9 @@ msgstr "Flauta de pã"
 
 msgid "Flauta dulce"
 msgstr "Flauta doce"
+
+msgid "Flautas"
+msgstr "Flautas"
 
 msgid "Flautín"
 msgstr "Flautim"
@@ -1195,6 +1248,9 @@ msgstr "Fundo new age"
 
 msgid "Fondo polisintetizador"
 msgstr "Fundo polissintetizador"
+
+msgid "Fondos sintetizados"
+msgstr "Fundos sintetizados"
 
 msgid "Fuente: ScreenScraper"
 msgstr "Fonte: ScreenScraper"
@@ -1252,8 +1308,8 @@ msgstr "Gravação %02d"
 msgid "Grabado jugando con plumnin"
 msgstr "Gravado jogando com o plumnin"
 
-msgid "Grabando %.0f s"
-msgstr "Gravando %.0f s"
+msgid "Grabando %s"
+msgstr "Gravando %s"
 
 msgid "Grabando un GIF (Ctrl+G para pararlo)"
 msgstr "A gravar um GIF (Ctrl+G para parar)"
@@ -1267,17 +1323,14 @@ msgstr "Gravar"
 msgid "Grabar GIF"
 msgstr "Gravar GIF"
 
-msgid "Grabar la música del juego"
-msgstr "Gravar a música do jogo"
+msgid "Grabar del juego"
+msgstr "Gravar do jogo"
 
 msgid "Grabar vídeo"
 msgstr "Gravar vídeo"
 
 msgid "Grosor"
 msgstr "Espessura"
-
-msgid "Guardada como %s"
-msgstr "Salva como %s"
 
 msgid "Guardar el 3D solo para este juego"
 msgstr "Salvar o 3D só para este jogo"
@@ -1312,6 +1365,9 @@ msgstr "Guitarra elétrica limpa"
 msgid "Guitarra saturada"
 msgstr "Guitarra saturada"
 
+msgid "Guitarras"
+msgstr "Guitarras"
+
 msgid "Género"
 msgstr "Gênero"
 
@@ -1337,6 +1393,12 @@ msgstr "Você saiu da partida em rede"
 
 msgid "Has salido de la partida."
 msgstr "Você saiu da partida."
+
+msgid "He sacado %d canciones de la ROM: están en la lista de pistas."
+msgstr "Tirei %d músicas da ROM: estão na lista de faixas."
+
+msgid "He sacado 1 canción de la ROM: está en la lista de pistas."
+msgstr "Tirei 1 música da ROM: está na lista de faixas."
 
 msgid "Helicóptero"
 msgstr "Helicóptero"
@@ -1380,8 +1442,11 @@ msgstr "Entrar"
 msgid "Instrumento"
 msgstr "Instrumento"
 
-msgid "Instrumentos"
-msgstr "Instrumentos"
+msgid "Instrumento GM"
+msgstr "Instrumento GM"
+
+msgid "Instrumentos (elige uno para cambiarlo)"
+msgstr "Instrumentos (escolha um para mudá-lo)"
 
 msgid "Intensidad del filtro"
 msgstr "Intensidade do filtro"
@@ -1395,14 +1460,14 @@ msgstr "Esquerda"
 msgid "Japón (NTSC)"
 msgstr "Japão (NTSC)"
 
-msgid "Juega a este juego para ver sus instrumentos: aparecen aquí a medida que suenan."
-msgstr "Jogue este jogo para ver os seus instrumentos: aparecem aqui à medida que soam."
-
-msgid "Juega: se graba lo que suene hasta que la pares."
-msgstr "Jogue: tudo o que tocar é gravado até você parar."
+msgid "Juega hasta que suene lo que quieres probar y pulsa Parar. Para usar el teclado en el juego, haz clic fuera de esta ventana."
+msgstr "Jogue até tocar o que você quer testar e clique em Parar. Para usar o teclado no jogo, clique fora desta janela."
 
 msgid "Juego"
 msgstr "Jogo"
+
+msgid "Juego: %s"
+msgstr "Jogo: %s"
 
 msgid "Juegos"
 msgstr "Jogos"
@@ -1435,6 +1500,9 @@ msgstr "Jogar em rede"
 msgid "Jugar en red..."
 msgstr "Jogar em rede..."
 
+msgid "Jugar para grabar"
+msgstr "Jogar para gravar"
+
 msgid "Kalimba"
 msgstr "Kalimba"
 
@@ -1444,11 +1512,23 @@ msgstr "Koto"
 msgid "L1 / R1 (o Q / E): cambiar de pestaña   B / Esc: cerrar"
 msgstr "L1 / R1 (ou Q / E): mudar de aba   B / Esc: fechar"
 
+msgid "La"
+msgstr "Lá"
+
 msgid "La API de ScreenScraper está cerrada por ahora. Prueba más tarde."
 msgstr "A API do ScreenScraper está fechada por agora. Tente mais tarde."
 
 msgid "La base de trucos de libretro no tiene listas para este juego."
 msgstr "A base de truques do libretro não tem listas para este jogo."
+
+msgid ""
+"La carpeta de las canciones de este juego: lo que pongas en ella (.vgm, .vgz o\n"
+"el .zip de vgmrips) sale en la lista.\n"
+"%s"
+msgstr ""
+"A pasta das músicas deste jogo: o que você colocar nela (.vgm, .vgz ou\n"
+"o .zip do vgmrips) aparece na lista.\n"
+"%s"
 
 msgid ""
 "La consola solo dibuja 20 sprites (16 en modo estrecho) por línea; los juegos alternan cuáles\n"
@@ -1501,14 +1581,24 @@ msgstr "O slot %d está vazio"
 msgid "La sesión ha caducado: vuelve a escribir la contraseña."
 msgstr "A sessão expirou: digite a senha de novo."
 
-msgid "Las canciones del juego, para oírlas sin jugar: el juego espera mientras suena una. Con el sintetizador puesto suenan con él, y en Instrumentos puedes cambiar los suyos mientras suenan."
-msgstr "As músicas do jogo, para ouvir sem jogar: o jogo espera enquanto uma toca. Com o sintetizador ligado elas tocam por ele, e em Instrumentos você pode trocar os instrumentos delas enquanto tocam."
+msgid "La#"
+msgstr "Lá#"
+
+msgid ""
+"Las canciones del juego y sus instrumentos, con lo que suena en el sintetizador:\n"
+"elige otro instrumento General MIDI, una pieza de la batería o su sonido original."
+msgstr ""
+"As músicas do jogo e os seus instrumentos, com o que toca no sintetizador:\n"
+"escolha outro instrumento General MIDI, uma peça da bateria ou o seu som original."
 
 msgid "Las dos consolas se han descompasado (fotograma %d): lo que veis ya no es lo mismo. Salid y volved a empezar."
 msgstr "Os dois consoles perderam a sincronia (quadro %d): o que vocês veem já não é o mesmo. Saiam e comecem de novo."
 
 msgid "Latencia"
 msgstr "Latência"
+
+msgid "Lengüetas"
+msgstr "Palhetas"
 
 msgid "Lista"
 msgstr "Lista"
@@ -1556,15 +1646,22 @@ msgstr ""
 "para %s e recuperados ao abri-lo.\n"
 "Ao desmarcar, o jogo volta a usar os ajustes gerais."
 
+msgid "Los efectos de sonido de %s (huellas de instrumentos), de Sacar canciones."
+msgstr "Os efeitos sonoros de %s (impressões de instrumentos), de Tirar músicas."
+
+msgid ""
+"Los efectos de sonido del juego (los que Sacar canciones encuentra) suenan\n"
+"con el chip, y solo la música pasa por el sintetizador."
+msgstr ""
+"Os efeitos sonoros do jogo (os que Tirar músicas encontra) tocam\n"
+"com o chip, e só a música passa pelo sintetizador."
+
 msgid ""
 "Los fotogramas por segundo del juego y lo que tarda cada uno en emularse,\n"
 "con una gráfica de los últimos 10 segundos."
 msgstr ""
 "Os fotogramas por segundo do jogo e quanto demora cada um a emular,\n"
 "com um gráfico dos últimos 10 segundos."
-
-msgid "Los instrumentos que el juego ha tocado hasta ahora, en el orden en que sonaron. Lo que elijas se oye al momento y se guarda para este juego."
-msgstr "Os instrumentos que o jogo tocou até agora, pela ordem em que soaram. O que você escolher é ouvido na hora e salvo para este jogo."
 
 msgid ""
 "Los lados de arriba se guardan para %s y se recuperan al abrirlo.\n"
@@ -1647,18 +1744,17 @@ msgstr "Menu de estados..."
 msgid "Menús (todas las opciones)"
 msgstr "Menus (todas as opções)"
 
+msgid "Metales"
+msgstr "Metais"
+
 msgid "Metales sintetizados 1"
 msgstr "Metais sintetizados 1"
 
 msgid "Metales sintetizados 2"
 msgstr "Metais sintetizados 2"
 
-msgid ""
-"Mientras juegas, cada instrumento del juego con lo que suena en el sintetizador:\n"
-"elige otro instrumento General MIDI, una pieza de la batería o su sonido original."
-msgstr ""
-"Enquanto joga, cada instrumento do jogo e o que toca no sintetizador:\n"
-"escolha outro instrumento General MIDI, uma peça da bateria ou o seu som original."
+msgid "Mi"
+msgstr "Mi"
 
 msgid "Modo consola"
 msgstr "Modo console"
@@ -1674,15 +1770,6 @@ msgstr "Mostrar a barra de menus (Esc)"
 
 msgid "Muestra"
 msgstr "Amostra"
-
-msgid "Muestra con bucle"
-msgstr "Amostra com loop"
-
-msgid "Muestra de %.2f s"
-msgstr "Amostra de %.2f s"
-
-msgid "Muestra sin nota"
-msgstr "Amostra sem nota"
 
 msgid "Música"
 msgstr "Música"
@@ -1744,8 +1831,14 @@ msgstr "Não foi possível encontrar \"%s\"."
 msgid "No se ha encontrado el controlador de sonido del juego."
 msgstr "O driver de som do jogo não foi encontrado."
 
+msgid "No se ha podido abrir el SoundFont: elige otro en la lista de al lado."
+msgstr "Não foi possível abrir o SoundFont: escolha outro na lista ao lado."
+
 msgid "No se pudieron cargar los logros: %s"
 msgstr "Não foi possível carregar as conquistas: %s"
+
+msgid "No se pudo abrir %s."
+msgstr "Não foi possível abrir %s."
 
 msgid ""
 "No se pudo abrir %s:\n"
@@ -1757,6 +1850,12 @@ msgstr ""
 "%s\n"
 "\n"
 "O plumnin abre cartuchos de Game Boy, Game Boy Color, NES e Super Nintendo. Se o arquivo for um deles, pode estar incompleto ou danificado: tente copiá-lo de novo."
+
+msgid "No se pudo abrir %s: %s"
+msgstr "Não foi possível abrir %s: %s"
+
+msgid "No se pudo abrir %s: no tiene ningún .vgm ni .vgz."
+msgstr "Não foi possível abrir %s: não tem nenhum .vgm nem .vgz."
 
 msgid "No se pudo abrir el SoundFont %s: la música suena original."
 msgstr "Não foi possível abrir a SoundFont %s: a música soa original."
@@ -1797,6 +1896,9 @@ msgstr "Não foi possível guardar em %s"
 msgid "No se pudo guardar la carátula en %s"
 msgstr "Não foi possível salvar a capa em %s"
 
+msgid "No se pudo guardar la grabación en %s."
+msgstr "Não foi possível salvar a gravação em %s."
+
 msgid "No se pudo iniciar la red."
 msgstr "Não foi possível iniciar a rede."
 
@@ -1805,6 +1907,9 @@ msgstr "Não foi possível entrar: %s"
 
 msgid "No se pudo leer %s"
 msgstr "Não foi possível ler %s"
+
+msgid "No se pudo leer %s."
+msgstr "Não foi possível ler %s."
 
 msgid "No se pudo leer la lista de trucos de libretro (error %d)."
 msgstr "Não foi possível ler a lista de truques do libretro (erro %d)."
@@ -1851,20 +1956,14 @@ msgstr "Oboé"
 msgid "Ocarina"
 msgstr "Ocarina"
 
-msgid "Octava, volumen"
-msgstr "Oitava, volume"
-
-msgid "Octavas arriba o abajo"
-msgstr "Oitavas acima ou abaixo"
+msgid "Octava"
+msgstr "Oitava"
 
 msgid "Olas"
 msgstr "Ondas do mar"
 
 msgid "Onda"
 msgstr "Onda"
-
-msgid "Onda de la Game Boy"
-msgstr "Onda do Game Boy"
 
 msgid "Opciones"
 msgstr "Opções"
@@ -1887,14 +1986,11 @@ msgstr "Opção desconhecida: %s"
 msgid "Original"
 msgstr "Original"
 
-msgid "Original (el chip)"
-msgstr "Original (o chip)"
-
 msgid "Overclock"
 msgstr "Overclock"
 
-msgid "Oír solo este"
-msgstr "Ouvir só este"
+msgid "Oír"
+msgstr "Ouvir"
 
 msgid "Oír todos"
 msgstr "Ouvir todos"
@@ -1950,11 +2046,17 @@ msgstr "Parar emulação"
 msgid "Parar la descarga"
 msgstr "Parar o download"
 
-msgid "Parar y guardar la grabación"
-msgstr "Parar e salvar a gravação"
+msgid "Parar la grabación"
+msgstr "Parar a gravação"
 
 msgid "Pausa"
 msgstr "Pausa"
+
+msgid "Percusión"
+msgstr "Percussão"
+
+msgid "Percusión afinada"
+msgstr "Percussão cromática"
 
 msgid "Piano brillante"
 msgstr "Piano brilhante"
@@ -1974,11 +2076,20 @@ msgstr "Piano elétrico 2"
 msgid "Piano eléctrico de cola"
 msgstr "Piano de cauda elétrico"
 
+msgid "Pianos"
+msgstr "Pianos"
+
 msgid "Pidiendo los datos del juego..."
 msgstr "A pedir os dados do jogo..."
 
+msgid "Pieza del kit"
+msgstr "Peça do kit"
+
 msgid "Pinball"
 msgstr "Pinball"
+
+msgid "Pista"
+msgstr "Faixa"
 
 msgid "Pistola de luz"
 msgstr "Pistola de luz"
@@ -2052,6 +2163,12 @@ msgstr "Quiz"
 msgid "Probando..."
 msgstr "Testando..."
 
+msgid "Probando: %d canciones"
+msgstr "Testando: %d músicas"
+
+msgid "Probando: 1 canción"
+msgstr "Testando: 1 música"
+
 msgid "Probar la conexión"
 msgstr "Testar a conexão"
 
@@ -2082,8 +2199,11 @@ msgstr "Aperte uma tecla..."
 msgid "Pulso"
 msgstr "Pulso"
 
-msgid "Pulso de %s"
-msgstr "Pulso de %s"
+msgid "Pulso 1"
+msgstr "Pulso 1"
+
+msgid "Pulso 2"
+msgstr "Pulso 2"
 
 msgid "Puzle"
 msgstr "Quebra-cabeça"
@@ -2106,6 +2226,13 @@ msgstr ""
 "quadro o jogo corre esse número de quadros à frente, mostra a sua imagem\n"
 "e volta atrás. 1 costuma chegar; mais pedem mais ao computador e podem notar-se saltos."
 
+msgid ""
+"Quita todo lo elegido a mano para este juego: cada instrumento vuelve a sonar\n"
+"como sugieren las reglas."
+msgstr ""
+"Remove tudo o que foi escolhido à mão para este jogo: cada instrumento volta a soar\n"
+"como sugerem as regras."
+
 msgid "Quitar"
 msgstr "Remover"
 
@@ -2117,6 +2244,9 @@ msgstr "O que descarregar"
 
 msgid "Qué descargar..."
 msgstr "O que baixar..."
+
+msgid "Quítalo para no oír este instrumento."
+msgstr "Desmarque para não ouvir este instrumento."
 
 msgid "Ranura %d"
 msgstr "Slot %d"
@@ -2138,6 +2268,12 @@ msgstr "Slot anterior"
 
 msgid "Ranura siguiente"
 msgstr "Próximo slot"
+
+msgid "Re"
+msgstr "Ré"
+
+msgid "Re#"
+msgstr "Ré#"
 
 msgid "Rebobinar (mantener)"
 msgstr "Voltar (segurar)"
@@ -2187,6 +2323,9 @@ msgstr "Reiniciar"
 msgid "Reintentar"
 msgstr "Tentar de novo"
 
+msgid "Repetir"
+msgstr "Repetir"
+
 msgid "Respiración"
 msgstr "Respiração"
 
@@ -2217,9 +2356,6 @@ msgstr "RPG"
 msgid "Ruido"
 msgstr "Ruído"
 
-msgid "Ruido, altura %d de 15"
-msgstr "Ruído, altura %d de 15"
-
 msgid "Run-ahead"
 msgstr "Run-ahead"
 
@@ -2229,8 +2365,11 @@ msgstr "Run-ahead (menos latência)"
 msgid "Run-ahead desactivado: no se pudo volver al fotograma actual."
 msgstr "Run-ahead desativado: não foi possível voltar ao quadro atual."
 
-msgid "Sacar canciones de la ROM"
-msgstr "Extrair músicas da ROM"
+msgid "Saca las canciones de la ROM del juego (Sacar canciones), graba un trozo del juego (Grabar del juego, y juega hasta que suene la música que quieres probar) o abre un .vgm con su música, de vgmrips.net por ejemplo. Aquí saldrán sus instrumentos; también los que suenan mientras juegas con el sintetizador puesto."
+msgstr "Extraia as músicas da ROM do jogo (Tirar músicas), grave um trecho do jogo (Gravar do jogo, e jogue até tocar a música que quer testar) ou abra um .vgm com a sua música, do vgmrips.net por exemplo. Aqui aparecerão os seus instrumentos; também os que tocam enquanto joga com o sintetizador ligado."
+
+msgid "Sacar canciones"
+msgstr "Tirar músicas"
 
 msgid "Salir"
 msgstr "Sair"
@@ -2343,6 +2482,9 @@ msgstr "Shamisen"
 msgid "Shanai"
 msgstr "Shanai"
 
+msgid "Si"
+msgstr "Si"
+
 msgid "Si ya tienes cuenta, escribe aquí tu usuario y tu contraseña de screenscraper.fr: con ella se pueden hacer más peticiones al día, y ScreenScraper sigue respondiendo aunque esté lleno. Se guarda en plumnin.ini."
 msgstr "Se você já tem conta, digite aqui seu usuário e sua senha do screenscraper.fr: com ela dá para fazer mais pedidos por dia, e o ScreenScraper continua respondendo mesmo quando está lotado. Fica salvo em plumnin.ini."
 
@@ -2389,6 +2531,9 @@ msgstr ""
 "Desmarcado, a câmera olha de frente e a imagem parece 2D;\n"
 "a profundidade aparece com a iluminação e a câmera viva."
 
+msgid "Sin pista abierta: los instrumentos que suenan en el juego hasta ahora."
+msgstr "Sem faixa aberta: os instrumentos que tocaram no jogo até agora."
+
 msgid "Sin rebobinar, cámara lenta, trucos ni cargar estados (guardar sí). Los logros cuentan para tu puntuación hardcore y se puede entrar en las clasificaciones. Al activarlo, el juego vuelve a empezar."
 msgstr "Sem voltar, câmera lenta, truques nem carregar estados (salvar pode). As conquistas contam para sua pontuação hardcore e dá para entrar nos rankings. Ao ativá-lo, o jogo recomeça."
 
@@ -2406,6 +2551,12 @@ msgstr "Cítara"
 
 msgid "Sobrescribir todos los medios"
 msgstr "Substituir todos os ficheiros"
+
+msgid "Sol"
+msgstr "Sol"
+
+msgid "Sol#"
+msgstr "Sol#"
 
 msgid "Solista bajo y melodía"
 msgstr "Solo baixo e melodia"
@@ -2431,6 +2582,12 @@ msgstr "Solo quintas"
 msgid "Solista voz"
 msgstr "Solo voz"
 
+msgid "Solistas sintetizados"
+msgstr "Solos sintetizados"
+
+msgid "Solo"
+msgstr "Solo"
+
 msgid "Sombra de los sprites"
 msgstr "Sombra dos sprites"
 
@@ -2446,6 +2603,9 @@ msgstr "Som original"
 msgid "Sonido silenciado"
 msgstr "Som silenciado"
 
+msgid "SoundFont"
+msgstr "SoundFont"
+
 msgid "Suavizado"
 msgstr "Suavização"
 
@@ -2458,14 +2618,11 @@ msgstr "Subir"
 msgid "Suena como"
 msgstr "Soa como"
 
-msgid "Sugerencia"
-msgstr "Sugestão"
-
-msgid "Sugerencia: %s"
-msgstr "Sugestão: %s"
-
 msgid "Sí"
 msgstr "Sim"
+
+msgid "Sí, todo a las sugerencias"
+msgstr "Sim, tudo para as sugestões"
 
 msgid "Tab o gatillo derecho (mantener)  avance rápido;  F9  cámara lenta"
 msgstr "Tab ou gatilho direito (segurar)  avanço rápido;  F9  câmera lenta"
@@ -2515,17 +2672,11 @@ msgstr "Timbal grave"
 msgid "Timbales"
 msgstr "Tímpanos"
 
-msgid "Todavía no ha sonado nada."
-msgstr "Ainda não soou nada."
+msgid "Tocar"
+msgstr "Tocar"
 
-msgid "Todavía no hay canciones."
-msgstr "Ainda não há músicas."
-
-msgid "Todavía no hay canciones: sácalas de la ROM o graba la música jugando."
-msgstr "Ainda não há músicas: extraia da ROM ou grave a música jogando."
-
-msgid "Todo a las sugerencias"
-msgstr "Tudo de volta às sugestões"
+msgid "Todo a las sugerencias..."
+msgstr "Tudo para as sugestões..."
 
 msgid "Todos"
 msgstr "Todos"
@@ -2575,9 +2726,6 @@ msgstr "Triângulo aberto"
 msgid "Triángulo apagado"
 msgstr "Triângulo abafado"
 
-msgid "Triángulo de la NES"
-msgstr "Triângulo do NES"
-
 msgid "Trombón"
 msgstr "Trombone"
 
@@ -2616,6 +2764,13 @@ msgstr "Tuba"
 
 msgid "Título"
 msgstr "Título"
+
+msgid ""
+"Un .vgm o .vgz, o el .zip con todas las canciones del juego de vgmrips.net.\n"
+"Se guarda con las pistas del juego, para tenerlo la próxima vez."
+msgstr ""
+"Um .vgm ou .vgz, ou o .zip com todas as músicas do jogo do vgmrips.net.\n"
+"É salvo com as faixas do jogo, para tê-lo da próxima vez."
 
 msgid "Un panel a la derecha con la carátula, los datos y la descripción del juego elegido."
 msgstr "Um painel à direita com a capa, os dados e a descrição do jogo escolhido."
@@ -2713,17 +2868,20 @@ msgstr "Voltar a descarregar tudo em toda a biblioteca"
 msgid "Volver a intentarlo"
 msgstr "Tentar de novo"
 
+msgid "Volver a la sugerencia"
+msgstr "Voltar à sugestão"
+
 msgid "Volver a los generales"
 msgstr "Voltar aos gerais"
 
 msgid "Voz \"ooh\""
 msgstr "Voz \"ooh\""
 
+msgid "Voz %d"
+msgstr "Voz %d"
+
 msgid "Voz sintetizada"
 msgstr "Voz sintetizada"
-
-msgid "Vuelve a lo que dan las reglas"
-msgstr "Voltar ao que as regras dão"
 
 msgid "Vídeo"
 msgstr "Vídeo"
@@ -2806,14 +2964,23 @@ msgstr "a ROM de NES não tem PRG"
 msgid "la ROM es demasiado pequeña para ser de Game Boy"
 msgstr "a ROM é pequena demais para ser de Game Boy"
 
-msgid "no"
-msgstr "não"
+msgid "ninguno"
+msgstr "nenhum"
 
 msgid "no es una ROM de NES (le falta la cabecera iNES)"
 msgstr "não é uma ROM de NES (falta-lhe o cabeçalho iNES)"
 
 msgid "no se pudo leer %s"
 msgstr "não foi possível ler %s"
+
+msgid "no suena en esta pista"
+msgstr "não toca nesta faixa"
+
+msgid "nota"
+msgstr "nota"
+
+msgid "notas"
+msgstr "notas"
 
 msgid "palabra"
 msgstr "palavra"
@@ -2951,6 +3118,15 @@ msgstr "· %d sem capa"
 msgid "¿No tienes cuenta? Es gratis:"
 msgstr "Não tem conta? É grátis:"
 
+msgid "¿Quitar todo lo elegido a mano en %s?"
+msgstr "Remover tudo o que foi escolhido à mão em %s?"
+
+msgid "¿Quitar todo lo elegido a mano?"
+msgstr "Remover tudo o que foi escolhido à mão?"
+
+msgid "Étnicos"
+msgstr "Étnicos"
+
 msgid "Órgano de barras"
 msgstr "Órgão de barras"
 
@@ -2962,3 +3138,6 @@ msgstr "Órgão percussivo"
 
 msgid "Órgano de rock"
 msgstr "Órgão de rock"
+
+msgid "Órganos"
+msgstr "Órgãos"

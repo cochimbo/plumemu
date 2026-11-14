@@ -2,34 +2,108 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
-#include <vector>
+#include <iterator>
+#include <system_error>
 
 #include "imgui.h"
 #include "file_dialog.h"
+#include "miniz.h"
 #include "../core/console.h"
 #include "../core/i18n.h"
-#include "../core/system.h"
 
 namespace plumnin {
 
 namespace {
 
+namespace fs = std::filesystem;
+
+bool readBytes(const std::string& path, std::vector<uint8_t>& out) {
+    std::ifstream in(fs::u8path(path), std::ios::binary);
+    if (!in) return false;
+    out.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    return true;
+}
+
 std::string readText(const std::string& path) {
-    std::ifstream in(std::filesystem::u8path(path), std::ios::binary);
-    std::stringstream s;
-    s << in.rdbuf();
-    return s.str();
+    std::vector<uint8_t> data;
+    if (!readBytes(path, data)) return {};
+    return std::string(data.begin(), data.end());
+}
+
+bool writeBytes(const std::string& path, const void* data, size_t size) {
+    std::error_code ec;
+    fs::create_directories(fs::u8path(path).parent_path(), ec);
+    std::ofstream out(fs::u8path(path), std::ios::binary | std::ios::trunc);
+    out.write(static_cast<const char*>(data), static_cast<std::streamsize>(size));
+    return static_cast<bool>(out);
+}
+
+std::string fileName(const std::string& path) { return fs::u8path(path).filename().u8string(); }
+std::string stem(const std::string& path) { return fs::u8path(path).stem().u8string(); }
+
+std::string lower(std::string s) {
+    for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+bool endsWith(const std::string& name, const char* ext) {
+    const std::string l = lower(name);
+    const size_t n = std::char_traits<char>::length(ext);
+    return l.size() > n && l.compare(l.size() - n, n, ext) == 0;
+}
+bool isTrack(const std::string& name) { return endsWith(name, ".vgm") || endsWith(name, ".vgz"); }
+bool isZip(const std::string& name) { return endsWith(name, ".zip"); }
+
+// The songs in a .zip, by name, with their contents.
+std::vector<std::pair<std::string, std::vector<uint8_t>>> zipTracks(const std::vector<uint8_t>& zip) {
+    std::vector<std::pair<std::string, std::vector<uint8_t>>> out;
+    mz_zip_archive archive{};
+    if (!mz_zip_reader_init_mem(&archive, zip.data(), zip.size(), 0)) return out;
+    for (mz_uint i = 0; i < mz_zip_reader_get_num_files(&archive); ++i) {
+        mz_zip_archive_file_stat st;
+        if (!mz_zip_reader_file_stat(&archive, i, &st) || st.m_is_directory || !isTrack(st.m_filename)) continue;
+        size_t size = 0;
+        void* data = mz_zip_reader_extract_to_heap(&archive, i, &size, 0);
+        if (!data) continue;
+        const uint8_t* b = static_cast<const uint8_t*>(data);
+        out.emplace_back(st.m_filename, std::vector<uint8_t>(b, b + size));
+        mz_free(data);
+    }
+    mz_zip_reader_end(&archive);
+    std::sort(out.begin(), out.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    return out;
+}
+
+// What a song is called: its tag's title, else its file name.
+std::string trackTitle(std::vector<uint8_t> bytes, const std::string& name) {
+    VgmFile file;
+    if (file.parse(std::move(bytes), nullptr) && !file.title.empty()) return file.title;
+    return stem(name);
 }
 
 std::string noteName(int note) {
-    static const char* const kNames[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+    static const char* kNames[12] = {N_("Do"), N_("Do#"), N_("Re"), N_("Re#"), N_("Mi"), N_("Fa"),
+                                     N_("Fa#"), N_("Sol"), N_("Sol#"), N_("La"), N_("La#"), N_("Si")};
     note = std::clamp(note, 0, 127);
-    return std::string(kNames[note % 12]) + std::to_string(note / 12 - 1);
+    return std::string(tr(kNames[note % 12])) + std::to_string(note / 12 - 1);
 }
+
+std::string minutes(double seconds) {
+    const int s = static_cast<int>(std::max(0.0, seconds));
+    char text[16];
+    std::snprintf(text, sizeof text, "%d:%02d", s / 60, s % 60);
+    return text;
+}
+
+const char* const kFamilies[16] = {N_("Pianos"), N_("Percusión afinada"), N_("Órganos"), N_("Guitarras"), N_("Bajos"), N_("Cuerdas"),
+                                   N_("Conjuntos"), N_("Metales"), N_("Lengüetas"), N_("Flautas"), N_("Solistas sintetizados"),
+                                   N_("Fondos sintetizados"), N_("Efectos sintetizados"), N_("Étnicos"), N_("Percusión"),
+                                   N_("Efectos de sonido")};
 
 const char* kindName(SynthMusic::Kind kind) {
     switch (kind) {
@@ -42,269 +116,42 @@ const char* kindName(SynthMusic::Kind kind) {
     return "";
 }
 
-// What the chip makes of it, in a few words.
-std::string describe(const SynthMusic::Seen& s) {
-    static const char* const kDuty[4] = {"12,5 %", "25 %", "50 %", "75 %"};
-    const SynthMusic::Traits& t = s.traits;
-    switch (s.kind) {
-        case SynthMusic::Kind::Pulse: return trf("Pulso de %s", kDuty[t.duty & 3]);
-        case SynthMusic::Kind::Wave: return tr("Onda de la Game Boy");
-        case SynthMusic::Kind::Triangle: return tr("Triángulo de la NES");
-        case SynthMusic::Kind::Noise: return trf("Ruido, altura %d de 15", t.noise);
-        case SynthMusic::Kind::Sample:
-            if (!t.pitched) return tr("Muestra sin nota");
-            if (t.looped) return tr("Muestra con bucle");
-            return trf("Muestra de %.2f s", t.seconds);
-    }
-    return {};
+// A, B ... Z, then AA, AB...
+std::string instrumentLetter(int n) {
+    std::string s;
+    for (++n; n > 0; n = (n - 1) / 26) s.insert(s.begin(), static_cast<char>('A' + (n - 1) % 26));
+    return s;
 }
 
-// What an assignment plays, for the drop-down.
-std::string playsAs(const SynthMusic::Assignment& a) {
-    if (a.original) return tr("Original (el chip)");
+std::string describe(const SynthMusic::Assignment& a) {
+    if (a.original) return tr("Sonido original");
     if (a.drum >= 0) return trf("Batería: %s", SynthMusic::drumName(a.drum));
-    if (a.program >= 0) return SynthMusic::programName(a.program);
-    return tr("Nada");
+    if (a.program < 0) return tr("Nada");
+    std::string s = SynthMusic::programName(a.program);
+    if (a.octave) s += trf(" (%+d oct.)", a.octave);
+    return s;
 }
+
+// The console's channels, as the synthesizer counts them.
+std::vector<std::string> voiceNames(ConsoleSystem system) {
+    switch (system) {
+        case ConsoleSystem::Nes: return {tr("Pulso 1"), tr("Pulso 2"), tr("Triángulo"), tr("Ruido")};
+        case ConsoleSystem::Snes: {
+            std::vector<std::string> v;
+            for (int i = 1; i <= 8; ++i) v.push_back(trf("Voz %d", i));
+            return v;
+        }
+        default: return {tr("Pulso 1"), tr("Pulso 2"), tr("Onda"), tr("Ruido")};
+    }
+}
+
+constexpr ImGuiTableFlags kListFlags = ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerV |
+                                       ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp;
+const ImVec4 kPlaying(0.45f, 0.95f, 0.55f, 1.0f);
 
 }  // namespace
 
-std::string InstrumentEditor::fileFor(const std::string& folder, const std::string& game) {
-    if (game.empty()) return {};
-    return folder + std::filesystem::u8path(game).stem().u8string() + ".ini";
-}
-
-SynthMusic::Assignments InstrumentEditor::load(const std::string& folder, const std::string& game) {
-    if (game.empty()) return {};
-    return SynthMusic::parseAssignments(readText(fileFor(folder, game)));
-}
-
-void InstrumentEditor::save(const SynthMusic& synth) {
-    const std::string path = fileFor(folder_, game_);
-    if (path.empty()) return;
-    std::error_code ec;
-    std::filesystem::create_directories(std::filesystem::u8path(folder_), ec);
-    std::ofstream out(std::filesystem::u8path(path), std::ios::binary | std::ios::trunc);
-    out << SynthMusic::formatAssignments(synth.assignments());
-    error_ = out ? std::string() : trf("No se pudo guardar %s", path.c_str());
-}
-
-void InstrumentEditor::assign(SynthMusic& synth, uint32_t fingerprint, const SynthMusic::Assignment* a) {
-    SynthMusic::Assignments all = synth.assignments();
-    if (a) all[fingerprint] = *a;
-    else all.erase(fingerprint);
-    synth.setAssignments(std::move(all));
-    save(synth);
-}
-
-void InstrumentEditor::solo(SynthMusic& synth, uint32_t fingerprint) {
-    solo_ = fingerprint;
-    std::set<uint32_t> silenced;
-    if (fingerprint)
-        for (const auto& [fp, seen] : synth.seen())
-            if (fp != fingerprint) silenced.insert(fp);
-    synth.setListening(0, std::move(silenced));
-}
-
-void InstrumentEditor::draw(SynthMusic& synth, const std::string& game, bool on, Console* console, int chipPercent) {
-    if (ripDone_) finishRip();
-    if (recording_ && recording_ != console) {
-        // The game was closed while recording: its console is gone, and so is the recording.
-        recording_ = nullptr;
-        message_ = tr("La grabación se ha perdido: el juego se cerró antes de pararla.");
-    }
-    if (game != game_) {
-        game_ = game;
-        error_.clear();
-        if (solo_) solo(synth, 0);
-        stopSong();
-        scanned_ = false;
-    }
-    if (!open_) {
-        if (solo_) solo(synth, 0);
-        stopSong();
-        return;
-    }
-    if (!scanned_) scanSongs();
-    ImGui::SetNextWindowSize(ImVec2(900, 460), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(tr("Editor de instrumentos"), &open_)) {
-        ImGui::End();
-        return;
-    }
-    if (game.empty()) {
-        ImGui::TextWrapped("%s", tr("Carga un juego y juega: sus instrumentos aparecen aquí a medida que suenan."));
-        ImGui::End();
-        return;
-    }
-    if (ImGui::BeginTabBar("pestañas")) {
-        if (ImGui::BeginTabItem(tr("Instrumentos"))) {
-            if (console) drawInstruments(synth, on);
-            else ImGui::TextWrapped("%s", tr("Juega a este juego para ver sus instrumentos: aparecen aquí a medida que suenan."));
-            ImGui::EndTabItem();
-        }
-        if (ImGui::BeginTabItem(tr("Canciones"))) {
-            drawSongs(synth, on, console, chipPercent);
-            ImGui::EndTabItem();
-        }
-        ImGui::EndTabBar();
-    }
-    ImGui::End();
-}
-
-void InstrumentEditor::drawInstruments(SynthMusic& synth, bool on) {
-    if (!on) {
-        ImGui::TextWrapped("%s", tr("Elige Sonido > Sintetizador para que la música suene con el SoundFont; entonces sus "
-                                    "instrumentos aparecen aquí a medida que suenan."));
-        return;
-    }
-    ImGui::TextWrapped("%s", tr("Los instrumentos que el juego ha tocado hasta ahora, en el orden en que sonaron. Lo que "
-                                "elijas se oye al momento y se guarda para este juego."));
-    if (!error_.empty()) ImGui::TextColored(ImVec4(1, 0.4f, 0.4f, 1), "%s", error_.c_str());
-
-    std::vector<std::pair<uint32_t, SynthMusic::Seen>> list(synth.seen().begin(), synth.seen().end());
-    std::sort(list.begin(), list.end(), [](const auto& a, const auto& b) { return a.second.order < b.second.order; });
-    // Which instrument each voice plays now, to light up those sounding.
-    std::set<uint32_t> playing;
-    const uint32_t active = synth.activeVoices();
-    for (int v = 0; v < SynthMusic::kVoices; ++v)
-        if ((active >> v) & 1) playing.insert(synth.voiceInstrument(v));
-
-    const ImGuiTableFlags flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollY |
-                                  ImGuiTableFlags_Resizable;
-    const float bottom = ImGui::GetFrameHeightWithSpacing() * 1.5f;
-    if (ImGui::BeginTable("instrumentos", 7, flags, ImVec2(0, -bottom))) {
-        ImGui::TableSetupScrollFreeze(0, 1);
-        ImGui::TableSetupColumn(tr("Instrumento"), ImGuiTableColumnFlags_WidthFixed, 110);
-        ImGui::TableSetupColumn(tr("En el chip"), ImGuiTableColumnFlags_WidthFixed, 150);
-        ImGui::TableSetupColumn(tr("Canales"), ImGuiTableColumnFlags_WidthFixed, 70);
-        ImGui::TableSetupColumn(tr("Notas"), ImGuiTableColumnFlags_WidthFixed, 80);
-        ImGui::TableSetupColumn(tr("Suena como"));
-        ImGui::TableSetupColumn(tr("Octava, volumen"), ImGuiTableColumnFlags_WidthFixed, 170);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 190);
-        ImGui::TableHeadersRow();
-        int letters[5] = {};
-        for (const auto& [fp, seen] : list) {
-            ImGui::PushID(static_cast<int>(fp));
-            ImGui::TableNextRow();
-            const bool assigned = synth.assignments().count(fp) != 0;
-            const SynthMusic::Assignment now = synth.assignmentFor(fp);
-
-            ImGui::TableNextColumn();
-            const int letter = letters[static_cast<int>(seen.kind)]++;
-            char name[64];
-            std::snprintf(name, sizeof name, "%s %c", kindName(seen.kind), 'A' + letter % 26);
-            if (playing.count(fp)) ImGui::TextColored(ImVec4(0.4f, 1, 0.4f, 1), "%s", name);
-            else ImGui::TextUnformatted(name);
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s %08x", tr("Huella"), fp);
-
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted(describe(seen).c_str());
-
-            ImGui::TableNextColumn();
-            std::string voices;
-            for (int v = 0; v < SynthMusic::kVoices; ++v)
-                if ((seen.voices >> v) & 1) voices += (voices.empty() ? "" : " ") + std::to_string(v + 1);
-            ImGui::TextUnformatted(voices.c_str());
-
-            ImGui::TableNextColumn();
-            if (seen.kind == SynthMusic::Kind::Noise || (seen.kind == SynthMusic::Kind::Sample && !seen.traits.pitched))
-                ImGui::TextDisabled("%d", seen.notes);
-            else if (seen.low == seen.high)
-                ImGui::Text("%s", noteName(seen.low).c_str());
-            else
-                ImGui::Text("%s-%s", noteName(seen.low).c_str(), noteName(seen.high).c_str());
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip(tr("%d notas"), seen.notes);
-
-            // What it plays: the rules' suggestion until chosen.
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth(-1);
-            const std::string current = assigned ? playsAs(now) : trf("Sugerencia: %s", playsAs(seen.rules).c_str());
-            if (ImGui::BeginCombo("##suena", current.c_str(), ImGuiComboFlags_HeightLarge)) {
-                SynthMusic::Assignment a = now;
-                auto pick = [&](SynthMusic::Assignment chosen) {
-                    chosen.octave = now.octave;
-                    chosen.volume = now.volume;
-                    assign(synth, fp, &chosen);
-                };
-                if (ImGui::Selectable(tr("Original (el chip)"), now.original)) {
-                    SynthMusic::Assignment o;
-                    o.original = true;
-                    pick(o);
-                }
-                ImGui::Separator();
-                const bool noise = seen.kind == SynthMusic::Kind::Noise;
-                if (!noise)
-                    for (int p = 0; p < 128; ++p) {
-                        char label[96];
-                        std::snprintf(label, sizeof label, "%3d  %s", p + 1, SynthMusic::programName(p));
-                        if (ImGui::Selectable(label, !now.original && now.drum < 0 && now.program == p)) {
-                            SynthMusic::Assignment o;
-                            o.program = p;
-                            pick(o);
-                        }
-                    }
-                ImGui::Separator();
-                for (int d = 35; d <= 81; ++d) {
-                    const std::string label = trf("Batería: %s", SynthMusic::drumName(d));
-                    if (ImGui::Selectable(label.c_str(), !now.original && now.drum == d)) {
-                        SynthMusic::Assignment o;
-                        o.drum = d;
-                        pick(o);
-                    }
-                }
-                (void)a;
-                ImGui::EndCombo();
-            }
-
-            ImGui::TableNextColumn();
-            ImGui::BeginDisabled(now.original);
-            int octave = now.octave, volume = now.volume;
-            ImGui::SetNextItemWidth(60);
-            const bool drum = now.drum >= 0;
-            ImGui::BeginDisabled(drum);
-            if (ImGui::SliderInt("##octava", &octave, -3, 3, "%+d", ImGuiSliderFlags_AlwaysClamp) && octave != now.octave) {
-                SynthMusic::Assignment o = now;
-                o.octave = octave;
-                assign(synth, fp, &o);
-            }
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s", tr("Octavas arriba o abajo"));
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(90);
-            if (ImGui::SliderInt("##volumen", &volume, 0, 200, "%d%%", ImGuiSliderFlags_AlwaysClamp) && volume != now.volume) {
-                SynthMusic::Assignment o = now;
-                o.volume = volume;
-                assign(synth, fp, &o);
-            }
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s", tr("Volumen"));
-            ImGui::EndDisabled();
-
-            ImGui::TableNextColumn();
-            const bool soloed = solo_ == fp;
-            if (ImGui::SmallButton(soloed ? tr("Oír todos") : tr("Oír solo este"))) solo(synth, soloed ? 0 : fp);
-            ImGui::SameLine();
-            ImGui::BeginDisabled(!assigned);
-            if (ImGui::SmallButton(tr("Sugerencia"))) assign(synth, fp, nullptr);
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("%s", tr("Vuelve a lo que dan las reglas"));
-            ImGui::EndDisabled();
-            ImGui::PopID();
-        }
-        ImGui::EndTable();
-    }
-    if (list.empty()) ImGui::TextDisabled("%s", tr("Todavía no ha sonado nada."));
-    ImGui::BeginDisabled(synth.assignments().empty());
-    if (ImGui::Button(tr("Todo a las sugerencias"))) {
-        synth.setAssignments({});
-        save(synth);
-    }
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", fileFor(folder_, game_).c_str());
-}
-
-// ---------------------------------------------------------------------------------
-// Canciones
+InstrumentEditor::InstrumentEditor() = default;
 
 InstrumentEditor::~InstrumentEditor() {
     if (ripThread_.joinable()) {
@@ -313,18 +160,45 @@ InstrumentEditor::~InstrumentEditor() {
     }
 }
 
+std::string InstrumentEditor::fileFor(const std::string& folder, const std::string& game) {
+    if (game.empty()) return {};
+    return folder + stem(game) + ".ini";
+}
+
+SynthMusic::Assignments InstrumentEditor::load(const std::string& folder, const std::string& game) {
+    if (game.empty()) return {};
+    return SynthMusic::parseAssignments(readText(fileFor(folder, game)));
+}
+
+std::set<uint32_t> InstrumentEditor::effectsFor(const std::string& folder, const std::string& game) {
+    std::set<uint32_t> out;
+    if (game.empty()) return out;
+    const std::string text = readText(folder + stem(game) + ".effects");
+    size_t pos = 0;
+    while (pos < text.size()) {
+        size_t end = text.find('\n', pos);
+        if (end == std::string::npos) end = text.size();
+        const std::string line = text.substr(pos, end - pos);
+        pos = end + 1;
+        if (line.empty() || line[0] == ';') continue;
+        char* stop = nullptr;
+        const unsigned long fp = std::strtoul(line.c_str(), &stop, 16);
+        if (stop != line.c_str() && fp) out.insert(static_cast<uint32_t>(fp));
+    }
+    return out;
+}
+
 std::string InstrumentEditor::tracksFor(const std::string& folder, const std::string& game) {
     if (game.empty()) return {};
-    return folder + "tracks/" + std::filesystem::u8path(game).stem().u8string() + "/";
+    return folder + "tracks/" + stem(game) + "/";
 }
 
 int InstrumentEditor::songsIn(const std::string& folder) {
     int n = 0;
     std::error_code ec;
-    for (std::filesystem::directory_iterator it(std::filesystem::u8path(folder), ec), end; !ec && it != end; it.increment(ec)) {
-        std::string ext = it->path().extension().u8string();
-        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        if ((ext == ".vgm" || ext == ".vgz") && it->is_regular_file(ec)) ++n;
+    for (fs::directory_iterator it(fs::u8path(folder), ec), end; !ec && it != end; it.increment(ec)) {
+        const std::string name = it->path().filename().u8string();
+        if ((isTrack(name) || isZip(name)) && it->is_regular_file(ec)) ++n;
     }
     return n;
 }
@@ -334,68 +208,667 @@ const std::map<std::string, int>& InstrumentEditor::gamesWithMusic() {
     musicSeen_ = musicVersion_;
     withMusic_.clear();
     std::error_code ec;
-    for (std::filesystem::directory_iterator it(std::filesystem::u8path(folder_ + "tracks/"), ec), end; !ec && it != end;
-         it.increment(ec))
+    for (fs::directory_iterator it(fs::u8path(folder_ + "tracks/"), ec), end; !ec && it != end; it.increment(ec))
         if (it->is_directory(ec))
             if (const int n = songsIn(it->path().u8string())) withMusic_[it->path().filename().u8string()] = n;
     return withMusic_;
 }
 
-void InstrumentEditor::scanSongs() {
-    scanned_ = true;
-    ++musicVersion_;
-    songs_.clear();
-    const std::string dir = tracksFor(folder_, game_);
-    std::error_code ec;
-    for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::u8path(dir), ec)) {
-        std::string ext = entry.path().extension().u8string();
-        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        if (ext != ".vgm" && ext != ".vgz") continue;
-        Track t;
-        t.path = entry.path().u8string();
-        t.name = entry.path().stem().u8string();
-        const std::string bytes = readText(t.path);
-        VgmFile f;
-        if (f.parse(std::vector<uint8_t>(bytes.begin(), bytes.end()), nullptr)) {
-            t.seconds = f.seconds();
-            t.loopSeconds = f.loopSamples / 44100.0;
-            if (!f.title.empty()) t.name = f.title;
-        }
-        songs_.push_back(std::move(t));
-    }
-    std::sort(songs_.begin(), songs_.end(), [](const Track& a, const Track& b) { return a.path < b.path; });
+// ---------------------------------------------------------------------------------
+// The game and its songs
+
+void InstrumentEditor::setGame(const EditorView& view) {
+    stop();
+    game_ = view.game;
+    gameName_ = game_.empty() ? std::string() : stem(game_);
+    system_ = view.console ? view.console->system() : game_.empty() ? ConsoleSystem::GameBoy : detectSystem(game_);
+    message_.clear();
+    selected_ = soloInstrument_ = 0;
+    mutedVoices_ = soloVoices_ = 0;
+    silencedInstruments_.clear();
+    own_ = load(folder_, game_);
+    synth_.setAssignments(own_);
+    synth_.setSoundEffects(effectsFor(folder_, game_), view.effectsOriginal);
+    listTracks();
+    track_ = Track{};
+    player_.load(VgmFile{});
+    trackSeen_.clear();
+    if (!tracks_.empty()) loadTrack(tracks_.front());
 }
 
-void InstrumentEditor::startSong(size_t index, SynthMusic& synth, bool on, int chipPercent) {
-    stopSong();
-    if (index >= songs_.size()) return;
-    const std::string bytes = readText(songs_[index].path);
-    VgmFile f;
-    std::string error;
-    if (!f.parse(std::vector<uint8_t>(bytes.begin(), bytes.end()), &error)) {
-        message_ = songs_[index].name + ": " + error;
+void InstrumentEditor::listTracks() {
+    tracks_.clear();
+    ++musicVersion_;
+    if (gameName_.empty()) return;
+    std::vector<std::string> songs;
+    std::error_code ec;
+    for (fs::directory_iterator it(fs::u8path(tracksFor(folder_, game_)), ec), end; !ec && it != end; it.increment(ec)) {
+        const std::string p = it->path().u8string();
+        if (isTrack(p) || isZip(p)) songs.push_back(p);
+    }
+    std::sort(songs.begin(), songs.end());
+    for (const std::string& p : songs) addTracks(p);
+}
+
+void InstrumentEditor::addTracks(const std::string& path) {
+    std::vector<uint8_t> bytes;
+    if (!readBytes(path, bytes)) return;
+    if (isZip(path)) {
+        for (auto& [name, data] : zipTracks(bytes)) {
+            Track t{path, name, trackTitle(std::move(data), name)};
+            if (std::find(tracks_.begin(), tracks_.end(), t) == tracks_.end()) tracks_.push_back(t);
+        }
         return;
     }
-    playSynth_ = on ? &synth : nullptr;
-    player_.load(std::move(f));
-    player_.setSynth(playSynth_, chipPercent);
-    current_ = index;
-    playing_ = true;
+    Track t{path, {}, trackTitle(std::move(bytes), path)};
+    if (std::find(tracks_.begin(), tracks_.end(), t) == tracks_.end()) tracks_.push_back(t);
 }
 
-void InstrumentEditor::stopSong() {
-    if (!playing_) return;
+bool InstrumentEditor::openTrack(const std::string& path) {
+    stop();
+    std::string from = path;
+    // Kept with the game's songs, to be in its list next time.
+    if (!gameName_.empty() && fs::u8path(path).parent_path() != fs::u8path(tracksFor(folder_, game_)).parent_path()) {
+        std::vector<uint8_t> bytes;
+        const std::string copy = tracksFor(folder_, game_) + fileName(path);
+        if (readBytes(path, bytes) && writeBytes(copy, bytes.data(), bytes.size())) from = copy;
+        ++musicVersion_;
+    }
+    const size_t before = tracks_.size();
+    addTracks(from);
+    auto it = std::find_if(tracks_.begin(), tracks_.end(), [&](const Track& t) { return t.path == from; });
+    if (it == tracks_.end()) {
+        message_ = isZip(path) ? trf("No se pudo abrir %s: no tiene ningún .vgm ni .vgz.", fileName(path).c_str())
+                               : trf("No se pudo abrir %s.", fileName(path).c_str());
+        return false;
+    }
+    return loadTrack(before < tracks_.size() ? tracks_[before] : *it);
+}
+
+bool InstrumentEditor::loadTrack(const Track& track) {
+    stop();
+    std::vector<uint8_t> bytes;
+    if (!readBytes(track.path, bytes)) {
+        message_ = trf("No se pudo leer %s.", track.path.c_str());
+        return false;
+    }
+    if (!track.member.empty()) {
+        std::vector<uint8_t> zip = std::move(bytes);
+        bytes.clear();
+        for (auto& [name, data] : zipTracks(zip))
+            if (name == track.member) bytes = std::move(data);
+    }
+    VgmFile file;
+    std::string error;
+    if (!file.parse(std::move(bytes), &error)) {
+        message_ = trf("No se pudo abrir %s: %s", track.title.c_str(), error.c_str());
+        return false;
+    }
+    message_.clear();
+    track_ = track;
+    trackSeen_ = VgmPlayer::instruments(file);  // every instrument in it, before playing
+    synth_.clearSeen();
+    player_.load(std::move(file));
+    player_.setLoop(loop_);
+    soloInstrument_ = 0;
+    silencedInstruments_.clear();
+    return true;
+}
+
+ConsoleSystem InstrumentEditor::trackSystem() const {
+    if (!live_ && player_.loaded()) return player_.file().nesClock ? ConsoleSystem::Nes : ConsoleSystem::GameBoy;
+    return system_;
+}
+
+void InstrumentEditor::stop() {
     playing_ = false;
-    player_.setSynth(nullptr, 100);
-    if (playSynth_) playSynth_->allNotesOff();
-    playSynth_ = nullptr;
+    synth_.allNotesOff();
 }
 
 void InstrumentEditor::play(double seconds, double rate, std::vector<int16_t>& out) {
-    if (!playing_) return;
+    if (!playing()) return;
     player_.play(seconds, rate, out);
-    if (player_.finished()) stopSong();
+    if (player_.finished()) {
+        stop();
+        player_.restart();
+    }
 }
+
+// ---------------------------------------------------------------------------------
+// The instruments
+
+SynthMusic& InstrumentEditor::listened(const EditorView& view) {
+    return live_ && view.gameSynth ? *view.gameSynth : synth_;
+}
+
+void InstrumentEditor::applyListening(const EditorView& view) {
+    uint32_t muted = mutedVoices_;
+    if (soloVoices_) muted |= SynthMusic::kAllVoices & ~soloVoices_;
+    std::set<uint32_t> silenced = silencedInstruments_;
+    SynthMusic& synth = listened(view);
+    if (soloInstrument_) {
+        for (const auto& [fp, seen] : live_ ? synth.seen() : trackSeen_)
+            if (fp != soloInstrument_) silenced.insert(fp);
+    }
+    synth.setListening(muted, std::move(silenced));
+}
+
+void InstrumentEditor::save(const EditorView& view) {
+    const std::string path = fileFor(folder_, game_);
+    if (!path.empty()) {
+        const std::string text = SynthMusic::formatAssignments(own_);
+        message_ = writeBytes(path, text.data(), text.size()) ? std::string() : trf("No se pudo guardar %s", path.c_str());
+    }
+    synth_.setAssignments(own_);
+    // Heard at once in the game, when it is the one running.
+    if (view.console && view.gameSynth) view.gameSynth->setAssignments(own_);
+    applyListening(view);
+}
+
+void InstrumentEditor::assign(const EditorView& view, uint32_t fingerprint, const SynthMusic::Assignment* a) {
+    if (a) own_[fingerprint] = *a;
+    else own_.erase(fingerprint);
+    save(view);
+}
+
+void InstrumentEditor::resetAll(const EditorView& view) {
+    own_.clear();
+    save(view);
+}
+
+// The instruments in the song (or heard in the game), and those the game's file assigns
+// that it does not play: by kind, then in the order of the channel they play on.
+std::vector<InstrumentEditor::Instrument> InstrumentEditor::instruments(const SynthMusic& synth) const {
+    std::vector<Instrument> list;
+    const std::map<uint32_t, SynthMusic::Seen>& seen = live_ ? synth.seen() : trackSeen_;
+    for (const auto& [fp, s] : seen) list.push_back({fp, s, true, {}});
+    for (const auto& [fp, a] : own_) {
+        if (seen.count(fp)) continue;
+        Instrument i;
+        i.fingerprint = fp;
+        i.seen.kind = SynthMusic::kindOf(fp);
+        list.push_back(i);
+    }
+    auto lowest = [](const Instrument& i) {
+        for (int v = 0; v < SynthMusic::kVoices; ++v)
+            if ((i.seen.voices >> v) & 1) return v;
+        return 99;
+    };
+    std::sort(list.begin(), list.end(), [&](const Instrument& a, const Instrument& b) {
+        if (a.seen.kind != b.seen.kind) return a.seen.kind < b.seen.kind;
+        if (a.heard != b.heard) return a.heard;
+        if (lowest(a) != lowest(b)) return lowest(a) < lowest(b);
+        return a.seen.order < b.seen.order;
+    });
+    int letters[8] = {};
+    for (Instrument& i : list) {
+        const int k = static_cast<int>(i.seen.kind) & 7;
+        i.label = std::string(kindName(i.seen.kind)) + " " + instrumentLetter(letters[k]++);
+    }
+    return list;
+}
+
+// ---------------------------------------------------------------------------------
+// The window
+
+void InstrumentEditor::draw(const EditorView& view, EditorRequests& out) {
+    if (ripDone_) finishRip();
+    if (recording_ && recording_ != view.console) {
+        // The game was closed while recording: its console is gone, and so is the recording.
+        recording_ = nullptr;
+        message_ = tr("La grabación se ha perdido: el juego se cerró antes de pararla.");
+    }
+    if (view.game != game_ || (game_.empty() && tracks_.empty() && musicSeen_ == 0)) setGame(view);
+    chipPercent_ = view.chipPercent;
+    // The SoundFont is the game's, shared (again when another is chosen).
+    if (view.gameSynth && view.gameSynth->ready()) synth_.shareSoundfont(*view.gameSynth);
+    synth_.setEffects(view.reverb, view.chorus);
+    // The sound effects: again when Sacar canciones found them, or the option changed; the
+    // game's too, when it is the one running.
+    if (effectsVersion_ != effectsSeen_ || view.effectsOriginal != synth_.soundEffectsOriginal()) {
+        effectsSeen_ = effectsVersion_;
+        const std::set<uint32_t> effects = effectsFor(folder_, game_);
+        synth_.setSoundEffects(effects, view.effectsOriginal);
+        if (view.console && view.gameSynth) view.gameSynth->setSoundEffects(effects, view.effectsOriginal);
+    }
+    if (!open_) {
+        if (playing_) stop();
+        return;
+    }
+    // The game's instruments as it plays, when no song is open.
+    const bool live = !player_.loaded() && view.console && view.synthOn && view.gameSynth;
+    if (live != live_) {
+        live_ = live;
+        applyListening(view);
+    }
+    if (!synth_.ready()) synthOutput_ = false;
+    player_.setSynth(&synth_, chipPercent_);
+    player_.setSynthOutput(synthOutput_);
+
+    const ImGuiViewport* screen = ImGui::GetMainViewport();
+    const float top = ImGui::GetFrameHeight() + 10;  // below the menu bar
+    ImGui::SetNextWindowPos(ImVec2(screen->Pos.x + 10, screen->Pos.y + top), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(std::min(960.0f, screen->Size.x - 20), std::min(680.0f, screen->Size.y - top - 10)),
+                             ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(tr("Editor de instrumentos"), &open_)) {
+        ImGui::End();
+        if (!open_) stop();
+        return;
+    }
+    if (!open_) stop();
+    ImGui::Text(tr("Juego: %s"), gameName_.empty() ? tr("ninguno") : gameName_.c_str());
+    drawTrack(view, out);
+    if (!message_.empty()) ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.4f, 1.0f), "%s", message_.c_str());
+    ImGui::Separator();
+
+    const std::vector<Instrument> list = instruments(listened(view));
+    if (list.empty()) {
+        if (player_.loaded())
+            ImGui::TextWrapped("%s", tr("En esta pista no suena música."));
+        else if (game_.empty())
+            ImGui::TextWrapped("%s", tr("Carga un juego, o ábrelo desde su menú en la biblioteca: aquí saldrán sus "
+                                        "canciones y sus instrumentos."));
+        else
+            ImGui::TextWrapped("%s", tr("Saca las canciones de la ROM del juego (Sacar canciones), graba un trozo del juego "
+                                        "(Grabar del juego, y juega hasta que suene la música que quieres probar) o abre un "
+                                        ".vgm con su música, de vgmrips.net por ejemplo. Aquí saldrán sus instrumentos; "
+                                        "también los que suenan mientras juegas con el sintetizador puesto."));
+        ImGui::End();
+        return;
+    }
+    // The lists take what the assignment below leaves.
+    const float bottom = ImGui::GetFrameHeightWithSpacing() * 4 + ImGui::GetTextLineHeightWithSpacing() * 2;
+    const float height = std::max(120.0f, ImGui::GetContentRegionAvail().y - bottom);
+    const float width = ImGui::GetContentRegionAvail().x;
+    ImGui::BeginChild("instrumentos", ImVec2(width * 0.64f, height), ImGuiChildFlags_ResizeX);
+    drawInstruments(view, list);
+    ImGui::EndChild();
+    ImGui::SameLine();
+    ImGui::BeginChild("canales", ImVec2(0, height));
+    drawChannels(view, list);
+    ImGui::EndChild();
+    ImGui::Separator();
+    drawAssignment(view, list);
+    ImGui::End();
+}
+
+void InstrumentEditor::drawTrack(const EditorView& view, EditorRequests& out) {
+    // Which song.
+    ImGui::SetNextItemWidth(360);
+    const std::string current = track_.path.empty() ? std::string(tr("(ninguna)")) : track_.title;
+    if (ImGui::BeginCombo(tr("Pista"), current.c_str(), ImGuiComboFlags_HeightLarge)) {
+        for (size_t i = 0; i < tracks_.size(); ++i) {
+            ImGui::PushID(static_cast<int>(i));
+            if (ImGui::Selectable(tracks_[i].title.c_str(), tracks_[i] == track_)) {
+                loadTrack(tracks_[i]);
+                applyListening(view);
+            }
+            ImGui::PopID();
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button(tr("Abrir .vgm..."))) {
+        stop();
+        out.chooseTrack = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", tr("Un .vgm o .vgz, o el .zip con todas las canciones del juego de vgmrips.net.\n"
+                                   "Se guarda con las pistas del juego, para tenerlo la próxima vez."));
+    const bool ripping = ripThread_.joinable();
+    if (!gameName_.empty()) {
+        ImGui::SameLine();
+        if (ImGui::Button(tr("Carpeta"))) {
+            std::error_code ec;
+            fs::create_directories(fs::u8path(tracksFor(folder_, game_)), ec);
+            openInSystem(tracksFor(folder_, game_));
+            listTracks();
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(tr("La carpeta de las canciones de este juego: lo que pongas en ella (.vgm, .vgz o\n"
+                                 "el .zip de vgmrips) sale en la lista.\n%s"),
+                              tracksFor(folder_, game_).c_str());
+        ImGui::SameLine();
+        const bool rippable = SongRipper::supported(system_);
+        ImGui::BeginDisabled(ripping || !rippable || recording_);
+        if (ImGui::Button(tr("Sacar canciones"))) startRip();
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("%s", rippable ? tr("Busca cómo pide el juego su música y graba cada canción con su bucle\n"
+                                                  "(Canción 01, Canción 02...), con las pistas del juego. También aprende\n"
+                                                  "cuáles de sus instrumentos son efectos de sonido. Suele tardar menos\n"
+                                                  "de un minuto, y en algunos juegos unos pocos.")
+                                             : tr("Por ahora, solo en los juegos de Game Boy, Game Boy Color y NES."));
+    }
+    if (recording_ || !game_.empty()) ImGui::SameLine();
+    if (recording_) {
+        if (ImGui::Button(tr("Parar la grabación"))) stopRecording(view.console, true);
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), tr("Grabando %s"), minutes(writer_.seconds()).c_str());
+        ImGui::TextWrapped("%s", tr("Juega hasta que suene lo que quieres probar y pulsa Parar. Para usar el teclado en el "
+                                    "juego, haz clic fuera de esta ventana."));
+    } else if (view.console) {
+        ImGui::BeginDisabled(!view.console->musicRecordable() || ripping);
+        if (ImGui::Button(tr("Grabar del juego"))) {
+            stop();
+            if (view.console->recordMusic(&writer_)) {
+                recording_ = view.console;
+                message_.clear();
+            }
+        }
+        ImGui::EndDisabled();
+    } else if (!game_.empty()) {
+        if (ImGui::Button(tr("Jugar para grabar"))) {
+            stop();
+            out.load = game_;
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tr("Abre el juego; luego pulsa Grabar del juego aquí."));
+    }
+    drawRip();
+
+    // Transport.
+    ImGui::BeginDisabled(!player_.loaded() || recording_);
+    if (ImGui::Button(playing_ ? tr("Pausa") : tr("Tocar"), ImVec2(80, 0))) {
+        playing_ = !playing_;
+        if (!playing_) synth_.allNotesOff();
+        if (playing_ && live_) {
+            live_ = false;
+            applyListening(view);
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button(tr("Al principio"))) {
+        player_.restart();
+        applyListening(view);
+    }
+    ImGui::SameLine();
+    if (ImGui::Checkbox(tr("Repetir"), &loop_)) player_.setLoop(loop_);
+    ImGui::SameLine();
+    const float length = static_cast<float>(std::max(1.0, player_.file().seconds()));
+    float pos = seekTo_ >= 0 ? seekTo_ : static_cast<float>(std::fmod(player_.position(), static_cast<double>(length)));
+    ImGui::SetNextItemWidth(260);
+    const std::string label = minutes(pos) + " / " + minutes(length);
+    if (ImGui::SliderFloat("##posicion", &pos, 0.0f, length, label.c_str())) seekTo_ = pos;
+    if (ImGui::IsItemDeactivatedAfterEdit() && seekTo_ >= 0) {
+        player_.seek(seekTo_);
+        applyListening(view);
+        seekTo_ = -1;
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
+    if (ImGui::RadioButton(tr("Original"), !synthOutput_)) {
+        synthOutput_ = false;
+        synth_.allNotesOff();
+    }
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!synth_.ready());
+    if (ImGui::RadioButton(tr("Sintetizador"), synthOutput_)) synthOutput_ = true;
+    ImGui::EndDisabled();
+    if (!synth_.ready() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("%s", tr("No se ha podido abrir el SoundFont: elige otro en la lista de al lado."));
+    ImGui::EndDisabled();
+    if (view.drawSoundfont) {  // which one the synthesizer plays, to compare them here
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(tr("SoundFont"));
+        ImGui::SameLine();
+        view.drawSoundfont();
+    }
+    if (player_.loaded() && !player_.file().game.empty()) {
+        if (view.drawSoundfont) ImGui::SameLine();
+        ImGui::TextDisabled("%s%s%s", player_.file().game.c_str(), player_.file().title.empty() ? "" : " - ",
+                            player_.file().title.c_str());
+    }
+    if (live_) ImGui::TextDisabled("%s", tr("Sin pista abierta: los instrumentos que suenan en el juego hasta ahora."));
+}
+
+void InstrumentEditor::drawInstruments(const EditorView& view, const std::vector<Instrument>& list) {
+    SynthMusic& synth = listened(view);
+    ImGui::TextDisabled("%s", tr("Instrumentos (elige uno para cambiarlo)"));
+    std::set<uint32_t> now;  // the instruments playing a note now
+    const uint32_t active = synth.activeVoices();
+    for (int v = 0; v < SynthMusic::kVoices; ++v)
+        if ((active >> v) & 1) now.insert(synth.voiceInstrument(v));
+    if (!selected_ || std::none_of(list.begin(), list.end(), [&](const Instrument& i) { return i.fingerprint == selected_; }))
+        selected_ = list.front().fingerprint;
+    if (!ImGui::BeginTable("lista", 5, kListFlags | ImGuiTableFlags_Resizable)) return;
+    ImGui::TableSetupScrollFreeze(0, 1);
+    ImGui::TableSetupColumn(tr("Instrumento"), ImGuiTableColumnFlags_WidthStretch, 1.4f);
+    ImGui::TableSetupColumn(tr("Suena como"), ImGuiTableColumnFlags_WidthStretch, 2.4f);
+    ImGui::TableSetupColumn(tr("Canales"), ImGuiTableColumnFlags_WidthStretch, 1.6f);
+    ImGui::TableSetupColumn(tr("Notas"), ImGuiTableColumnFlags_WidthStretch, 0.5f);
+    ImGui::TableSetupColumn(tr("Oír"), ImGuiTableColumnFlags_WidthFixed);
+    ImGui::TableHeadersRow();
+    const std::vector<std::string> names = voiceNames(trackSystem());
+    const bool sounding = playing_ || live_;
+    const float row = ImGui::GetFrameHeight();
+    for (const Instrument& i : list) {
+        ImGui::PushID(static_cast<int>(i.fingerprint));
+        ImGui::TableNextRow(ImGuiTableRowFlags_None, row);
+        const SynthMusic::Assignment a = synth.assignmentFor(i.fingerprint);
+        const bool byHand = own_.count(i.fingerprint) != 0;
+        const bool on = sounding && now.count(i.fingerprint);
+        if (on) ImGui::PushStyleColor(ImGuiCol_Text, kPlaying);
+        ImGui::TableSetColumnIndex(0);
+        ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0.0f, 0.5f));  // level with the other columns
+        if (ImGui::Selectable(i.label.c_str(), selected_ == i.fingerprint,
+                              ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap, ImVec2(0, row)))
+            selected_ = i.fingerprint;
+        ImGui::PopStyleVar();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s %08x", tr("Huella"), i.fingerprint);
+        ImGui::TableSetColumnIndex(1);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(describe(a).c_str());
+        if (!byHand) {
+            ImGui::SameLine();
+            ImGui::TextDisabled("%s", synth.isSoundEffect(i.fingerprint) ? tr("(efecto)") : tr("(sugerido)"));
+        }
+        ImGui::TableSetColumnIndex(2);
+        ImGui::AlignTextToFramePadding();
+        if (i.heard) {
+            // "Pulso 1, 2", not "Pulso 1, Pulso 2": it fits.
+            std::string channels, kind;
+            for (int v = 0; v < static_cast<int>(names.size()); ++v) {
+                if (!((i.seen.voices >> v) & 1)) continue;
+                const std::string& name = names[static_cast<size_t>(v)];
+                const size_t space = name.find(' ');
+                const std::string prefix = space == std::string::npos ? std::string() : name.substr(0, space + 1);
+                if (!channels.empty()) channels += ", ";
+                channels += !prefix.empty() && prefix == kind ? name.substr(space + 1) : name;
+                kind = prefix;
+            }
+            ImGui::TextUnformatted(channels.c_str());
+            ImGui::TableSetColumnIndex(3);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%d", i.seen.notes);
+        } else {
+            ImGui::TextDisabled("%s", tr("no suena en esta pista"));
+        }
+        if (on) ImGui::PopStyleColor();
+        ImGui::TableSetColumnIndex(4);
+        bool heard = !silencedInstruments_.count(i.fingerprint);
+        if (ImGui::Checkbox("##oir", &heard)) {
+            if (!silencedInstruments_.erase(i.fingerprint)) silencedInstruments_.insert(i.fingerprint);
+            applyListening(view);
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tr("Quítalo para no oír este instrumento."));
+        ImGui::PopID();
+    }
+    ImGui::EndTable();
+}
+
+void InstrumentEditor::drawChannels(const EditorView& view, const std::vector<Instrument>& list) {
+    SynthMusic& synth = listened(view);
+    ImGui::TextDisabled("%s", tr("Canales"));
+    // The channels the chosen instrument plays on stand out.
+    uint32_t chosen = 0;
+    for (const Instrument& i : list)
+        if (i.fingerprint == selected_) chosen = i.seen.voices;
+    const uint32_t active = synth.activeVoices();
+    const bool sounding = playing_ || live_;
+    bool changed = false;
+    const std::vector<std::string> names = voiceNames(trackSystem());
+    // Room left below the table for Oír todos.
+    const float height =
+        std::max(ImGui::GetFrameHeight() * 3, ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing());
+    if (ImGui::BeginTable("canales", 3, kListFlags, ImVec2(0, height))) {
+        ImGui::TableSetupScrollFreeze(0, 1);
+        ImGui::TableSetupColumn(tr("Canal"), ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn(tr("Solo"), ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn(tr("Silencio"), ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableHeadersRow();
+        const float row = ImGui::GetFrameHeight();
+        for (int v = 0; v < static_cast<int>(names.size()); ++v) {
+            ImGui::PushID(v);
+            ImGui::TableNextRow(ImGuiTableRowFlags_None, row);
+            const bool on = sounding && ((active >> v) & 1);
+            if ((chosen >> v) & 1) ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, ImGui::GetColorU32(ImGuiCol_Header));
+            ImGui::TableSetColumnIndex(0);
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextColored(on ? kPlaying : ImGui::GetStyleColorVec4(ImGuiCol_Text), "%s", names[static_cast<size_t>(v)].c_str());
+            bool solo = (soloVoices_ >> v) & 1, mute = (mutedVoices_ >> v) & 1;
+            ImGui::TableSetColumnIndex(1);
+            if (ImGui::Checkbox("##solo", &solo)) {
+                soloVoices_ ^= 1u << v;
+                changed = true;
+            }
+            ImGui::TableSetColumnIndex(2);
+            if (ImGui::Checkbox("##silencio", &mute)) {
+                mutedVoices_ ^= 1u << v;
+                changed = true;
+            }
+            ImGui::PopID();
+        }
+        ImGui::EndTable();
+    }
+    if (ImGui::Button(tr("Oír todos"))) {
+        soloVoices_ = mutedVoices_ = 0;
+        changed = true;
+    }
+    if (changed) applyListening(view);
+}
+
+void InstrumentEditor::drawAssignment(const EditorView& view, const std::vector<Instrument>& list) {
+    auto it = std::find_if(list.begin(), list.end(), [&](const Instrument& i) { return i.fingerprint == selected_; });
+    if (it == list.end()) return;
+    SynthMusic& synth = listened(view);
+    const Instrument& inst = *it;
+    const bool noise = inst.seen.kind == SynthMusic::Kind::Noise;
+    SynthMusic::Assignment a = synth.assignmentFor(inst.fingerprint);
+    const SynthMusic::Assignment before = a;
+    const SynthMusic::Assignment suggestion = synth.suggestionFor(inst.fingerprint);
+    if (inst.heard)
+        ImGui::Text(tr("%s: %d %s, de %s a %s. Sugerencia: %s."), inst.label.c_str(), inst.seen.notes,
+                    inst.seen.notes == 1 ? tr("nota") : tr("notas"), noteName(inst.seen.low).c_str(),
+                    noteName(inst.seen.high).c_str(), describe(suggestion).c_str());
+    else
+        ImGui::Text("%s", inst.label.c_str());
+    if (synth.isSoundEffect(inst.fingerprint)) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("%s", tr("Es un efecto de sonido del juego."));
+    }
+
+    int kind = a.original ? 2 : a.drum >= 0 ? 1 : 0;
+    if (!noise) {
+        if (ImGui::RadioButton(tr("Instrumento"), kind == 0)) kind = 0;
+        ImGui::SameLine();
+    }
+    if (ImGui::RadioButton(tr("Batería"), kind == 1)) kind = 1;
+    ImGui::SameLine();
+    if (ImGui::RadioButton(tr("Sonido original"), kind == 2)) kind = 2;
+    if (kind == 0 && (a.original || a.drum >= 0)) {
+        a.original = false;
+        a.drum = -1;
+        if (a.program < 0) a.program = inst.seen.rules.program >= 0 ? inst.seen.rules.program : 0;
+    } else if (kind == 1 && (a.drum < 0 || a.original)) {
+        a.original = false;
+        a.drum = inst.seen.rules.drum >= 0 ? inst.seen.rules.drum : 38;
+        a.program = -1;
+    } else if (kind == 2) {
+        a.original = true;
+    }
+
+    ImGui::BeginDisabled(kind == 2);
+    ImGui::SetNextItemWidth(300);
+    if (kind == 0) {
+        const std::string preview = std::to_string(a.program + 1) + " " + SynthMusic::programName(a.program);
+        if (ImGui::BeginCombo(tr("Instrumento GM"), preview.c_str(), ImGuiComboFlags_HeightLarge)) {
+            for (int p = 0; p < 128; ++p) {
+                if (p % 8 == 0) ImGui::SeparatorText(tr(kFamilies[p / 8]));
+                const std::string name = std::to_string(p + 1) + " " + SynthMusic::programName(p);
+                if (ImGui::Selectable(name.c_str(), p == a.program)) a.program = p;
+                if (p == a.program && ImGui::IsWindowAppearing()) ImGui::SetScrollHereY();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(120);
+        ImGui::SliderInt(tr("Octava"), &a.octave, -3, 3, "%+d");
+    } else {
+        const char* drum = SynthMusic::drumName(a.drum);
+        if (ImGui::BeginCombo(tr("Pieza del kit"), drum ? drum : "", ImGuiComboFlags_HeightLarge)) {
+            for (int n = 35; n <= 81; ++n)
+                if (ImGui::Selectable(SynthMusic::drumName(n), n == a.drum)) a.drum = n;
+            ImGui::EndCombo();
+        }
+    }
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(140);
+    ImGui::SliderInt(tr("Volumen"), &a.volume, 0, 200, "%d%%", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::EndDisabled();
+    // Sliders save when let go, not on every step.
+    const bool sliding = ImGui::IsItemActive();
+
+    bool solo = soloInstrument_ == inst.fingerprint;
+    if (ImGui::Checkbox(tr("Escuchar solo este"), &solo)) {
+        soloInstrument_ = solo ? inst.fingerprint : 0;
+        applyListening(view);
+    }
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!own_.count(inst.fingerprint));
+    if (ImGui::Button(tr("Volver a la sugerencia"))) {
+        assign(view, inst.fingerprint, nullptr);
+        ImGui::EndDisabled();
+        return;
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::BeginDisabled(own_.empty());
+    if (ImGui::Button(tr("Todo a las sugerencias..."))) ImGui::OpenPopup("todo");
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("%s", tr("Quita todo lo elegido a mano para este juego: cada instrumento vuelve a sonar\n"
+                                   "como sugieren las reglas."));
+    if (ImGui::BeginPopup("todo")) {
+        ImGui::TextUnformatted(game_.empty() ? tr("¿Quitar todo lo elegido a mano?")
+                                             : trf("¿Quitar todo lo elegido a mano en %s?", gameName_.c_str()).c_str());
+        if (ImGui::Button(tr("Sí, todo a las sugerencias"))) {
+            resetAll(view);
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(tr("Cancelar"))) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+
+    if (a != before || (!sliding && pendingSlide_)) {
+        if (sliding) {
+            // Heard at once, saved when the slider is let go.
+            SynthMusic::Assignments all = own_;
+            all[inst.fingerprint] = a;
+            synth.setAssignments(std::move(all));
+            pendingSlide_ = true;
+        } else {
+            pendingSlide_ = false;
+            assign(view, inst.fingerprint, &a);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------
+// Recording and Sacar canciones
 
 void InstrumentEditor::stopRecording(Console* console, bool keep) {
     if (!recording_) return;
@@ -404,156 +877,95 @@ void InstrumentEditor::stopRecording(Console* console, bool keep) {
     if (!keep) return;
     const std::string dir = tracksFor(folder_, game_);
     std::error_code ec;
-    std::filesystem::create_directories(std::filesystem::u8path(dir), ec);
+    fs::create_directories(fs::u8path(dir), ec);
     std::string path, name;
     for (int n = 1; n < 1000; ++n) {
         name = trf("Grabación %02d", n);
         path = dir + name + ".vgz";
-        if (!std::filesystem::exists(std::filesystem::u8path(path), ec)) break;
+        if (!fs::exists(fs::u8path(path), ec)) break;
     }
     const std::vector<uint8_t> file =
         writer_.finish({name, console ? console->title() : std::string(), tr("Grabado jugando con plumnin")});
-    std::ofstream out(std::filesystem::u8path(path), std::ios::binary | std::ios::trunc);
-    out.write(reinterpret_cast<const char*>(file.data()), static_cast<std::streamsize>(file.size()));
-    message_ = out ? trf("Guardada como %s", path.c_str()) : trf("No se pudo guardar %s", path.c_str());
-    scanned_ = false;
+    if (!writeBytes(path, file.data(), file.size())) {
+        message_ = trf("No se pudo guardar la grabación en %s.", path.c_str());
+        return;
+    }
+    listTracks();
+    auto it = std::find_if(tracks_.begin(), tracks_.end(), [&](const Track& t) { return t.path == path; });
+    if (it != tracks_.end()) loadTrack(*it);
+}
+
+void InstrumentEditor::startRip() {
+    std::vector<uint8_t> rom;
+    std::string name, error;
+    if (!readRomFile(game_, rom, &name, &error)) {
+        message_ = error;
+        return;
+    }
+    stop();
+    message_.clear();
+    ripProgress_ = std::make_unique<SongRipper::Progress>();
+    ripGame_ = game_;
+    ripDone_ = false;
+    ripEffects_.clear();
+    SongRipper::Progress* progress = ripProgress_.get();
+    ripThread_ = std::thread([this, rom = std::move(rom), progress] {
+        std::string e;
+        ripOk_ = SongRipper::run(rom, {}, progress, &ripSongs_, &e, nullptr, &ripEffects_);
+        ripError_ = e;
+        ripDone_ = true;
+    });
+}
+
+void InstrumentEditor::drawRip() {
+    if (!ripThread_.joinable() || !ripProgress_) return;
+    const SongRipper::Progress& p = *ripProgress_;
+    const float fraction = static_cast<float>(p.step.load()) / static_cast<float>(std::max(1, p.steps.load()));
+    const int found = p.found.load();
+    const std::string label = found == 1 ? std::string(tr("Probando: 1 canción")) : trf("Probando: %d canciones", found);
+    ImGui::ProgressBar(fraction, ImVec2(360, 0), label.c_str());
+    ImGui::SameLine();
+    if (ImGui::Button(tr("Parar"))) ripProgress_->cancel = true;
 }
 
 void InstrumentEditor::finishRip() {
     ripThread_.join();
     ripDone_ = false;
+    const bool cancelled = ripProgress_ && ripProgress_->cancel;
+    ripProgress_.reset();
     if (!ripOk_) {
-        message_ = ripError_;
-    } else {
-        const std::string dir = tracksFor(folder_, ripGame_);
-        std::error_code ec;
-        std::filesystem::create_directories(std::filesystem::u8path(dir), ec);
-        int saved = 0;
-        for (size_t i = 0; i < ripSongs_.size(); ++i) {
-            const std::string path = dir + trf("Canción %02d", static_cast<int>(i + 1)) + ".vgz";
-            std::ofstream out(std::filesystem::u8path(path), std::ios::binary | std::ios::trunc);
-            const auto& v = ripSongs_[i].vgz;
-            out.write(reinterpret_cast<const char*>(v.data()), static_cast<std::streamsize>(v.size()));
-            if (out) ++saved;
-        }
-        message_ = trf("%d canciones guardadas en %s", saved, dir.c_str());
+        if (!cancelled) message_ = ripError_;
+        ripSongs_.clear();
+        return;
+    }
+    const std::string dir = tracksFor(folder_, ripGame_);
+    int saved = 0;
+    for (size_t i = 0; i < ripSongs_.size(); ++i) {
+        const std::string path = dir + trf("Canción %02d", static_cast<int>(i + 1)) + ".vgz";
+        const auto& v = ripSongs_[i].vgz;
+        if (writeBytes(path, v.data(), v.size())) ++saved;
     }
     ripSongs_.clear();
-    ripProgress_.reset();
-    scanned_ = false;
-}
-
-void InstrumentEditor::drawSongs(SynthMusic& synth, bool on, Console* console, int chipPercent) {
-    ImGui::TextWrapped("%s", tr("Las canciones del juego, para oírlas sin jugar: el juego espera mientras suena una. Con el "
-                                "sintetizador puesto suenan con él, y en Instrumentos puedes cambiar los suyos mientras suenan."));
-    const bool rippable = SongRipper::supported(console ? console->system() : detectSystem(game_));
-    const bool ripping = ripThread_.joinable();
-
-    // Sacar canciones.
-    if (ripping) {
-        const SongRipper::Progress& p = *ripProgress_;
-        const float fraction = static_cast<float>(p.step.load()) / static_cast<float>(std::max(1, p.steps.load()));
-        const std::string label = trf("%d canciones encontradas", p.found.load());
-        ImGui::ProgressBar(fraction, ImVec2(300, 0), label.c_str());
-        ImGui::SameLine();
-        if (ImGui::Button(tr("Cancelar"))) ripProgress_->cancel = true;
+    // The sound effects' instruments: they keep the chip's sound.
+    if (!ripEffects_.empty()) {
+        std::string text = "; " + trf("Los efectos de sonido de %s (huellas de instrumentos), de Sacar canciones.",
+                                      stem(ripGame_).c_str()) + "\n";
+        char line[16];
+        for (uint32_t fp : ripEffects_) {
+            std::snprintf(line, sizeof line, "%08x\n", fp);
+            text += line;
+        }
+        writeBytes(folder_ + stem(ripGame_) + ".effects", text.data(), text.size());
+    }
+    message_ = saved == 1 ? std::string(tr("He sacado 1 canción de la ROM: está en la lista de pistas."))
+                          : trf("He sacado %d canciones de la ROM: están en la lista de pistas.", saved);
+    if (ripGame_ == game_) {
+        ++effectsVersion_;
+        listTracks();
+        if (!tracks_.empty() && track_.path.empty()) loadTrack(tracks_.front());
     } else {
-        ImGui::BeginDisabled(!rippable || recording_);
-        if (ImGui::Button(tr("Sacar canciones de la ROM"))) {
-            std::vector<uint8_t> rom;
-            std::string name, error;
-            if (!readRomFile(game_, rom, &name, &error)) {
-                message_ = error;
-            } else {
-                stopSong();
-                message_.clear();
-                ripProgress_ = std::make_unique<SongRipper::Progress>();
-                ripGame_ = game_;
-                ripDone_ = false;
-                SongRipper::Progress* progress = ripProgress_.get();
-                ripThread_ = std::thread([this, rom = std::move(rom), progress] {
-                    std::string e;
-                    ripOk_ = SongRipper::run(rom, {}, progress, &ripSongs_, &e);
-                    ripError_ = e;
-                    ripDone_ = true;
-                });
-            }
-        }
-        ImGui::EndDisabled();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("%s", rippable ? tr("Busca cómo pide el juego su música y graba cada canción con su bucle. "
-                                                 "Suele tardar menos de un minuto, y en algunos juegos unos pocos.")
-                                            : tr("Por ahora, solo en los juegos de Game Boy, Game Boy Color y NES."));
+        ++musicVersion_;
     }
-    ImGui::SameLine();
-    if (recording_) {
-        if (ImGui::Button(tr("Parar y guardar la grabación"))) stopRecording(console, true);
-        ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1, 0.4f, 0.4f, 1), "%s", trf("Grabando %.0f s", writer_.seconds()).c_str());
-    } else {
-        ImGui::BeginDisabled(!console || !console->musicRecordable() || ripping);
-        if (ImGui::Button(tr("Grabar la música del juego"))) {
-            stopSong();
-            if (console->recordMusic(&writer_)) {
-                recording_ = console;
-                message_ = tr("Juega: se graba lo que suene hasta que la pares.");
-            }
-        }
-        ImGui::EndDisabled();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button(tr("Abrir la carpeta"))) {
-        std::error_code ec;
-        std::filesystem::create_directories(std::filesystem::u8path(tracksFor(folder_, game_)), ec);
-        openInSystem(tracksFor(folder_, game_));
-        scanned_ = false;
-    }
-    if (!message_.empty()) ImGui::TextWrapped("%s", message_.c_str());
-
-    const ImGuiTableFlags flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollY;
-    if (ImGui::BeginTable("canciones", 4, flags, ImVec2(0, 0))) {
-        ImGui::TableSetupScrollFreeze(0, 1);
-        ImGui::TableSetupColumn(tr("Canción"));
-        ImGui::TableSetupColumn(tr("Dura"), ImGuiTableColumnFlags_WidthFixed, 90);
-        ImGui::TableSetupColumn(tr("Bucle"), ImGuiTableColumnFlags_WidthFixed, 90);
-        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 160);
-        ImGui::TableHeadersRow();
-        auto time = [](double s) {
-            const int t = static_cast<int>(s + 0.5);
-            char b[16];
-            std::snprintf(b, sizeof b, "%d:%02d", t / 60, t % 60);
-            return std::string(b);
-        };
-        for (size_t i = 0; i < songs_.size(); ++i) {
-            const Track& t = songs_[i];
-            ImGui::PushID(static_cast<int>(i));
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            const bool now = playing_ && current_ == i;
-            if (now) ImGui::TextColored(ImVec4(0.4f, 1, 0.4f, 1), "%s", t.name.c_str());
-            else ImGui::TextUnformatted(t.name.c_str());
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", t.path.c_str());
-            ImGui::TableNextColumn();
-            if (now) ImGui::Text("%s / %s", time(player_.position()).c_str(), time(t.seconds).c_str());
-            else ImGui::TextUnformatted(time(t.seconds).c_str());
-            ImGui::TableNextColumn();
-            if (t.loopSeconds > 0) ImGui::TextUnformatted(time(t.loopSeconds).c_str());
-            else ImGui::TextDisabled("%s", tr("no"));
-            ImGui::TableNextColumn();
-            ImGui::BeginDisabled(recording_ != nullptr);
-            if (now) {
-                if (ImGui::SmallButton(tr("Parar"))) stopSong();
-            } else if (ImGui::SmallButton(tr("Escuchar"))) {
-                startSong(i, synth, on, chipPercent);
-            }
-            ImGui::EndDisabled();
-            ImGui::PopID();
-        }
-        ImGui::EndTable();
-    }
-    if (songs_.empty())
-        ImGui::TextDisabled("%s", rippable ? tr("Todavía no hay canciones: sácalas de la ROM o graba la música jugando.")
-                                          : tr("Todavía no hay canciones."));
 }
 
 }  // namespace plumnin
