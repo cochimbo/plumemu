@@ -11,7 +11,8 @@
 namespace plumnin {
 
 // Sacar canciones: every song of a Game Boy (or Color) or NES game, each to a VGM with
-// its loop, from the ROM alone. Games have no list of their songs, but every one has a
+// its loop, from the ROM alone (and of a Super Nintendo one, each to an SPC: see
+// songs_snes.cpp). Games have no list of their songs, but every one has a
 // sound driver: a routine called a few dozen times a second that writes the chip, and a
 // way for the game to ask it for a song. So this runs the game for a while watching the
 // processor, finds the driver and how the game asks (a routine it calls with the song's
@@ -22,7 +23,8 @@ class SongRipper {
 public:
     struct Song {
         int number = 0;  // what the game asked for to get it
-        std::vector<uint8_t> vgz;
+        std::vector<uint8_t> vgz;  // or, with `spc`, an SPC (the Super Nintendo's)
+        bool spc = false;
         double seconds = 0, loopSeconds = 0;  // loopSeconds 0: it ends
     };
     // For a thread of its own: how far it is, read from another, and a way to stop it.

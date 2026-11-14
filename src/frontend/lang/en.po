@@ -2140,8 +2140,11 @@ msgstr "Ride cymbal 2"
 msgid "Platillo splash"
 msgstr "Splash cymbal"
 
-msgid "Por ahora, solo en los juegos de Game Boy, Game Boy Color y NES."
-msgstr "For now, only in Game Boy, Game Boy Color and NES games."
+msgid "Por ahora, solo en los juegos de Game Boy, Game Boy Color, NES y Super Nintendo."
+msgstr "For now, only in Game Boy, Game Boy Color, NES and Super Nintendo games."
+
+msgid "No se ha encontrado cómo pide el juego sus canciones."
+msgstr "The way the game asks for its songs was not found."
 
 msgid "Por año"
 msgstr "By year"

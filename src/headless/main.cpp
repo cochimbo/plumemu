@@ -84,8 +84,8 @@ Output
   --wav FILE            the whole run's sound (44100 Hz stereo)
   --synth SF2           the music through the synthesizer, on this SoundFont
   --synth-chip PERCENT  how loud the chip's own sound stays under it (default 0)
-  --rip-songs DIR       Sacar canciones: every song of the game (Game Boy, Color and NES),
-                        each to DIR as a .vgz with its loop, then exit
+  --rip-songs DIR       Sacar canciones: every song of the game (Game Boy, Color and NES,
+                        each to DIR as a .vgz with its loop; Super Nintendo as a .spc), then exit
   --vgm FILE            the run's music as a VGM (gzip-compressed, .vgz), as the
                         instrument editor records it (Game Boy, Color and NES)
   --spc FILE            the music as it is after the last frame, as an SPC (Super Nintendo)
@@ -589,7 +589,10 @@ int main(int argc, char** argv) {
         std::filesystem::create_directories(ripDir);
         for (const SongRipper::Song& s : songs) {
             char file[64];
-            std::snprintf(file, sizeof file, "/song %03d.vgz", s.number);
+            // (An SPC by its order: the Super Nintendo's numbers repeat, one set of songs for
+            // each part of the game.)
+            if (s.spc) std::snprintf(file, sizeof file, "/song %02d.spc", static_cast<int>(&s - songs.data()) + 1);
+            else std::snprintf(file, sizeof file, "/song %03d.vgz", s.number);
             if (!writeFile(ripDir + file, s.vgz.data(), s.vgz.size())) return 1;
             std::printf("%d: %.1f s%s\n", s.number, s.seconds,
                         s.loopSeconds > 0 ? (", loop " + std::to_string(s.loopSeconds) + " s").c_str() : ", ends");

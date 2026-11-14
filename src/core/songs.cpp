@@ -1302,16 +1302,27 @@ bool Ripper::run(std::vector<SongRipper::Song>* songs, std::string* error, std::
 
 }  // namespace
 
+// songs_snes.cpp
+bool ripSnesSongs(const std::vector<uint8_t>& rom, const SongRipper::Options& options, SongRipper::Progress* progress,
+                  std::vector<SongRipper::Song>* songs, std::string* error, std::string* report);
+
 bool SongRipper::supported(ConsoleSystem s) {
-    return s == ConsoleSystem::GameBoy || s == ConsoleSystem::GameBoyColor || s == ConsoleSystem::Nes;
+    return s == ConsoleSystem::GameBoy || s == ConsoleSystem::GameBoyColor || s == ConsoleSystem::Nes ||
+           s == ConsoleSystem::Snes;
 }
 
 bool SongRipper::run(const std::vector<uint8_t>& rom, const Options& options, Progress* progress,
                        std::vector<Song>* songs, std::string* error, std::string* report, std::set<uint32_t>* effects) {
     const ConsoleSystem system = detectSystemFromData(rom);
     if (!supported(system)) {
-        if (error) *error = tr("Por ahora, solo en los juegos de Game Boy, Game Boy Color y NES.");
+        if (error) *error = tr("Por ahora, solo en los juegos de Game Boy, Game Boy Color, NES y Super Nintendo.");
         return false;
+    }
+    if (system == ConsoleSystem::Snes) {
+        if (effects) effects->clear();
+        const bool ok = ripSnesSongs(rom, options, progress, songs, error, report);
+        if (!ok && error && progress && progress->cancel) *error = tr("Cancelado.");
+        return ok;
     }
     // A driver that, run by itself, plays nothing the game asks: some need what calls them
     // (a flag it sets, the bank it keeps). Then the next one, up to three.

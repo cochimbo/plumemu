@@ -548,7 +548,7 @@ void InstrumentEditor::drawTrack(const EditorView& view, EditorRequests& out) {
                                                   "(Canción 01, Canción 02...), con las pistas del juego. También aprende\n"
                                                   "cuáles de sus instrumentos son efectos de sonido. Suele tardar menos\n"
                                                   "de un minuto, y en algunos juegos unos pocos.")
-                                             : tr("Por ahora, solo en los juegos de Game Boy, Game Boy Color y NES."));
+                                             : tr("Por ahora, solo en los juegos de Game Boy, Game Boy Color, NES y Super Nintendo."));
     }
     if (recording_ || !game_.empty()) ImGui::SameLine();
     if (recording_) {
@@ -984,7 +984,8 @@ void InstrumentEditor::finishRip() {
     const std::string dir = tracksFor(folder_, ripGame_);
     int saved = 0;
     for (size_t i = 0; i < ripSongs_.size(); ++i) {
-        const std::string path = dir + trf("Canción %02d", static_cast<int>(i + 1)) + ".vgz";
+        const std::string path =
+            dir + trf("Canción %02d", static_cast<int>(i + 1)) + (ripSongs_[i].spc ? ".spc" : ".vgz");
         const auto& v = ripSongs_[i].vgz;
         if (writeBytes(path, v.data(), v.size())) ++saved;
     }
