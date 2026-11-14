@@ -223,6 +223,7 @@ private:
         double lastNote = 0, lastAmplitude = 0, lowestRatio = 1;
         double peakEnvelope = 0;  // the envelope's highest on this note, and when
         uint64_t start = 0, peakAt = 0;
+        uint64_t lastHit = 0;  // the noise's last strike, to tell a sweep from a roll
     };
     struct Rule {
         Traits traits;

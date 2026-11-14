@@ -33,6 +33,7 @@ namespace plumnin {
 namespace {
 
 constexpr int kBendRange = 12;  // semitones either way, so slides stay one note
+constexpr double kEffectHits = 0.035;  // seconds: noise struck again sooner goes on as one sound
 
 // A Schroeder reverb (four combs and two all-pass filters per side, Freeverb's
 // tunings) and a chorus (one delay line swept by a slow sine), like the SC-55's
@@ -830,6 +831,21 @@ void SynthMusic::update(int voice, const VoiceState& s, uint64_t clock) {
     if (!fresh && !s.keyed && !noise && std::fabs(s.note - v.lastNote) >= 0.9) fresh = true;
     v.lastNote = s.note;
     v.lastAmplitude = s.amplitude;
+    // A noise struck again within two frames of the last time is the same sound going
+    // on: the drivers step their drums, and sweep their sound effects (a sword, an
+    // explosion), frame by frame. It is one drum, not a roll of them.
+    if (fresh && noise) {
+        const bool rapid = v.lastHit && clock > v.lastHit && static_cast<double>(clock - v.lastHit) < kEffectHits * clockHz_;
+        v.lastHit = clock;
+        if (rapid) {
+            if (s.fingerprint != v.fingerprint) {
+                v.fingerprint = s.fingerprint;
+                updateChipVoices();
+            }
+            v.on = true;
+            return;
+        }
+    }
     if (fresh) {
         noteOn(voice, s, clock);
         return;
