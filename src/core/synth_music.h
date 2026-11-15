@@ -91,6 +91,7 @@ public:
         int swelled = 0;         // of those, that took more than a tenth of a second to swell
         void add(int note);
         int median() const;
+        int span() const;  // semitones from its lowest note to its highest
     };
     // What the rules give an instrument: from its kind, what makes its sound (duty,
     // wave, noise pitch) and how it is played. Public for the tests.
@@ -223,6 +224,10 @@ private:
         double lastNote = 0, lastAmplitude = 0, lowestRatio = 1;
         double peakEnvelope = 0;  // the envelope's highest on this note, and when
         uint64_t start = 0, peakAt = 0;
+        // The envelope a moment after its peak, and the last while it sounded: how fast it
+        // was dying away.
+        double refEnvelope = -1, lastEnvelope = 0;
+        uint64_t refAt = 0, lastAt = 0;
         uint64_t lastHit = 0;  // the noise's last strike, to tell a sweep from a roll
     };
     struct Rule {
