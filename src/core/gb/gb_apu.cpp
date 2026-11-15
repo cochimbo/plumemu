@@ -319,8 +319,12 @@ void Apu::musicVoice(int ch, SynthMusic::VoiceState& out) const {
         out.amplitude = s.volume / 15.0;
         out.duty = s.duty;
         // The instrument: its duty and how its envelope goes, not its starting volume.
-        const uint8_t key[2] = {s.duty, static_cast<uint8_t>(s.nrx2 & 0x0F)};
-        out.fingerprint = SynthMusic::fingerprint(Kind::Pulse, SynthMusic::hash(key, 2));
+        // And its sweep, where it slides (the first channel's): the games' sound effects sweep,
+        // their music hardly ever. (Without one, the same as ever.)
+        const bool sweeps = ch == 0 && s.sweepShift && s.sweepPeriod;
+        const uint8_t key[3] = {s.duty, static_cast<uint8_t>(s.nrx2 & 0x0F),
+                                static_cast<uint8_t>(0x80 | (s.sweepDown ? 0x40 : 0) | s.sweepPeriod << 3 | s.sweepShift)};
+        out.fingerprint = SynthMusic::fingerprint(Kind::Pulse, SynthMusic::hash(key, sweeps ? 3 : 2));
     } else if (ch == 2) {
         static const double kLevel[4] = {0, 1, 0.5, 0.25};
         out.sounding = wave_.on && wave_.dac;

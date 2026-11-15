@@ -125,6 +125,7 @@ public:
     // The SPC700's clock so far (1.024 MHz), and the DSP.
     uint64_t smpClock() const { return dspSamples_ * 32 + dspClock_; }
     const Dsp& dsp() const { return dsp_; }
+    Dsp& dsp() { return dsp_; }
     // The sound made, at the frontend's rate.
     void setSampleRate(double hz) { outRate_ = hz; }
     void takeSamples(std::vector<int16_t>& out);

@@ -33,6 +33,8 @@ namespace plumnin {
 namespace {
 
 constexpr int kBendRange = 12;  // semitones either way, so slides stay one note
+constexpr double kDyingHalf = 0.65;    // seconds: a note's envelope halving this fast is dying away
+constexpr double kSettle = 0.02;       // seconds after its peak: past the attack and the fall to the sustain
 constexpr double kEffectHits = 0.035;  // seconds: noise struck again sooner goes on as one sound
 
 // A Schroeder reverb (four combs and two all-pass filters per side, Freeverb's
@@ -339,6 +341,16 @@ int SynthMusic::Heard::distinct() const {
     return count;
 }
 
+int SynthMusic::Heard::span() const {
+    int low = -1, high = -1;
+    for (int n = 0; n < 128; ++n)
+        if (pitches[static_cast<size_t>(n)]) {
+            if (low < 0) low = n;
+            high = n;
+        }
+    return low < 0 ? 0 : high - low;
+}
+
 int SynthMusic::Heard::median() const {
     int count = 0;
     for (int n = 0; n < 128; ++n)
@@ -378,7 +390,10 @@ SynthMusic::Assignment SynthMusic::suggest(const Traits& t, const Heard& heard) 
             // A sample without a pitch, or a short one the game plays on one or two
             // notes, is a drum, by how bright it is; a bright noise that loops a cymbal,
             // by how long the game holds it.
-            const bool drum = !t.pitched || (!t.looped && t.seconds < 0.35 && (heard.notes < 4 || heard.distinct() <= 2));
+            // (Before four notes, only a very short one: a short note with a clear pitch may yet be
+            // a piano, and a melody's first notes taken for a bass drum come out as a roll.)
+            const bool drum = !t.pitched || (!t.looped && t.seconds < 0.35 &&
+                                             (heard.notes < 4 ? t.seconds < 0.15 : heard.distinct() <= 2));
             if (drum) {
                 if (!t.pitched && t.looped && t.brightness >= 0.18) a.drum = held < 0.25 ? 42 : held < 0.6 ? 46 : 49;
                 else a.drum = t.brightness < 0.06 ? 36 : t.brightness < 0.18 ? 38 : t.seconds > 0.6 ? 49 : 42;
@@ -392,7 +407,9 @@ SynthMusic::Assignment SynthMusic::suggest(const Traits& t, const Heard& heard) 
                 if (!t.looped) a.program = 32;
                 else a.program = !plucked && t.brightness > 0.25 ? 38 : 33;
             } else if (!t.looped) {
-                a.program = t.seconds < 0.5 ? 12 : median < 62 ? 24 : 0;
+                // A short one is a marimba, but over two octaves or more (the bass, the
+                // chords and the tune of a song all on it) a piano.
+                a.program = t.seconds < 0.5 && heard.span() < 24 ? 12 : median < 62 && t.seconds >= 0.5 ? 24 : 0;
             } else if (plucked) {
                 if (median >= 79) a.program = t.fundamental > 0.8 ? 10 : 8;
                 else if (t.fundamental > 0.8) a.program = 46;
@@ -632,6 +649,8 @@ void SynthMusic::noteOn(int voice, const VoiceState& s, uint64_t clock) {
     v.lowestRatio = 1;
     v.start = v.peakAt = clock;
     v.peakEnvelope = s.envelope;
+    v.refEnvelope = -1;
+    v.refAt = v.lastAt = clock;
     if (v.fingerprint != fp) {
         v.fingerprint = fp;
         updateChipVoices();
@@ -670,7 +689,17 @@ void SynthMusic::noteOff(int voice, uint64_t clock) {
             Heard& h = r->second.heard;
             ++h.held;
             if (clock > v.start) h.heldSeconds += static_cast<double>(clock - v.start) / clockHz_;
-            if (v.lowestRatio < 0.34) ++h.decayed;
+            // Died away: below a third. With the chip's envelope, also a short note let go
+            // while dying away, from a moment after its attack (and the fall to its sustain,
+            // which a held note has too) halving in two thirds of a second or less: a
+            // struck note played short, as a melody is, never gets down to a third.
+            bool decayed = v.lowestRatio < 0.34;
+            if (!decayed && v.refEnvelope > 0 && v.lastAt > v.refAt) {
+                const double since = static_cast<double>(v.lastAt - v.refAt) / clockHz_;
+                const double ratio = v.lastEnvelope / v.refEnvelope;
+                decayed = since >= 0.01 && ratio < 0.97 && ratio <= std::pow(0.5, since / kDyingHalf);
+            }
+            if (decayed) ++h.decayed;
             if (v.peakEnvelope >= 0 && static_cast<double>(v.peakAt - v.start) > 0.1 * clockHz_) ++h.swelled;
         }
     }
@@ -832,14 +861,22 @@ void SynthMusic::update(int voice, const VoiceState& s, uint64_t clock) {
     const bool triggered = s.triggers != v.triggers;
     v.triggers = s.triggers;
     // The chip's envelope, where it has one: how long the note took to swell, and whether
-    // it then died away (also when it dies out and the note ends with it).
-    if (v.on && !triggered && v.peakEnvelope >= 0 && s.envelope >= 0) {
+    // it then died away (also when it dies out and the note ends with it, but not as it is
+    // let go: the release takes it down in a moment, a held note as much as a struck one).
+    if (v.on && !triggered && v.peakEnvelope >= 0 && s.envelope >= 0 && (s.sounding || s.envelope == 0)) {
         if (s.envelope > v.peakEnvelope) {
             v.peakEnvelope = s.envelope;
             v.peakAt = clock;
+            v.refEnvelope = -1;
         } else if (v.peakEnvelope > 0) {
             v.lowestRatio = std::min(v.lowestRatio, s.envelope / v.peakEnvelope);
+            if (v.refEnvelope < 0 && static_cast<double>(clock - v.peakAt) >= kSettle * clockHz_) {
+                v.refEnvelope = s.envelope;
+                v.refAt = clock;
+            }
         }
+        v.lastEnvelope = s.envelope;
+        v.lastAt = clock;
     }
     const bool noise = kindOf(s.fingerprint) == Kind::Noise;
     const bool audible = s.sounding && s.amplitude > 0 && s.fingerprint && (noise || (s.note > 12 && s.note < 120));

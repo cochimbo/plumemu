@@ -1304,7 +1304,8 @@ bool Ripper::run(std::vector<SongRipper::Song>* songs, std::string* error, std::
 
 // songs_snes.cpp
 bool ripSnesSongs(const std::vector<uint8_t>& rom, const SongRipper::Options& options, SongRipper::Progress* progress,
-                  std::vector<SongRipper::Song>* songs, std::string* error, std::string* report);
+                  std::vector<SongRipper::Song>* songs, std::string* error, std::string* report,
+                  std::set<uint32_t>* effects);
 
 bool SongRipper::supported(ConsoleSystem s) {
     return s == ConsoleSystem::GameBoy || s == ConsoleSystem::GameBoyColor || s == ConsoleSystem::Nes ||
@@ -1320,7 +1321,7 @@ bool SongRipper::run(const std::vector<uint8_t>& rom, const Options& options, Pr
     }
     if (system == ConsoleSystem::Snes) {
         if (effects) effects->clear();
-        const bool ok = ripSnesSongs(rom, options, progress, songs, error, report);
+        const bool ok = ripSnesSongs(rom, options, progress, songs, error, report, effects);
         if (!ok && error && progress && progress->cancel) *error = tr("Cancelado.");
         return ok;
     }
