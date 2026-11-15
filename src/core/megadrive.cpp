@@ -701,6 +701,15 @@ void MegaDrive::runFrameMd() {
             updateIrq();
             z80_.setIrqLine(vdp_.z80Irq());
         }
+        // The Z80's interrupt goes down a whole line after it came up. It used to go down
+        // at the start of the next line, 64 master clocks (4 Z80 cycles) after the VINT:
+        // a Z80 with its interrupts off for that moment lost it, and Sonic 2's music,
+        // which moves on one step per interrupt, played up to half as fast (#201).
+        if (line == vdp_.activeLines() + 1) {
+            runUntil(lineStart_ + VdpMd::kVcountClocks + VdpMd::kVintDelay);
+            vdp_.lowerZ80Irq();
+            z80_.setIrqLine(false);
+        }
         runUntil(lineStart_ + kMasterPerLine);
     }
     vdp_.endFrame();

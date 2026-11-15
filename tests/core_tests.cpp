@@ -749,6 +749,44 @@ void testBusAckOpenBus() {
     check(md.workRam()[0] == 1, "BUSACK: the bits besides bit 0 read the open bus (Indy Heat)");
 }
 
+void testZ80IrqHeldOneLine() {
+    // The Z80's VINT is held for a line, as on the console: a driver that keeps its
+    // interrupts off most of the time, opening them only for a moment (Sonic 2's while it
+    // plays a drum), takes every one. It was held for 4 Z80 cycles, and Sonic 2's music,
+    // which moves on one step per interrupt, played up to half as fast (#201).
+    std::vector<uint8_t> rom(0x500, 0);
+    const uint8_t vectors[] = {0x00, 0xFF, 0x80, 0x00, 0x00, 0x00, 0x02, 0x00};
+    const uint8_t code[] = {0x33, 0xFC, 0x01, 0x00, 0x00, 0xA1, 0x11, 0x00,  // move.w #$100,$A11100
+                            0x41, 0xF9, 0x00, 0x00, 0x03, 0x00,              // lea $300,a0
+                            0x43, 0xF9, 0x00, 0xA0, 0x00, 0x00,              // lea $A00000,a1
+                            0x30, 0x3C, 0x01, 0x0F,                          // move.w #$10F,d0
+                            0x12, 0xD8,                                      // move.b (a0)+,(a1)+
+                            0x51, 0xC8, 0xFF, 0xFC,                          // dbra d0,back
+                            0x33, 0xFC, 0x01, 0x00, 0x00, 0xA1, 0x12, 0x00,  // move.w #$100,$A11200
+                            0x33, 0xFC, 0x00, 0x00, 0x00, 0xA1, 0x11, 0x00,  // move.w #0,$A11100
+                            0x60, 0xFE};
+    std::copy(std::begin(vectors), std::end(vectors), rom.begin());
+    std::copy(std::begin(code), std::end(code), rom.begin() + 0x200);
+    // The Z80's program, copied to its RAM.
+    const uint8_t start[] = {0x31, 0x00, 0x20, 0xED, 0x56, 0xC3, 0x00, 0x01};  // ld sp,$2000; im 1; jp $100
+    // It takes longer than the line the interrupt is held, as a driver's does, so that it
+    // is not taken twice.
+    const uint8_t handler[] = {0x3A, 0x00, 0x10, 0x3C, 0x32, 0x00, 0x10,  // ld a,($1000); inc a; ld ($1000),a
+                               0x06, 0x30, 0x10, 0xFE,                    // ld b,48; djnz $ (about 620 cycles)
+                               0xFB, 0xC9};                               // ei; ret
+    const uint8_t loop[] = {0xF3, 0x06, 0x08, 0x10, 0xFE,  // di; ld b,8; djnz $ (about 100 cycles)
+                            0xFB, 0x00, 0xC3, 0x00, 0x01}; // ei; nop; jp $100
+    std::copy(std::begin(start), std::end(start), rom.begin() + 0x300);
+    std::copy(std::begin(handler), std::end(handler), rom.begin() + 0x338);
+    std::copy(std::begin(loop), std::end(loop), rom.begin() + 0x400);
+    MegaDrive md;
+    md.loadRomData(rom);
+    md.runFrame();
+    const int before = md.z80Ram()[0x1000];
+    for (int i = 0; i < 60; ++i) md.runFrame();
+    check(((md.z80Ram()[0x1000] - before) & 0xFF) == 60, "Z80: its VINT is held for a line, and one with interrupts off for a moment takes every one (Sonic 2, #201)");
+}
+
 void testPrefetch() {
     // misc_test's "M68K prefetch": code in RAM rewrites the instruction right after the one
     // writing, which the 68000 has fetched already, so the old one (moveq #1,d1) runs.
@@ -3818,6 +3856,7 @@ int main() {
     testVdpWidescreen();
     testOverclock();
     testBusAckOpenBus();
+    testZ80IrqHeldOneLine();
     testPrefetch();
     testZ80ResetKeepsRegisters();
     testTraceSkipsIllegal();

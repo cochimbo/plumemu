@@ -99,7 +99,11 @@ public:
     // already masked by their enables.
     int irqLevel() const;
     void acknowledge(int level);
+    // The Z80's interrupt: raised with the VINT and held for one line (kMasterPerLine)
+    // from there, until lowerZ80Irq(), as on the console. A driver that keeps its
+    // interrupts off for a while (Sonic 2's, while it plays a drum) still takes it.
     bool z80Irq() const { return z80Irq_; }
+    void lowerZ80Irq() { z80Irq_ = false; }
 
     const VideoFrameMd& frame() const { return *frame_; }
     VideoFrameMd& frame() { return *frame_; }  // for the 32X, which draws over it
