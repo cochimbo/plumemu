@@ -3,7 +3,7 @@
 What each version brings, newest first. Installers are on the
 [releases](https://github.com/cochimbo/plumsg/releases) page.
 
-## 1.1.0
+## 1.0.2
 
 - **The library marks the games with cheats on**: a small green bolt on the cover in the
   grid, after the title in the list, next to the chosen game's name under the 3D shelf and
