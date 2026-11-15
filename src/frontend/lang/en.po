@@ -39,6 +39,12 @@ msgstr "%d results. Click one to see it."
 msgid "%d s"
 msgstr "%d s"
 
+msgid "%d truco activo"
+msgstr "%d cheat on"
+
+msgid "%d trucos activos"
+msgstr "%d cheats on"
+
 msgid "%s no es una imagen PNG o JPEG"
 msgstr "%s is not a PNG or JPEG image"
 
@@ -2464,6 +2470,9 @@ msgstr "ScreenScraper: %d game downloaded"
 
 msgid "ScreenScraper: %d juegos descargados"
 msgstr "ScreenScraper: %d games downloaded"
+
+msgid "Se aplican al abrir el juego. Se cambian en Trucos..., en el menú del juego."
+msgstr "They apply when the game is opened. Change them in Cheats..., in the game's menu."
 
 msgid "Se buscan también en sus subcarpetas, y luego puedes añadir más carpetas."
 msgstr "Its subfolders are searched too, and you can add more folders later."
