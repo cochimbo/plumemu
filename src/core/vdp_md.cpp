@@ -563,7 +563,6 @@ void VdpMd::startLine(int line, uint64_t clock) {
     if (line == 0) gunLatched_ = extPending_ = false;
     vcounter_ = line;
     cramWriteCount_ = 0;
-    if (line == activeLines() + 1) z80Irq_ = false;  // the Z80's interrupt line is held for about one line
 }
 
 void VdpMd::raiseVint() {

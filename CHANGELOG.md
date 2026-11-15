@@ -3,6 +3,15 @@
 What each version brings, newest first. Installers are on the
 [releases](https://github.com/cochimbo/plumsg/releases) page.
 
+## 1.0.1
+
+- **Sonic 2's music plays at its speed again**: it went slow, at times up to half its
+  speed, with the sound at its right pitch and the game at 60 frames a second. The Z80's
+  interrupt, which the game's sound driver counts its tempo by, was held for only 4 Z80
+  cycles instead of a whole line, and a driver that had its interrupts off at that moment
+  missed it. Other games whose sound driver runs on the Z80 may sound right now too
+  ([#201](https://github.com/cochimbo/plumsg/issues/201)).
+
 ## 1.0.0
 
 The first stable version: the installer and the AppImage are no longer marked as a
