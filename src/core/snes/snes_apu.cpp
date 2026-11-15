@@ -423,7 +423,14 @@ void Dsp::musicVoice(int i, SynthMusic::VoiceState& out) {
     }
     const MusicSample& m = *voiceSample_[vi];
     const int pitch = reg(i, PitchL) | (reg(i, PitchH) & 0x3F) << 8;
-    out.fingerprint = m.fingerprint;
+    // The instrument is the sample and the envelope it is played with: drivers play their
+    // sound effects with the music's samples, on envelopes of their own (Super Mario
+    // World's jump and coins), and a sample struck and the same sample held are two
+    // instruments. With the GAIN, its mode but not its level, which games move to fade.
+    const uint8_t adsr1 = reg(i, Adsr1), gain = reg(i, Gain);
+    const uint8_t envelope[2] = {adsr1 & 0x80 ? adsr1 : uint8_t{0},
+                                 adsr1 & 0x80 ? reg(i, Adsr2) : static_cast<uint8_t>(gain & 0x80 ? gain & 0xE0 : 0)};
+    out.fingerprint = SynthMusic::fingerprint(Kind::Sample, SynthMusic::hash(envelope, 2, m.fingerprint));
     out.traits = &m.traits;
     out.note = m.hz > 0 ? SynthMusic::noteOf(m.hz * pitch / 4096.0) : 60;
     if (pitch == 0) out.sounding = false;
