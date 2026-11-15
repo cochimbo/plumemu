@@ -3,6 +3,14 @@
 What each version brings, newest first. Installers are on the
 [releases](https://github.com/cochimbo/plumsg/releases) page.
 
+## 1.0.2
+
+- **The library marks the games with cheats on**: a small green bolt on the cover in the
+  grid, after the title in the list, next to the chosen game's name under the 3D shelf and
+  under Play in the details panel, with how many cheats are on. So you know before playing
+  that the game will start with its cheats applied. A game whose cheats are all off is not
+  marked.
+
 ## 1.0.1
 
 - **Sonic 2's music plays at its speed again**: it went slow, at times up to half its

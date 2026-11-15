@@ -51,6 +51,12 @@ msgstr "%d resultados. Clique num para o ver."
 msgid "%d s"
 msgstr "%d s"
 
+msgid "%d truco activo"
+msgstr "%d truque ativo"
+
+msgid "%d trucos activos"
+msgstr "%d truques ativos"
+
 msgid "%s es una carpeta: abre un juego de dentro, o añádela a la biblioteca"
 msgstr "%s é uma pasta: abra um jogo que esteja lá dentro, ou adicione-a à biblioteca"
 
@@ -2748,6 +2754,9 @@ msgstr "ScreenScraper: %d jogo descarregado"
 
 msgid "ScreenScraper: %d juegos descargados"
 msgstr "ScreenScraper: %d jogos descarregados"
+
+msgid "Se aplican al abrir el juego. Se cambian en Trucos..., en el menú del juego."
+msgstr "Aplicam-se ao abrir o jogo. Altere-os em Truques..., no menu do jogo."
 
 msgid "Se buscan también en sus subcarpetas, y luego puedes añadir más carpetas."
 msgstr "As subpastas também são vasculhadas, e depois você pode adicionar mais pastas."

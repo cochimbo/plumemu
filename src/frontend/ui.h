@@ -225,6 +225,12 @@ public:
     void setSoundfonts(std::string included, std::string folder);
     // Where the 3D view's console models are, the user's first: each folder ends in a slash.
     void setModelFolders(std::vector<std::string> folders) { modelFolders_ = std::move(folders); }
+    // Where the games' cheat lists are (ending in a slash): the library marks the games
+    // with cheats on.
+    void setCheatsFolder(std::string folder) {
+        cheatsFolder_ = std::move(folder);
+        cheatsRead_ = -1;
+    }
     // The states menu: a list of the slots that the pad (or the keyboard) can drive.
     // `tab`: open it on that tab (0 the slots), else on the one it was left on.
     void toggleStateMenu(int tab = -1);
@@ -341,6 +347,12 @@ private:
     std::unique_ptr<AchievementsUi> achievements_;
     std::string includedSoundfont_, soundfontFolder_;
     std::vector<std::string> modelFolders_;
+    // The games (by file name without extension) whose cheat list has codes on, and how
+    // many; read again every few seconds, and the frame after the Trucos window changes it.
+    const std::map<std::string, int>& gamesWithCheats();
+    std::string cheatsFolder_;
+    std::map<std::string, int> gamesWithCheats_;
+    double cheatsRead_ = -1;
     void drawSoundfontMenu(UiActions& out);
     void drawSoundfontCombo(UiActions& out, bool labelled = true);
     void drawEqualizer(UiActions& out);
