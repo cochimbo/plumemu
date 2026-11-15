@@ -733,6 +733,7 @@ int main(int argc, char** argv) {
     ui->setEditor(&editor);
     ui->setSoundfonts(paths.soundfont, paths.sound + "soundfonts/");
     ui->musicBatch().setFolder(paths.sound);
+    ui->setCheatsFolder(paths.cheats);
     ui->setModelFolders(paths.myModels == paths.models ? std::vector<std::string>{paths.models}
                                                        : std::vector<std::string>{paths.myModels, paths.models});
     auto loadSoundfont = [&] {
