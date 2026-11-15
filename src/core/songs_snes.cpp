@@ -38,6 +38,7 @@ constexpr int kEffectWindow = 90;     // frames a sound effect is listened to
 constexpr size_t kMaxEffectWays = 4;  // bytes taken for the ways of asking for them, at most
 constexpr int kEffectNumbers = 96;    // numbers tried on each
 constexpr int kDeadEffects = 12;      // in a row with nothing added, once some did
+constexpr int kFewSongs = 2;          // an instrument of effects that only so many songs play is theirs
 
 // A key on, as the game is run frame by frame.
 struct KeyOn {
@@ -424,7 +425,7 @@ bool SnesRipper::run(std::vector<SongRipper::Song>* songs, std::string* error, s
 
     // 4. Each one as an SPC from the moment it starts, its length that of its loop.
     std::set<uint64_t> identities;
-    std::set<uint32_t> music;  // the instruments the songs play
+    std::map<uint32_t, int> music;  // the instruments the songs play, and in how many
     if (progress_) progress_->found = 0;
     for (const Found& f : found) {
         if (cancelled()) return false;
@@ -450,7 +451,7 @@ bool SnesRipper::run(std::vector<SongRipper::Song>* songs, std::string* error, s
             if (debug) std::fprintf(stderr, "  %05X = %d: heard before\n", f.from->index, f.number);
             continue;
         }
-        music.insert(instruments.begin(), instruments.end());
+        for (uint32_t fp : instruments) ++music[fp];
         snes::Apu apu;
         apu.setMasterRate(1024000.0);
         apu.loadSpc(spc);
@@ -472,7 +473,7 @@ bool SnesRipper::run(std::vector<SongRipper::Song>* songs, std::string* error, s
     // plays anyway (most drivers play their effects over the music, taking a voice or
     // two of it for a moment). The instruments they add that no song plays.
     if (!songs->empty() && !effectWays.empty() && effects) {
-        std::set<uint32_t> sounds;
+        std::map<uint32_t, int> sounds;  // the instruments the effects play, and in how many
         int numbers = 0;
         for (const Asked* a : effectWays) {
             std::vector<KeyOn> quiet;
@@ -491,12 +492,18 @@ bool SnesRipper::run(std::vector<SongRipper::Song>* songs, std::string* error, s
                 dead = 0;
                 ++heard;
                 ++numbers;
-                sounds.insert(its.begin(), its.end());
+                for (uint32_t fp : its) ++sounds[fp];
             }
             step();
         }
-        for (uint32_t fp : sounds)
-            if (!music.count(fp)) effects->insert(fp);
+        // Those no song plays; and those of many effects that only one or two songs play: a
+        // driver's effects may share their sample and envelope with the odd jingle (Super
+        // Mario World's jump, with a fanfare's drum roll), and an effect taken for a drum
+        // is worse than a jingle's notes left as the chip plays them.
+        for (const auto& [fp, n] : sounds) {
+            const auto m = music.find(fp);
+            if (m == music.end() || (m->second <= kFewSongs && n > 2 * m->second)) effects->insert(fp);
+        }
         char line[160];
         std::snprintf(line, sizeof line, "Efectos: %d números en %zu bytes, %zu instrumentos, %zu solo en ellos\n", numbers,
                       effectWays.size(), sounds.size(), effects->size());

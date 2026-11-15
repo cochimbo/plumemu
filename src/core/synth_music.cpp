@@ -390,7 +390,10 @@ SynthMusic::Assignment SynthMusic::suggest(const Traits& t, const Heard& heard) 
             // A sample without a pitch, or a short one the game plays on one or two
             // notes, is a drum, by how bright it is; a bright noise that loops a cymbal,
             // by how long the game holds it.
-            const bool drum = !t.pitched || (!t.looped && t.seconds < 0.35 && (heard.notes < 4 || heard.distinct() <= 2));
+            // (Before four notes, only a very short one: a short note with a clear pitch may yet be
+            // a piano, and a melody's first notes taken for a bass drum come out as a roll.)
+            const bool drum = !t.pitched || (!t.looped && t.seconds < 0.35 &&
+                                             (heard.notes < 4 ? t.seconds < 0.15 : heard.distinct() <= 2));
             if (drum) {
                 if (!t.pitched && t.looped && t.brightness >= 0.18) a.drum = held < 0.25 ? 42 : held < 0.6 ? 46 : 49;
                 else a.drum = t.brightness < 0.06 ? 36 : t.brightness < 0.18 ? 38 : t.seconds > 0.6 ? 49 : 42;
