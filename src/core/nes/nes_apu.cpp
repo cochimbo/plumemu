@@ -270,8 +270,12 @@ void Apu::musicVoice(int ch, double cpuHz, SynthMusic::VoiceState& out) const {
         out.duty = p.duty;
         out.pan = ch ? 80 : 48;  // a little apart, as the two pulses often play together
         // The instrument: its duty and its envelope (or a volume set by the game).
-        const uint8_t key[3] = {p.duty, static_cast<uint8_t>(p.env.constant), p.env.constant ? uint8_t{0} : p.env.volume};
-        out.fingerprint = SynthMusic::fingerprint(Kind::Pulse, SynthMusic::hash(key, 3));
+        // And its sweep, where it slides: the games' sound effects sweep, their music hardly
+        // ever. (Without one, the same as ever.)
+        const bool sweeps = p.sweepOn && p.sweepShift;
+        const uint8_t key[4] = {p.duty, static_cast<uint8_t>(p.env.constant), p.env.constant ? uint8_t{0} : p.env.volume,
+                                static_cast<uint8_t>(0x80 | (p.sweepNegate ? 0x40 : 0) | (p.sweepPeriod & 7) << 3 | (p.sweepShift & 7))};
+        out.fingerprint = SynthMusic::fingerprint(Kind::Pulse, SynthMusic::hash(key, sweeps ? 4 : 3));
     } else if (ch == 2) {
         // Games silence it with the counters, or with a period too high to hear.
         out.sounding = tri_.length && tri_.linear && tri_.period >= 2;
