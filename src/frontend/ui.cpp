@@ -104,6 +104,15 @@ void drawMusicNote(ImDrawList* draw, ImVec2 at, float size, ImU32 colour) {
                              ImVec2(stemX + size * 0.22f, top + size * 0.5f), colour, std::max(1.0f, size * 0.09f));
 }
 
+// A lightning bolt in a `size` square at `at`, the mark of a game with cheats on: two
+// triangles, drawn rather than a glyph the fonts may not have.
+void drawCheatIcon(ImDrawList* draw, ImVec2 at, float size, ImU32 colour) {
+    auto p = [&](float x, float y) { return ImVec2(at.x + x * size, at.y + y * size); };
+    draw->AddTriangleFilled(p(0.66f, 0.02f), p(0.16f, 0.58f), p(0.54f, 0.58f), colour);
+    draw->AddTriangleFilled(p(0.46f, 0.42f), p(0.84f, 0.42f), p(0.34f, 0.98f), colour);
+}
+constexpr ImU32 kCheatColour = IM_COL32(110, 230, 150, 255);
+
 // Back to the default look of the pseudo-3D (the effect itself stays on or off).
 void reset3D(RenderOptions& r) {
     const RenderOptions defaults;
@@ -674,6 +683,7 @@ UiActions Ui::frame(const UiState& state) {
     if (showVideo_) drawVideo(state, out);
     if (showAbout_) drawAbout();
     if (showCheats_) drawCheats(state, out);
+    if (out.cheatsChanged) cheatsRead_ = -1;  // the library's marks, once it is saved
     if (showGameOptions_) drawGameOptions(state, out);
     if (synth_) {
         // The editor opened from a game's menu in the library is for that game until it is
@@ -2498,6 +2508,24 @@ void Ui::libraryItem(bool clicked, int n) {
     }
 }
 
+const std::map<std::string, int>& Ui::gamesWithCheats() {
+    const double now = ImGui::GetTime();
+    if (cheatsRead_ >= 0 && now - cheatsRead_ < 2.0) return gamesWithCheats_;
+    cheatsRead_ = now;
+    gamesWithCheats_.clear();
+    if (cheatsFolder_.empty()) return gamesWithCheats_;
+    std::error_code ec;
+    for (const auto& e : std::filesystem::directory_iterator(std::filesystem::u8path(cheatsFolder_), ec)) {
+        if (!e.is_regular_file(ec) || e.path().extension() != ".txt") continue;
+        std::ifstream in(e.path(), std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        int on = 0;
+        for (const Cheat& c : parseCheats(text)) on += c.enabled && !c.code.empty();
+        if (on > 0) gamesWithCheats_[e.path().stem().u8string()] = on;
+    }
+    return gamesWithCheats_;
+}
+
 void Ui::drawLibraryGrid(const std::vector<size_t>& visible) {
     const auto& games = library_.games();
     const float coverW = static_cast<float>(settings_.libraryCoverWidth), coverH = std::round(coverW * 1.4f);
@@ -2508,6 +2536,7 @@ void Ui::drawLibraryGrid(const std::vector<size_t>& visible) {
     const int cols = std::max(1, static_cast<int>((avail + style.ItemSpacing.x) / (card.x + style.ItemSpacing.x)));
     libraryView_.columns = cols;
     const std::map<std::string, int>& withMusic = editor_.gamesWithMusic();
+    const std::map<std::string, int>& withCheats = gamesWithCheats();
     ImDrawList* draw = ImGui::GetWindowDrawList();
     const ImRect inner = ImGui::GetCurrentWindow()->InnerRect;
     theme::libraryBackground(inner.Min, inner.Max);
@@ -2549,6 +2578,15 @@ void Ui::drawLibraryGrid(const std::vector<size_t>& visible) {
             const ImVec2 b0(box.x + 4, box.y + 4);
             draw->AddRectFilled(b0, ImVec2(b0.x + s, b0.y + s), IM_COL32(20, 20, 24, 210), 4.0f);
             drawMusicNote(draw, ImVec2(b0.x + s * 0.15f, b0.y + s * 0.1f), s * 0.8f, IM_COL32(255, 214, 90, 255));
+        }
+        // A bolt next to it: the game has cheats on, which apply when it is opened.
+        if (const auto c = withCheats.find(g.stem); c != withCheats.end()) {
+            const float s = std::clamp(coverW * 0.16f, 16.0f, 26.0f);
+            const ImVec2 b0(box.x + 4 + (withMusic.count(g.stem) ? s + 4 : 0), box.y + 4);
+            draw->AddRectFilled(b0, ImVec2(b0.x + s, b0.y + s), IM_COL32(20, 20, 24, 210), 4.0f);
+            drawCheatIcon(draw, ImVec2(b0.x + s * 0.12f, b0.y + s * 0.1f), s * 0.8f, kCheatColour);
+            if (ImGui::IsMouseHoveringRect(b0, ImVec2(b0.x + s, b0.y + s)))
+                ImGui::SetTooltip("%s", trf(c->second == 1 ? N_("%d truco activo") : N_("%d trucos activos"), c->second).c_str());
         }
         // On the "Todos" tab, a badge on each cover says which console.
         if (settings_.librarySystem < 0) {
@@ -2614,6 +2652,7 @@ void Ui::drawLibraryList(const std::vector<size_t>& visible) {
         specs->SpecsDirty = false;
     }
     ImGui::TableHeadersRow();
+    const std::map<std::string, int>& withCheats = gamesWithCheats();
     ImGuiListClipper clipper;
     clipper.Begin(static_cast<int>(visible.size()));
     if (libraryView_.scroll && libraryView_.selected < static_cast<int>(visible.size()))
@@ -2629,7 +2668,20 @@ void Ui::drawLibraryList(const std::vector<size_t>& visible) {
             libraryItem(ImGui::Selectable(g.title.c_str(), selected,
                                           ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick),
                         n);
-            if (ImGui::IsItemHovered() && !g.tags.empty()) ImGui::SetTooltip("%s\n%s", g.tags.c_str(), g.path.c_str());
+            const auto cheats = withCheats.find(g.stem);
+            if (ImGui::IsItemHovered() && (!g.tags.empty() || cheats != withCheats.end())) {
+                std::string tip = g.tags.empty() ? g.path : g.tags + "\n" + g.path;
+                if (cheats != withCheats.end())
+                    tip += "\n" + trf(cheats->second == 1 ? N_("%d truco activo") : N_("%d trucos activos"), cheats->second);
+                ImGui::SetTooltip("%s", tip.c_str());
+            }
+            // A bolt after the title: the game has cheats on.
+            if (cheats != withCheats.end()) {
+                const float s = ImGui::GetTextLineHeight();
+                const ImVec2 at(ImGui::GetItemRectMin().x + ImGui::CalcTextSize(g.title.c_str()).x + 6,
+                                ImGui::GetItemRectMin().y + (ImGui::GetItemRectSize().y - s) * 0.5f);
+                drawCheatIcon(ImGui::GetWindowDrawList(), at, s, kCheatColour);
+            }
             if (selected && libraryView_.scroll) {
                 ImGui::SetScrollHereY(0.5f);
                 libraryView_.scroll = false;
@@ -2706,6 +2758,15 @@ void Ui::drawLibraryDetails(const std::vector<size_t>& visible) {
     }
     ImGui::Spacing();
     if (theme::primaryButton(tr("Jugar"))) libraryView_.load = n;
+    if (const auto c = gamesWithCheats().find(g.stem); c != gamesWithCheats().end()) {
+        // Under the button, a bolt and how many.
+        const float s = ImGui::GetTextLineHeight();
+        drawCheatIcon(draw, ImGui::GetCursorScreenPos(), s, kCheatColour);
+        ImGui::Dummy(ImVec2(s, s));
+        ImGui::SameLine();
+        ImGui::TextUnformatted(trf(c->second == 1 ? N_("%d truco activo") : N_("%d trucos activos"), c->second).c_str());
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tr("Se aplican al abrir el juego. Se cambian en Trucos..., en el menú del juego."));
+    }
 
     // libretro-database's data, the lines it has.
     ImGui::Spacing();

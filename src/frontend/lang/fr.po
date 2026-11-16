@@ -39,6 +39,12 @@ msgstr "%d résultats. Cliquez sur l'un pour le voir."
 msgid "%d s"
 msgstr "%d s"
 
+msgid "%d truco activo"
+msgstr "%d code de triche actif"
+
+msgid "%d trucos activos"
+msgstr "%d codes de triche actifs"
+
 msgid "%s no es una imagen PNG o JPEG"
 msgstr "%s n'est pas une image PNG ou JPEG"
 
@@ -2464,6 +2470,9 @@ msgstr "ScreenScraper : %d jeu téléchargé"
 
 msgid "ScreenScraper: %d juegos descargados"
 msgstr "ScreenScraper : %d jeux téléchargés"
+
+msgid "Se aplican al abrir el juego. Se cambian en Trucos..., en el menú del juego."
+msgstr "Ils s'appliquent à l'ouverture du jeu. Modifiez-les dans Codes de triche..., dans le menu du jeu."
 
 msgid "Se buscan también en sus subcarpetas, y luego puedes añadir más carpetas."
 msgstr "Ses sous-dossiers sont aussi parcourus, et vous pourrez ajouter d'autres dossiers ensuite."

@@ -122,6 +122,12 @@ public:
 
     // The SoundFont that comes with plumnin, and the folder whose .sf2 files are listed.
     void setSoundfonts(std::string included, std::string folder);
+    // Where the games' cheat lists are (ending in a slash): the library marks the games
+    // with cheats on.
+    void setCheatsFolder(std::string folder) {
+        cheatsFolder_ = std::move(folder);
+        cheatsRead_ = -1;
+    }
     // The synthesizer, for the instrument editor, and the folder of the games' choices.
     void openInstrumentEditor() { editor_.open(); }
     // A song of the instrument editor is playing: the game waits, and this is its sound.
@@ -298,6 +304,12 @@ private:
     bool showVideo_ = false;
     bool showAbout_ = false;
     bool showCheats_ = false;
+    // The games (by file name without extension) whose cheat list has codes on, and how
+    // many; read again every few seconds, and the frame after the Trucos window changes it.
+    const std::map<std::string, int>& gamesWithCheats();
+    std::string cheatsFolder_;
+    std::map<std::string, int> gamesWithCheats_;
+    double cheatsRead_ = -1;
     bool showLibrary_ = false;
     bool romLoaded_ = false;  // a game is running: B in the library goes back to it
     bool showNetplay_ = false;

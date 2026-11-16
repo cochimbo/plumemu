@@ -666,6 +666,7 @@ int main(int argc, char** argv) {
     // The synthesizer, when chosen and its SoundFont opens; else the chip's own sound.
     auto synth = std::make_unique<SynthMusic>();
     ui->setSoundfonts(paths.soundfont, paths.soundfonts);
+    ui->setCheatsFolder(paths.cheats);
     const std::string soundDir = paths.soundfonts.substr(0, paths.soundfonts.size() - std::string("soundfonts/").size());
     ui->setSynth(synth.get(), soundDir);
     std::string synthFont;  // the SoundFont loaded (or tried)
