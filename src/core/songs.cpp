@@ -58,6 +58,9 @@ public:
     virtual bool chip(uint16_t address) const = 0;  // a register of the sound chip
     virtual std::unique_ptr<NoteSpotter> notes() const = 0;
     virtual bool channelsOn() const = 0;
+    // The fingerprints of the chip's sounds that effects are made of (its noise, a pulse
+    // that sweeps), every one it can have.
+    virtual std::vector<uint32_t> effectFingerprints() const = 0;
     // The three registers a routine may be given a number in.
     virtual std::array<uint8_t, 3> arguments() const = 0;
     virtual void setArgument(int reg, uint8_t value) = 0;
@@ -127,6 +130,7 @@ public:
         return std::make_unique<Spotter>();
     }
     bool channelsOn() const override { return (gb.peek(0xFF26) & 0x0F) != 0; }
+    std::vector<uint32_t> effectFingerprints() const override { return gb::Apu::effectFingerprints(); }
     std::array<uint8_t, 3> arguments() const override {
         const GameBoy::Cpu c = gb.cpu();
         return {c.a, c.c, c.e};
@@ -266,6 +270,7 @@ public:
         return std::make_unique<Spotter>();
     }
     bool channelsOn() const override { return nes.channelsOn() != 0; }
+    std::vector<uint32_t> effectFingerprints() const override { return nes::Apu::effectFingerprints(); }
     std::array<uint8_t, 3> arguments() const override {
         const Nes::Cpu c = nes.cpu();
         return {c.a, c.x, c.y};
@@ -1268,13 +1273,15 @@ bool Ripper::run(std::vector<SongRipper::Song>* songs, std::string* error, std::
     }
     // The sound effects: the instruments of the short sounds that no song plays (a
     // synthesizer of its own listens to each, recorded for a moment).
-    if (!songs->empty() && !shorts.empty() && !cancelled()) {
-        std::set<uint32_t> music, sounds;
+    std::set<uint32_t> music;
+    if (!songs->empty() && !cancelled())
         for (const SongRipper::Song& s : *songs) {
             VgmFile f;
             if (f.parse(s.vgz, nullptr))
                 for (const auto& [fp, seen] : VgmPlayer::instruments(f)) music.insert(fp);
         }
+    if (!songs->empty() && !shorts.empty() && !cancelled()) {
+        std::set<uint32_t> sounds;
         const double longest = options_.maxSeconds;
         options_.maxSeconds = 4;
         for (const auto& [way, number] : shorts) {
@@ -1294,6 +1301,17 @@ bool Ripper::run(std::vector<SongRipper::Song>* songs, std::string* error, std::
         if (std::getenv("PLUMNIN_RIP_DEBUG"))
             std::fprintf(stderr, "effects: %zu numbers, %zu instruments, %zu only in them\n", shorts.size(), sounds.size(),
                          effects.size());
+    }
+    // And every sound of the noise channel, or of a pulse that sweeps, that no song plays:
+    // the drums are a few the songs use again and again, and they hardly ever sweep, while
+    // the effects (steps, blows, explosions, jumps) come in more kinds than the numbers
+    // tried above reach. There are few enough (some thousands), so all go in, but those
+    // the songs play.
+    if (!songs->empty() && !cancelled()) {
+        size_t noises = 0;
+        for (uint32_t fp : m_->effectFingerprints())
+            if (!music.count(fp) && effects.insert(fp).second) ++noises;
+        if (std::getenv("PLUMNIN_RIP_DEBUG")) std::fprintf(stderr, "effects: %zu more of the noise and the sweeps\n", noises);
     }
     for (const auto& [w, n] : byWay) log += w->describe(*m_) + ": " + std::to_string(n) + " canciones\n";
     if (report) *report = log;

@@ -291,6 +291,27 @@ void Apu::musicVoice(int ch, double cpuHz, SynthMusic::VoiceState& out) const {
     }
 }
 
+std::vector<uint32_t> Apu::effectFingerprints() {
+    std::vector<uint32_t> out;
+    for (int index = 0; index < 16; ++index)
+        for (int mode = 0; mode < 2; ++mode) {
+            const uint8_t key[2] = {static_cast<uint8_t>(index), static_cast<uint8_t>(mode)};
+            out.push_back(SynthMusic::fingerprint(SynthMusic::Kind::Noise, SynthMusic::hash(key, 2)));
+        }
+    // (As musicVoice makes them: a constant volume's fingerprint does not say which.)
+    for (int duty = 0; duty < 4; ++duty)
+        for (int volume = -1; volume < 16; ++volume)
+            for (int negate = 0; negate < 2; ++negate)
+                for (int period = 0; period < 8; ++period)
+                    for (int shift = 1; shift < 8; ++shift) {
+                        const uint8_t key[4] = {static_cast<uint8_t>(duty), static_cast<uint8_t>(volume < 0),
+                                                static_cast<uint8_t>(volume < 0 ? 0 : volume),
+                                                static_cast<uint8_t>(0x80 | (negate ? 0x40 : 0) | period << 3 | shift)};
+                        out.push_back(SynthMusic::fingerprint(SynthMusic::Kind::Pulse, SynthMusic::hash(key, 4)));
+                    }
+    return out;
+}
+
 uint8_t Apu::peekStatus() const {
     uint8_t v = 0;
     if (pulse_[0].length) v |= 1;

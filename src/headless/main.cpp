@@ -84,6 +84,8 @@ Output
   --wav FILE            the whole run's sound (44100 Hz stereo)
   --synth SF2           the music through the synthesizer, on this SoundFont
   --synth-chip PERCENT  how loud the chip's own sound stays under it (default 0)
+  --effects FILE        the sound effects' instruments (the effects.txt of --rip-songs):
+                        they keep the chip's sound under --synth
   --rip-songs DIR       Sacar canciones: every song of the game (Game Boy, Color and NES,
                         each to DIR as a .vgz with its loop; Super Nintendo as a .spc), then exit
   --vgm FILE            the run's music as a VGM (gzip-compressed, .vgz), as the
@@ -384,7 +386,7 @@ int main(int argc, char** argv) {
     std::vector<std::string> cheats, scripts, lines;
     ConsoleSystem testSystem = ConsoleSystem::Nes;
     long frames = 600, overclock = 100, pngEvery = 0, netPort = 0, inputDelay = 2, netLag = 0, netLoss = 0, synthChip = 0;
-    std::string synthFont, vgmOut, ripDir, spcOut;
+    std::string synthFont, vgmOut, ripDir, spcOut, effectsFile;
     bool netHost = false;
     std::string netJoin;
     int wideLeft = 0, wideRight = 0;
@@ -456,6 +458,7 @@ int main(int argc, char** argv) {
         else if (a == "--wav") wav = next();
         else if (a == "--synth") synthFont = next();
         else if (a == "--synth-chip") number(&synthChip);
+        else if (a == "--effects") effectsFile = next();
         else if (a == "--vgm") vgmOut = next();
         else if (a == "--rip-songs") ripDir = next();
         else if (a == "--spc") spcOut = next();
@@ -699,6 +702,23 @@ int main(int argc, char** argv) {
             return 1;
         }
         md.setSynth(&synth, static_cast<int>(synthChip));
+        if (!effectsFile.empty()) {
+            std::vector<uint8_t> text;
+            if (!readFile(effectsFile, text)) {
+                std::fprintf(stderr, "cannot read %s\n", effectsFile.c_str());
+                return 1;
+            }
+            std::set<uint32_t> effects;
+            const std::string lines(text.begin(), text.end());
+            for (size_t at = 0; at < lines.size();) {
+                size_t end = lines.find('\n', at);
+                if (end == std::string::npos) end = lines.size();
+                if (const uint32_t fp = static_cast<uint32_t>(std::strtoul(lines.substr(at, end - at).c_str(), nullptr, 16)))
+                    effects.insert(fp);
+                at = end + 1;
+            }
+            synth.setSoundEffects(std::move(effects), true);
+        }
     }
     md.audio().clearSamples();
     VgmWriter vgm;

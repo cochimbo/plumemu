@@ -33,6 +33,9 @@ public:
     // What channel `ch` (0-3: the squares, the wave, the noise) is playing, for the
     // synthesizer.
     void musicVoice(int ch, SynthMusic::VoiceState& out) const;
+    // Every fingerprint the noise channel can have (its NR43 and its envelope), and the first
+    // channel's when it sweeps: what sound effects are made of, and songs hardly ever.
+    static std::vector<uint32_t> effectFingerprints();
     // The channels (a bit each) heard at full volume; the rest at `percent`.
     void setChannelGains(uint32_t full, uint32_t silent, int percent) {
         for (int i = 0; i < 4; ++i) gains_[i] = (silent >> i) & 1 ? 0 : (full >> i) & 1 ? 100 : percent;

@@ -349,6 +349,26 @@ void Apu::musicVoice(int ch, SynthMusic::VoiceState& out) const {
     }
 }
 
+std::vector<uint32_t> Apu::effectFingerprints() {
+    std::vector<uint32_t> out;
+    for (int nr43 = 0; nr43 < 256; ++nr43)
+        for (int low = 0; low < 16; ++low) {
+            const uint8_t key[2] = {static_cast<uint8_t>(nr43), static_cast<uint8_t>(low)};
+            out.push_back(SynthMusic::fingerprint(SynthMusic::Kind::Noise, SynthMusic::hash(key, 2)));
+        }
+    // (As musicVoice makes them.)
+    for (int duty = 0; duty < 4; ++duty)
+        for (int low = 0; low < 16; ++low)
+            for (int down = 0; down < 2; ++down)
+                for (int period = 1; period < 8; ++period)
+                    for (int shift = 1; shift < 8; ++shift) {
+                        const uint8_t key[3] = {static_cast<uint8_t>(duty), static_cast<uint8_t>(low),
+                                                static_cast<uint8_t>(0x80 | (down ? 0x40 : 0) | period << 3 | shift)};
+                        out.push_back(SynthMusic::fingerprint(SynthMusic::Kind::Pulse, SynthMusic::hash(key, 3)));
+                    }
+    return out;
+}
+
 void Apu::run(int cycles) {
     for (auto& s : sq_) {
         if (!s.on) continue;
