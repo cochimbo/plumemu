@@ -71,7 +71,7 @@ private:
     void extraSprites();
     void pixel();
     void blankPixel();
-    void output(int x, int bgIdx, int bgPal, int spIdx, int spPal, int slot);
+    void output(int x, int bgIdx, int bgPal, uint16_t bgTile, int spIdx, int spPal, int slot);
     uint8_t decayedOpenBus(uint8_t mask);
     void driveOpenBus(uint8_t value, uint8_t mask);
 
@@ -99,6 +99,9 @@ private:
     // Background fetches and shifters.
     uint8_t ntByte_ = 0, atByte_ = 0, loByte_ = 0, hiByte_ = 0;
     uint16_t bgLo_ = 0, bgHi_ = 0, atLo_ = 0, atHi_ = 0;
+    // The tile (and its pattern table) of each bit of bgLo_, bit 15 first: only for the
+    // frame's per-pixel info, so not part of a savestate.
+    std::array<uint16_t, 16> bgTile_{};
 
     // Sprite evaluation (for the next line) and the sprites of this line.
     uint8_t copyBuffer_ = 0, secAddr_ = 0, spriteH_ = 0, spriteL_ = 0;

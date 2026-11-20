@@ -263,6 +263,8 @@ void Ppu::backgroundDot() {
     bgHi_ = static_cast<uint16_t>(bgHi_ << 1);
     atLo_ = static_cast<uint16_t>(atLo_ << 1);
     atHi_ = static_cast<uint16_t>(atHi_ << 1);
+    std::copy(bgTile_.begin() + 1, bgTile_.end(), bgTile_.begin());
+    bgTile_[15] = 0;
     switch ((dot_ - 1) & 7) {
         case 0: ntByte_ = fetch(static_cast<uint16_t>(0x2000 | (v_ & 0x0FFF))); break;
         case 2: {
@@ -282,6 +284,7 @@ void Ppu::backgroundDot() {
             bgHi_ |= hiByte_;
             atLo_ |= atByte_ & 1 ? 0xFF : 0;
             atHi_ |= atByte_ & 2 ? 0xFF : 0;
+            std::fill(bgTile_.begin() + 8, bgTile_.end(), static_cast<uint16_t>(ntByte_ | (ctrl_ & 0x10) << 4));
             incX();
             break;
         default: break;
@@ -435,10 +438,12 @@ void Ppu::extraSprites() {
 void Ppu::pixel() {
     const int x = dot_ - 1;
     int bgIdx = 0, bgPal = 0;
+    uint16_t bgTile = 0;
     if ((mask_ & 0x08) && (x >= 8 || (mask_ & 0x02))) {
         const int bit = 15 - x_;
         bgIdx = ((bgLo_ >> bit) & 1) | ((bgHi_ >> bit) & 1) << 1;
         bgPal = ((atLo_ >> bit) & 1) | ((atHi_ >> bit) & 1) << 1;
+        bgTile = bgTile_[static_cast<size_t>(x_)];
     }
     int spIdx = 0, spPal = 0, slot = -1;
     if ((mask_ & 0x10) && (x >= 8 || (mask_ & 0x04))) {
@@ -455,10 +460,10 @@ void Ppu::pixel() {
             break;
         }
     }
-    output(x, bgIdx, bgPal, spIdx, spPal, slot);
+    output(x, bgIdx, bgPal, bgTile, spIdx, spPal, slot);
 }
 
-void Ppu::output(int x, int bgIdx, int bgPal, int spIdx, int spPal, int slot) {
+void Ppu::output(int x, int bgIdx, int bgPal, uint16_t bgTile, int spIdx, int spPal, int slot) {
     if (!drawing_ || !frame_) return;
     const int row = scanline_ - kFirstShownLine;
     if (row < 0 || row >= kShownLines) return;
@@ -480,12 +485,16 @@ void Ppu::output(int x, int bgIdx, int bgPal, int spIdx, int spPal, int slot) {
     if (bgIdx) {
         const uint32_t c = colour(palette[static_cast<size_t>(bgPal * 4 + bgIdx)]);
         f.planeB[i] = c;
-        f.planeBInfo[i] = Pixel{static_cast<uint8_t>(bgPal * 16 + bgIdx), Layer::Back, false, Shade::Normal, ntByte_};
+        f.planeBInfo[i] = Pixel{static_cast<uint8_t>(bgPal * 16 + bgIdx), Layer::Back, false, Shade::Normal, bgTile};
         top = c;
         topInfo = f.planeBInfo[i];
     } else {
         f.planeB[i] = 0;
-        f.planeBInfo[i] = Pixel{};
+        // A transparent pixel of a tile still says which tile it is, so the pseudo-3D view
+        // can tell the tiles full of holes (text, outlines) from the solid ones.
+        const bool bgShown = (mask_ & 0x08) && (x >= 8 || (mask_ & 0x02));
+        f.planeBInfo[i] = bgShown ? Pixel{static_cast<uint8_t>(bgPal * 16), Layer::Back, false, Shade::Normal, bgTile}
+                                  : Pixel{};
     }
     if (spIdx) {
         const size_t s = static_cast<size_t>(slot);

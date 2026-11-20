@@ -35,6 +35,7 @@ Nes::Nes() : frame_(std::make_unique<VideoFrame>()) {
     f.interlaced = false;
     f.aspectLines = nes::kShownLines;
     f.screenAspect = 0;
+    f.oneBackground = true;
     ppu_.setFrame(frame_.get());
     apu_.setSampleRate(44100);
 }
