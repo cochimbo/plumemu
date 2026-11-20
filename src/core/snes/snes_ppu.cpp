@@ -464,6 +464,7 @@ void Ppu::drawBackground(int bg, int y, int width, LayerLine& out) {
         }
         if (!c) {
             out.index[x] = 0;
+            out.source[x] = static_cast<uint16_t>(entry & 0x3FF);  // for the 3D view's solid tiles
             continue;
         }
         const int pal = (entry >> 10) & 7;
@@ -878,6 +879,16 @@ void Ppu::output(int row, int bgWidth, bool hiresLine) {
         f.planeBInfo[i] = infoOf(b);
         f.planeA[i] = a.layer == kBackdrop ? 0 : bright(a.color);
         f.planeAInfo[i] = infoOf(a);
+        // Where the front plane is transparent, still say which of its tiles is there (colour
+        // 0), so the 3D view can tell the tiles full of holes from the solid ones.
+        if (a.layer == kBackdrop && mode != 7)
+            for (int bg = 0; bg < 4; ++bg)
+                if ((front & tm_ & (1 << bg)) && kBpp[mode][bg] &&
+                    !((tmw_ & (1 << bg)) && windows[static_cast<size_t>(bg)][static_cast<size_t>(x)])) {
+                    f.planeAInfo[i] = Pixel{0, Layer::Front, false, Shade::Normal,
+                                            bg_[static_cast<size_t>(bg)].source[static_cast<size_t>(hxMain)]};
+                    break;
+                }
         f.sprites[i] = s.layer == kBackdrop ? 0 : bright(s.color);
         f.spriteInfo[i] = infoOf(s);
     }
