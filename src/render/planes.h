@@ -36,6 +36,12 @@ struct SplitOptions {
 // console actually shows gets its final colour, and the planes in front of it lose
 // that pixel; the planes behind keep theirs, so tilting the camera shows what is
 // hidden. With the camera straight on, the 3D view is exactly the 2D picture.
+//
+// A console with one background (frame.oneBackground: the Game Boy, the NES) has its
+// playfield and its scenery in the same layer, plane B. Its solid tiles (see
+// markSolidTiles) go up to plane A, where nothing else is (or the Game Boy's window, which
+// keeps those pixels), so the ground and the walls stand out from the rest and get the
+// voxels' extrusion; the tiles with holes stay on plane B behind them.
 void splitPlanes(const VideoFrame& frame, const SplitOptions& options, Planes& planes);
 
 // Writes into the alpha of every solid pixel how far it is from the plane's edge, in
@@ -47,7 +53,7 @@ constexpr int kMaxEdgeDistance = 4;
 void markEdgeDistance(std::vector<uint32_t>& plane, int width, int height);
 
 // Marks the pixels of plane A (0xFFFFFFFF or 0, planes' size) that belong to solid
-// tiles: tile patterns of which at most a quarter of the pixels on screen are
+// tiles (with one background, the background's tiles that splitPlanes raised): tile patterns of which at most a quarter of the pixels on screen are
 // transparent. Ground, walls and platforms are usually solid; foliage, clouds and
 // outlines are not. The voxel view extrudes solid tiles far back, like 3DNES does.
 void markSolidTiles(const VideoFrame& frame, const Planes& planes, std::vector<uint32_t>& solid);

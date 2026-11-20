@@ -27,6 +27,7 @@ GameBoy::GameBoy() : frame_(std::make_unique<VideoFrame>()) {
     f.interlaced = false;
     f.aspectLines = gb::kScreenHeight;
     f.screenAspect = static_cast<float>(gb::kScreenWidth) / gb::kScreenHeight;
+    f.oneBackground = true;
     ppu_.setFrame(frame_.get());
     apu_.setSampleRate(44100);
 }

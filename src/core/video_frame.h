@@ -54,6 +54,10 @@ struct VideoFrame {
     // The console's own screen is as wide as tall times this (the Game Boy's 160x144
     // is 10:9), 0 for a TV picture at 4:3.
     float screenAspect = 0;
+    // The console has a single background (the Game Boy, the NES), drawn as plane B. The
+    // pseudo-3D view then raises its solid tiles to plane A, as the playfield, so they
+    // get the voxels' extrusion like a Mega Drive's plane A does.
+    bool oneBackground = false;
 
     // Row stride is always kMaxWidth.
     std::array<uint32_t, kPixels> rgba{};  // final picture, 0xAARRGGBB
