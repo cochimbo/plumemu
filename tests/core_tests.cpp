@@ -691,6 +691,56 @@ void testPlanes() {
     check(planes[PlaneSprites][sprite] != 0, "planes: the sprite on its own plane");
 }
 
+// A console with one background: its solid tiles go up to plane A, the ones with holes
+// stay on plane B, the window keeps its pixels, and straight on it is still the 2D picture.
+void testOneBackgroundPlanes() {
+    auto f = std::make_unique<VideoFrame>();
+    f->width = 160;
+    f->height = 144;
+    f->oneBackground = true;
+    for (int y = 0; y < f->height; ++y) {
+        f->backdrop[static_cast<size_t>(y)] = 0xFFFFFFFFu;
+        for (int x = 0; x < f->width; ++x) {
+            const size_t i = static_cast<size_t>(y) * VideoFrame::kMaxWidth + x;
+            // Bottom half: tile 1, every pixel coloured (ground). Top half: tile 2, one
+            // pixel in four coloured (a cloud's outline).
+            const bool ground = y >= 72;
+            const bool coloured = ground || (x % 2 == 0 && y % 2 == 0);
+            const uint32_t c = ground ? 0xFF404040u : 0xFF808080u;
+            const Pixel p{static_cast<uint8_t>(coloured ? 3 : 0), Layer::Back, false, Shade::Normal,
+                          static_cast<uint16_t>(ground ? 1 : 2)};
+            f->planeB[i] = coloured ? c : 0;
+            f->planeBInfo[i] = p;
+            f->info[i] = coloured ? p : Pixel{};
+            f->rgba[i] = coloured ? c : 0xFFFFFFFFu;
+            // The window over the bottom right corner.
+            if (ground && x >= 120) {
+                f->planeA[i] = f->rgba[i] = 0xFF000000u;
+                f->planeAInfo[i] = f->info[i] = Pixel{1, Layer::Window, false, Shade::Normal, 3};
+            }
+        }
+    }
+    Planes planes;
+    splitPlanes(*f, SplitOptions{}, planes);
+    auto at = [&](int p, int x, int y) { return planes[p][static_cast<size_t>(y) * planes.width + x]; };
+    check(at(PlaneA, 10, 100) == 0xFF404040u && at(PlaneB, 10, 100) == 0, "one background: solid tiles go to plane A");
+    check(at(PlaneB, 10, 10) == 0xFF808080u && at(PlaneA, 10, 10) == 0, "one background: tiles with holes stay on B");
+    check(at(PlaneA, 130, 100) == 0xFF000000u, "one background: the window keeps its pixels");
+    bool same = true;
+    for (int y = 0; y < planes.height; ++y)
+        for (int x = 0; x < planes.width; ++x) {
+            uint32_t seen = 0;
+            for (int p = kPlanes - 1; p >= 0 && !seen; --p)
+                if (at(p, x, y) >> 24) seen = at(p, x, y);
+            if ((seen & 0xFFFFFF) != (f->pixel(x, y) & 0xFFFFFF)) same = false;
+        }
+    check(same, "one background: straight on = 2D");
+    std::vector<uint32_t> solid;
+    markSolidTiles(*f, planes, solid);
+    auto solidAt = [&](int x, int y) { return solid[static_cast<size_t>(y) * planes.width + x] != 0; };
+    check(solidAt(10, 100) && !solidAt(10, 10) && !solidAt(130, 100), "one background: the raised tiles extrude");
+}
+
 void testEdgeDistance() {
     constexpr int kW = 64, kH = 48;
     std::vector<uint32_t> plane(kW * kH, 0);
@@ -2623,6 +2673,7 @@ int main() {
     testRewindPlayback();
     testRunAhead();
     testPlanes();
+    testOneBackgroundPlanes();
     testEdgeDistance();
     testProfiles();
     testLiveCamera();
