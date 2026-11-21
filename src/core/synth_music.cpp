@@ -415,6 +415,14 @@ SynthMusic::Assignment SynthMusic::suggest(const Traits& t, const Heard& heard) 
             if (drum) {
                 if (!t.pitched && t.looped && t.brightness >= 0.18) a.drum = held < 0.25 ? 42 : held < 0.6 ? 46 : 49;
                 else a.drum = t.brightness < 0.06 ? 36 : t.brightness < 0.18 ? 38 : t.seconds > 0.6 ? 49 : 42;
+                // A hiss the game plays well below the note it was recorded at sounds darker
+                // than it is, a soft "chh": a pedal hi-hat, not the closed one's sharp tick,
+                // which is far brighter (Donkey Kong Country's in its first level, played a
+                // fifth down; the same sample played up in another song stays a closed one).
+                if (a.drum == 42 && !t.pitched && t.roughHz > 0 && heard.notes) {
+                    const double played = t.brightness * std::exp2((median - noteOf(t.roughHz)) / 12.0);
+                    if (played < 0.6) a.drum = 44;
+                }
                 break;
             }
             // The rest by how it holds its note, with the chip's envelope: one that dies
@@ -623,6 +631,10 @@ void SynthMusic::learn(const std::map<uint32_t, Seen>& heard) {
     }
 }
 
+// How much sound a drum sample holds, struck once at full volume (Traits::strike): a
+// snare's, a tom's, a hi-hat's of the SNES, as loud as the SoundFont's.
+static constexpr double kDrumStrike = 0.003;
+
 int SynthMusic::velocity(const Voice& v, double amplitude) {
     return std::clamp(static_cast<int>(std::lround(127 * std::sqrt(amplitude) * v.volume / 100.0)), 1, 127);
 }
@@ -689,7 +701,13 @@ void SynthMusic::noteOn(int voice, const VoiceState& s, uint64_t clock) {
     v.volume = a.volume;
     if (v.drum) {
         v.note = a.drum;
-        emit(clock, Ev::NoteOn, kDrums, v.note, velocity(v, v.amplitude));
+        // A sample that holds much less sound than a drum's, a click of a hundredth of a
+        // second, struck as loud as a whole drum is far louder than on the console: its
+        // drum as much softer (Donkey Kong Country's jungle hi-hat, over the whole song).
+        double strike = 1;
+        if (rule.traits.kind == Kind::Sample && !rule.traits.looped && rule.traits.strike > 0)
+            strike = std::min(1.0, std::sqrt(rule.traits.strike / kDrumStrike));
+        emit(clock, Ev::NoteOn, kDrums, v.note, velocity(v, v.amplitude * strike));
         return;
     }
     Channel& c = channels_[static_cast<size_t>(voice)];
@@ -783,6 +801,11 @@ double SynthMusic::analyzeSample(const int16_t* pcm, size_t count, size_t loopSt
     t.kind = Kind::Sample;
     t.looped = looped && loopStart < count;
     t.seconds = t.looped ? 10.0 : static_cast<double>(count) / rate;
+    if (!t.looped) {
+        double sum = 0;
+        for (size_t i = 0; i < count; ++i) sum += (pcm[i] / 32768.0) * (pcm[i] / 32768.0);
+        t.strike = sum / rate;
+    }
     constexpr size_t kLength = 2048, kMaxLag = 1000, kMinLag = 8;
     std::vector<double> x(kLength, 0.0);
     if (t.looped) {
@@ -947,7 +970,18 @@ void SynthMusic::apply(const Event& e) {
     tsf* f = synth_->font;
     const int ch = e.channel;
     switch (e.type) {
-        case Ev::NoteOn: tsf_channel_note_on(f, ch, e.value, static_cast<float>(e.extra) / 127.0f); break;
+        case Ev::NoteOn:
+            // A drum struck again starts over, as a real one would: the drums are never let
+            // go, and some of the SoundFont's pieces take seconds to die away once struck
+            // (its toms), so struck every beat they piled up until the synth had no voices
+            // left and the song went quiet (Jungle Hijinxs, after half a minute).
+            if (ch == kDrums)
+                for (int i = 0; i < f->voiceNum; ++i) {
+                    tsf_voice& v = f->voices[i];
+                    if (v.playingPreset != -1 && v.playingChannel == ch && v.playingKey == e.value) tsf_voice_endquick(f, &v);
+                }
+            tsf_channel_note_on(f, ch, e.value, static_cast<float>(e.extra) / 127.0f);
+            break;
         case Ev::NoteOff: tsf_channel_note_off(f, ch, e.value); break;
         case Ev::Program: tsf_channel_set_presetnumber(f, ch, e.value, ch == kDrums); break;
         case Ev::Bend: tsf_channel_set_pitchwheel(f, ch, e.value); break;
