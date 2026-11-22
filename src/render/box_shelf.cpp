@@ -448,12 +448,17 @@ const CartridgeFile kCartridgeFiles[] = {
     // back), with the look of the Tetris one beside it. Its label fills the lower part.
     {ConsoleSystem::GameBoy, "gameboy-cartridge.glb", 0, 0, {0.005f, 0.532f, 0.325f, 0.84f}, {0.005f, 0.532f, 0.325f, 0.84f}, 0,
      1.04f, 0.45f, 180.0f},
-    {ConsoleSystem::GameBoyColor, "gameboy-cartridge.glb", 0, 0, {0.005f, 0.532f, 0.325f, 0.84f}, {0.005f, 0.532f, 0.325f, 0.84f},
+    // A Game Boy Color game's, the same in black (the Color's model has only the top of one).
+    {ConsoleSystem::GameBoyColor, "gameboycolor-cartridge.glb", 0, 0, {0.005f, 0.532f, 0.325f, 0.84f}, {0.005f, 0.532f, 0.325f, 0.84f},
      0, 1.04f, 0.45f, 180.0f},
     // The NES's, from RadioactiveAG's: lying on its back, its top end to -z. Its label (Punch-
     // Out!!'s) is a texture of its own, the third the model reads (after the shell's normal
     // map and colour), all of it.
     {ConsoleSystem::Nes, "nes-cartridge.glb", 90, 0, {0, 0, 1, 1}, {0, 0, 1, 1}, 0, 0.61f, 0.5f, 0.0f, 2},
+    // The Super Nintendo's, from SomeKevin's: standing, its label to the back; the label
+    // (a European one) is the long one across its top, mirrored in the texture.
+    {ConsoleSystem::Snes, "snes-cartridge.glb", 0, 0, {0.006f, 0.078f, 0.486f, 0.236f}, {0.006f, 0.078f, 0.486f, 0.236f}, 2,
+     2.7f, 0.4f, 180.0f},
 };
 
 }  // namespace
@@ -995,8 +1000,11 @@ float BoxShelf::coverFront(int width, int height, ConsoleSystem system) {
     // A whole sleeve is the back, the spine and the front side by side, so it is told by
     // being well wider than a front.
     const float aspect = frontAspect(system);
-    if (w < h * aspect * 1.6f) return 0;
-    return std::clamp(1 - aspect * h / w, 0.0f, 0.9f);
+    if (w >= h * aspect * 1.6f) return std::clamp(1 - aspect * h / w, 0.0f, 0.9f);
+    // A European Super Nintendo one, its front standing up: about 1.6 times as wide as
+    // tall, where a front lying down alone is 1.42.
+    if (system == ConsoleSystem::Snes && w >= h * 1.55f) return std::clamp(1 - (12.7f / 18.0f) * h / w, 0.0f, 0.9f);
+    return 0;
 }
 
 namespace {

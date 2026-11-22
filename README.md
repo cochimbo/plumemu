@@ -159,7 +159,10 @@ there is:
   its console, which comes up through the floor: on top of the Super Nintendo, in through
   the door of the NES and pushed down, at the back of the Game Boy or the Color, whose
   screen lights up. Its light comes on and the game starts. Dragging turns what is out (or
-  moves along the shelf), the wheel and the right stick zoom. The consoles are real 3D
+  moves along the shelf), the wheel and the right stick zoom. The boxes wear the covers
+  downloaded from ScreenScraper: the whole sleeve (**Portada completa**) where there is
+  one, for the spine and the back too, and the cartridges the label (**Etiqueta del
+  cartucho**), or else the front. The consoles are real 3D
   models (see License), made lighter by `tools/models/prepare.py`; a `.glb` of the same
   name in `models/` next to `plumnin.ini` takes their place.
 - Netplay over UDP with rollback.
@@ -255,7 +258,8 @@ by lokeig (CC BY-NC 4.0: not for commercial use),
 ["Game Boy Color"](https://sketchfab.com/3d-models/game-boy-color-03c6fe28d45244d2acd55486e3cfee19)
 by Wikiti, ["NES_OG-85"](https://sketchfab.com/3d-models/nes-og-85-f12c3312b9ad45f5a4a833f602358b60)
 by RadioactiveAG and ["Super nintendo"](https://sketchfab.com/3d-models/super-nintendo-d42c35b117974ade8842f0964f5fd59e)
-by quick_loop (CC BY 4.0), with the television "Television 01" by Gabriel Radić from Poly
+by quick_loop, with the ["Super Nintendo Cartridge"](https://sketchfab.com/3d-models/super-nintendo-cartridge-b2076d8a65d648ff99bf51ca9d5fca2a)
+by SomeKevin (CC BY 4.0), with the television "Television 01" by Gabriel Radić from Poly
 Haven (CC0); what was changed in each is in `assets/models/CREDITS.txt`. The 3D models are
 read with cgltf (MIT, `third_party/cgltf`). See
 [PRIVACY.md](PRIVACY.md) for what it connects to.
