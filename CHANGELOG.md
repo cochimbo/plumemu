@@ -3,6 +3,15 @@
 What each version brings, newest first. Installers are on the
 [releases](https://github.com/cochimbo/plumsg/releases) page.
 
+## 1.1.0
+
+- **History and Favourites in the library**: two new tabs after "Todos". Histórico lists
+  the games you played, the last one first (up to 200), and Favoritos the ones you marked.
+  The game's right-click menu (also X on the pad or the menu key) adds or removes a
+  favourite and, on the history tab, takes a game out of it. A star marks favourites in
+  the grid, in the list and next to Play in the details panel, which also toggles it.
+  The library now opens on the tab you left it on.
+
 ## 1.0.2
 
 - **The library marks the games with cheats on**: a small green bolt on the cover in the
