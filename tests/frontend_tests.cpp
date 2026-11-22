@@ -305,6 +305,42 @@ void testCrashReport() {
 }
 #endif
 
+void testHistoryAndFavorites() {
+    Settings s;
+    s.addHistory("/roms/sonic.md");
+    s.addHistory("/roms/streets.md");
+    s.addHistory("/roms/sonic.md");
+    check(s.history.size() == 2 && s.history[0] == "/roms/sonic.md", "histórico: el último juego el primero, sin repetir");
+    for (int i = 0; i < 300; ++i) s.addHistory("/roms/juego" + std::to_string(i) + ".md");
+    check(s.history.size() == Settings::kMaxHistory, "histórico: como mucho kMaxHistory juegos");
+    s.removeHistory("/roms/juego299.md");
+    check(s.history[0] == "/roms/juego298.md", "histórico: se quita un juego");
+    check(Settings::samePath("C:\\roms\\sonic.md", "C:/roms/sonic.md"), "rutas: las barras de los dos lados valen");
+
+    s.setFavorite("/roms/sonic.md", true);
+    s.setFavorite("/roms/sonic.md", true);
+    s.setFavorite("/roms/ecco.md", true);
+    check(s.favorites.size() == 2 && s.isFavorite("/roms/ecco.md"), "favoritos: se marcan una sola vez");
+    s.setFavorite("/roms/ecco.md", false);
+    check(!s.isFavorite("/roms/ecco.md") && s.isFavorite("/roms/sonic.md"), "favoritos: se quitan");
+
+    s.librarySystem = Settings::kTabFavorites;
+    std::ostringstream out;
+    s.write(out);
+    Settings again;
+    std::istringstream text(out.str());
+    Settings::parse(text, again);
+    check(again.history == s.history, "histórico: plumsg.ini lo guarda en orden");
+    check(again.favorites == s.favorites, "favoritos: plumsg.ini los guarda");
+    check(again.librarySystem == Settings::kTabFavorites, "biblioteca: plumsg.ini recuerda la pestaña de favoritos");
+    s.librarySystem = Settings::kTabHistory;
+    std::ostringstream out2;
+    s.write(out2);
+    std::istringstream text2(out2.str());
+    Settings::parse(text2, again);
+    check(again.librarySystem == Settings::kTabHistory, "biblioteca: plumsg.ini recuerda la pestaña del histórico");
+}
+
 }  // namespace
 
 int main() {
@@ -317,6 +353,7 @@ int main() {
     testLightGunOption();
     testSpanishIni();
     testConsoleMode();
+    testHistoryAndFavorites();
 #ifndef _WIN32
     testCrashReport();
 #endif

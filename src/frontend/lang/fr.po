@@ -66,8 +66,14 @@ msgstr "%s n'est pas un .wav que plumsg sait lire"
 msgid "%s no es una imagen PNG o JPEG"
 msgstr "%s n'est pas une image PNG ou JPEG"
 
+msgid "%s ya no está en favoritos"
+msgstr "%s n'est plus dans les favoris"
+
 msgid "%s, %u puntos"
 msgstr "%s, %u points"
+
+msgid "%s, en favoritos"
+msgstr "%s ajouté aux favoris"
 
 msgid "%s: %d %s, de %s a %s. Sugerencia: %s."
 msgstr "%s : %d %s, de %s à %s. Suggestion : %s."
@@ -387,6 +393,9 @@ msgstr "Son code maître a aussi été ajouté : sans lui, le jeu ne démarrerai
 msgid "Añadir"
 msgstr "Ajouter"
 
+msgid "Añadir a favoritos"
+msgstr "Ajouter aux favoris"
+
 msgid "Añadir carpeta..."
 msgstr "Ajouter un dossier..."
 
@@ -396,8 +405,14 @@ msgstr "Ajouter seulement ce qui manque (rapide : le jeu n'est pas redemandé)"
 msgid "Año"
 msgstr "Année"
 
+msgid "Aún no has jugado a ningún juego de la biblioteca: los que abras aparecerán aquí, el último el primero."
+msgstr "Vous n'avez encore joué à aucun jeu de la bibliothèque : ceux que vous ouvrez apparaîtront ici, le dernier en premier."
+
 msgid "Aún no se ha descargado nada de este juego: pulsa Descargar de ScreenScraper."
 msgstr "Rien n’a encore été téléchargé pour ce jeu : appuyez sur Télécharger depuis ScreenScraper."
+
+msgid "Aún no tienes favoritos: pulsa con el botón derecho sobre un juego y elige «Añadir a favoritos»."
+msgstr "Pas encore de favoris : faites un clic droit sur un jeu et choisissez « Ajouter aux favoris »."
 
 msgid "BIOS del Mega CD"
 msgstr "BIOS du Mega CD"
@@ -1080,6 +1095,9 @@ msgstr "Le code Game Genie pointe hors de la ROM."
 msgid "El código apunta fuera de la ROM y de la RAM."
 msgstr "Le code pointe hors de la ROM et de la RAM."
 
+msgid "El histórico va del último juego al que has jugado al primero."
+msgstr "L'historique va du dernier jeu joué au premier."
+
 msgid "El juego abierto tiene sus propios botones (en Opciones de este juego); aquí cambias los generales."
 msgstr "Le jeu ouvert a ses propres boutons (dans Options de ce jeu) ; ici vous changez les généraux."
 
@@ -1177,6 +1195,9 @@ msgstr "En direct"
 
 msgid "En esta pista no suena música del YM2612 ni del PSG."
 msgstr "Cette piste ne joue aucune musique du YM2612 ni du PSG."
+
+msgid "En favoritos"
+msgstr "Dans les favoris"
 
 msgid "En las cajas 3D los juegos van por consola y, en cada una, por título."
 msgstr "Dans les boîtes 3D, les jeux sont classés par console puis, dans chacune, par titre."
@@ -1355,6 +1376,9 @@ msgstr "Il manque la fonction %s"
 
 msgid "Falta pdfium.dll junto a plumsg: sin ella no se pueden leer los manuales."
 msgstr "pdfium.dll manque à côté de plumsg : sans elle, les manuels ne peuvent pas être lus."
+
+msgid "Favoritos"
+msgstr "Favoris"
 
 msgid "Fecha"
 msgstr "Date"
@@ -1590,6 +1614,9 @@ msgstr "Terminé"
 
 msgid "Helicóptero"
 msgstr "Hélicoptère"
+
+msgid "Histórico"
+msgstr "Historique"
 
 msgid "IP o nombre, y :puerto si no es el de arriba"
 msgstr "IP ou nom, et :port s'il diffère de celui du haut"
@@ -2520,6 +2547,12 @@ msgstr ""
 
 msgid "Quitar"
 msgstr "Retirer"
+
+msgid "Quitar de favoritos"
+msgstr "Retirer des favoris"
+
+msgid "Quitar del histórico"
+msgstr "Retirer de l'historique"
 
 msgid "Quitar la cuenta"
 msgstr "Retirer le compte"

@@ -887,6 +887,7 @@ int main(int argc, char** argv) {
             applySound();  // now it is known whether it is a disc
             if (settings.achievements && !capturing) achievements.loadGame(app->console, app->achievementsHash);
             settings.addRecent(path);
+            settings.addHistory(path);  // the library's Histórico tab
             if (!game.own.empty()) ui->notify(trf("Opciones propias de %s", fileName(path).c_str()));
             if (isLightGun(app->console.padType(1)) && !isLightGun(app->console.chosenPadType(1)))
                 ui->notify(app->console.padType(1) == PadType::Menacer
