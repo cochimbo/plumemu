@@ -51,6 +51,7 @@ bool isMegaCdBootRom(const std::vector<uint8_t>& rom) {
 }  // namespace
 
 bool MegaDrive::loadRom(const std::string& path, std::string* error) {
+    setSongRequests({});  // the last game's
     if (detectSystem(path) == ConsoleSystem::MegaCD) return loadDisc(path, error);
     Cartridge loaded;
     if (!loaded.loadFile(path, error)) return false;
@@ -832,14 +833,14 @@ void MegaDrive::writeZ80Area(uint32_t addr, uint8_t value) {
 
 void MegaDrive::setMemoryWatch(MemoryWatch watch) {
     watch_ = std::move(watch);
-    watching_ = watch_ || lockCount_ > 0;
+    watching_ = watch_ || lockCount_ > 0 || songBytes_;
 }
 
 void MegaDrive::lockSoundRequests(uint32_t addr, int count, bool all) {
     lockAddr_ = addr;
     lockCount_ = count;
     lockAll_ = all;
-    watching_ = watch_ || lockCount_ > 0;
+    watching_ = watch_ || lockCount_ > 0 || songBytes_;
 }
 
 void MegaDrive::poke(uint32_t addr, uint8_t value) {
@@ -851,8 +852,60 @@ void MegaDrive::poke(uint32_t addr, uint8_t value) {
         zram_[addr & 0x1FFF] = value;
 }
 
+void MegaDrive::setSongRequests(std::vector<SongRequest> ways) {
+    songWays_ = std::move(ways);
+    songBytes_ = false;
+    cpu_.watchedCount = 0;
+    for (size_t i = 0; i < songWays_.size(); ++i) {
+        const SongRequest& w = songWays_[i];
+        if (w.way != SongRequest::Way::Call) {
+            songBytes_ = true;
+        } else if (!sms_ && cpu_.watchedCount < M68000::kWatchedEntries) {
+            entryWay_[cpu_.watchedCount] = static_cast<int>(i);
+            cpu_.watchedEntries[cpu_.watchedCount++] = w.address & 0xFFFFFF;
+        }
+    }
+    watching_ = watch_ || lockCount_ > 0 || songBytes_;
+}
+
+// A write of the game's program: a song asked for, if it is to a byte requests go to.
+void MegaDrive::songWrite(uint32_t addr, uint8_t value) {
+    for (size_t i = 0; i < songWays_.size(); ++i) {
+        const SongRequest& w = songWays_[i];
+        if (w.address != addr || w.way == SongRequest::Way::Call) continue;
+        if (w.way == SongRequest::Way::Byte) {
+            // (0 and 0x80 are the queue emptied, or nothing asked.)
+            if (value != 0 && value != 0x80 && roland_) roland_->songRequested(static_cast<int>(i), value);
+            continue;
+        }
+        // A ring: `value` is where the next message goes, so the number is the byte before,
+        // after the message.
+        auto at = [&](uint32_t back) { return zram_[(w.ringStart + ((value - back) & w.ringMask)) & 0x1FFF]; };
+        const uint32_t length = static_cast<uint32_t>(w.message.size());
+        bool same = true;
+        for (uint32_t m = 0; m < length && same; ++m) same = at(1 + length - m) == w.message[m];
+        if (same && roland_) roland_->songRequested(static_cast<int>(i), at(1));
+    }
+}
+
+void MegaDrive::entryReached(int index) {
+    if (!roland_ || index < 0 || index >= cpu_.watchedCount) return;
+    const int way = entryWay_[index];
+    const SongRequest& w = songWays_[static_cast<size_t>(way)];
+    uint32_t number = 0;
+    if (w.numberReg < 0) {  // above the return address
+        const uint32_t sp = cpu_.a[7] & 0xFFFFFF;
+        number = w.argBytes == 2 ? read16((sp + 4) & 0xFFFFFE)
+                                 : static_cast<uint32_t>(read16((sp + 4) & 0xFFFFFE)) << 16 | read16((sp + 6) & 0xFFFFFE);
+    } else {
+        number = w.numberReg < 8 ? cpu_.d[w.numberReg] : cpu_.a[w.numberReg - 8];
+    }
+    roland_->songRequested(way, number & 0xFFFF);
+}
+
 bool MegaDrive::watchWrite(uint32_t addr, uint8_t value, bool m68k) {
     if (m68k && (lockAll_ || (value != 0 && value != 0x80)) && addr - lockAddr_ < static_cast<uint32_t>(lockCount_)) return false;
+    if (songBytes_ && m68k) songWrite(addr, value);
     if (watch_) watch_(addr, value, m68k);
     return true;
 }

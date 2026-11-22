@@ -437,7 +437,17 @@ bool RolandSound::isSoundEffect(uint32_t fingerprint) const {
     return false;
 }
 
+const RolandSound::Assignment* RolandSound::lookUp(const Assignments& in, uint32_t fingerprint) const {
+    if (in.empty()) return nullptr;
+    if (auto a = in.find(fingerprint); a != in.end()) return &a->second;
+    for (uint32_t old : aliases(fingerprint))
+        if (auto a = in.find(old); a != in.end()) return &a->second;
+    return nullptr;
+}
+
 RolandSound::Assignment RolandSound::assignmentFor(uint32_t fingerprint) const {
+    if (song_ >= 0 && static_cast<size_t>(song_) < songs_.size())
+        if (const Assignment* a = lookUp(songs_[static_cast<size_t>(song_)].assigned, fingerprint)) return *a;
     if (const uint32_t key = assignedAs(fingerprint)) return assigned_.at(key);
     Assignment rules;
     if (effectsOriginal_ && isSoundEffect(fingerprint)) {
@@ -474,6 +484,91 @@ void RolandSound::setSoundEffects(std::set<uint32_t> effects, bool original) {
 void RolandSound::setAssignments(Assignments assigned) {
     assigned_ = std::move(assigned);
     updateChipChannels();
+}
+
+void RolandSound::setSongs(std::vector<Song> songs) {
+    // The one playing goes on, if it is still there (what was chosen for it may be new).
+    int keep = -1;
+    if (song_ >= 0 && static_cast<size_t>(song_) < songs_.size()) {
+        const Song& was = songs_[static_cast<size_t>(song_)];
+        for (size_t i = 0; i < songs.size() && keep < 0; ++i)
+            if (was.way >= 0 ? songs[i].way == was.way && songs[i].number == was.number
+                             : songs[i].instruments == was.instruments)
+                keep = static_cast<int>(i);
+    }
+    songs_ = std::move(songs);
+    song_ = keep;
+    if (keep < 0) requested_ = false;
+    updateChipChannels();
+}
+
+void RolandSound::songRequested(int way, uint32_t number) {
+    int found = -1;
+    bool bytes = true;  // the songs asked for this way all have numbers of a byte
+    for (const Song& s : songs_)
+        if (s.way == way && s.number > 0xFF) bytes = false;
+    for (size_t i = 0; i < songs_.size() && found < 0; ++i)
+        if (songs_[i].way == way && songs_[i].number == number) found = static_cast<int>(i);
+    // (A routine's number may come in a register whose upper byte the game did not set.)
+    for (size_t i = 0; bytes && i < songs_.size() && found < 0; ++i)
+        if (songs_[i].way == way && songs_[i].number == (number & 0xFF)) found = static_cast<int>(i);
+    if (found < 0) return;
+    requested_ = true;
+    if (found != song_) {
+        song_ = found;
+        if (log_) log_->push_back("song " + std::to_string(found));
+        updateChipChannels();
+    }
+}
+
+// Without the game's requests: the song whose instruments are the ones heard in the last
+// seconds, the one with most of them (at least most of those heard), and of those the one
+// they are most of. A song they fit as well as the one before stays.
+void RolandSound::guessSong(uint64_t clock) {
+    guessedAt_ = clock;
+    if (songs_.empty() || requested_) return;
+    const uint64_t window = static_cast<uint64_t>(6 * kScoreClock);
+    std::set<uint32_t> heard;
+    for (auto it = recent_.begin(); it != recent_.end();) {
+        if (clock > it->second && clock - it->second > window) {
+            it = recent_.erase(it);
+            continue;
+        }
+        if (!isSoundEffect(it->first)) heard.insert(it->first);
+        ++it;
+    }
+    if (heard.empty()) return;  // a silence: the song it was, until another is heard
+    int best = -1;
+    double bestScore = 0, currentScore = -1;
+    for (size_t i = 0; i < songs_.size(); ++i) {
+        const std::set<uint32_t>& in = songs_[i].instruments;
+        if (in.empty()) continue;
+        size_t both = 0;
+        for (uint32_t fp : heard) both += in.count(fp);
+        const double ofHeard = static_cast<double>(both) / static_cast<double>(heard.size());
+        if (ofHeard < 0.6) continue;
+        const double score = ofHeard * 2 + static_cast<double>(both) / static_cast<double>(in.size());
+        if (static_cast<int>(i) == song_) currentScore = score;
+        if (score > bestScore + 1e-9) {
+            bestScore = score;
+            best = static_cast<int>(i);
+        }
+    }
+    const int was = song_;
+    song_ = currentScore >= bestScore - 1e-9 && currentScore > 0 ? song_ : best;
+    if (song_ != was) {
+        if (log_) log_->push_back("song " + std::to_string(song_) + " by its instruments");
+        updateChipChannels();
+    }
+}
+
+RolandSound::Assignment RolandSound::playAs(uint32_t fingerprint, uint64_t clock) {
+    if (!songs_.empty() && !requested_) {
+        const bool fresh = !recent_.count(fingerprint);
+        recent_[fingerprint] = clock;
+        if (fresh || clock < guessedAt_ || static_cast<double>(clock - guessedAt_) > 0.25 * kScoreClock) guessSong(clock);
+    }
+    return assignmentFor(fingerprint);
 }
 
 void RolandSound::setListening(uint32_t mutedVoices, std::set<uint32_t> silenced) {
@@ -757,6 +852,11 @@ void RolandSound::skipFrame(uint64_t clock) {
 
 void RolandSound::allNotesOff() {
     events_.clear();
+    // (A savestate loaded, or a rewind: the song is the one it was until told otherwise,
+    // but no longer by the game's request.)
+    requested_ = false;
+    recent_.clear();
+    guessedAt_ = 0;
     for (int i = 0; i < kVoices; ++i) scoreEnd(i, scoreClock_);
     for (Voice& v : voices_) v.on = v.midi = false;
     // Every channel back to its defaults, in the synth and here; the program is sent
@@ -987,7 +1087,7 @@ void RolandSound::fmKey(int ch, bool on, const Ym2612& ym, uint64_t clock) {
     see(ch, fp, rule.rules, static_cast<int>(std::lround(note)), &ops, algorithmFeedback);
     const uint8_t panBits = ym.reg(chReg(ch, 0xB4)) >> 6;  // bit 1 left, bit 0 right
     const int pan = panBits == 2 ? 0 : panBits == 1 ? 127 : 64;
-    noteOn(ch, fp, assignmentFor(fp), note, fmAmplitude(ch, ym), pan, clock);
+    noteOn(ch, fp, playAs(fp, clock), note, fmAmplitude(ch, ym), pan, clock);
 }
 
 void RolandSound::fmPitch(int ch, const Ym2612& ym, uint64_t clock) {
@@ -1043,7 +1143,7 @@ void RolandSound::psgWrite(const Psg& psg, uint64_t clock) {
             see(voice, fp, rules, static_cast<int>(std::lround(note)), nullptr, 0);
             // A Game Gear can send each channel left, right or both.
             const bool left = (psg.stereo() >> (4 + c)) & 1, right = (psg.stereo() >> c) & 1;
-            noteOn(voice, fp, assignmentFor(fp), note, amplitude, left == right ? 64 : left ? 0 : 127, clock);
+            noteOn(voice, fp, playAs(fp, clock), note, amplitude, left == right ? 64 : left ? 0 : 127, clock);
             continue;
         }
         pitchTo(voice, note, clock);
@@ -1068,7 +1168,7 @@ void RolandSound::psgWrite(const Psg& psg, uint64_t clock) {
     Assignment rules;
     rules.drum = noiseDrum(control);
     see(kNoise, fp, rules, rules.drum, nullptr, 0);
-    noteOn(kNoise, fp, assignmentFor(fp), 0, amplitude, 64, clock);
+    noteOn(kNoise, fp, playAs(fp, clock), 0, amplitude, 64, clock);
 }
 
 double RolandSound::opllNoteOf(int ch, const Ym2413& opll) const {
@@ -1107,7 +1207,7 @@ void RolandSound::opllKey(int ch, const Ym2413& opll, uint64_t clock) {
     rules.program = instrument ? kOpllPrograms[instrument - 1] : rules_[fp].rules.program;
     see(voice, fp, rules, static_cast<int>(std::lround(note)), instrument == 0 ? &ops : nullptr, 0);
     const double amplitude = std::pow(10.0, -3.0 * (opll.reg(0x30 + ch) & 0x0F) / 20.0);  // 3 dB a step
-    noteOn(voice, fp, assignmentFor(fp), note, amplitude, 64, clock);
+    noteOn(voice, fp, playAs(fp, clock), note, amplitude, 64, clock);
 }
 
 void RolandSound::opllRhythm(const Ym2413& opll, uint64_t clock) {
@@ -1129,7 +1229,7 @@ void RolandSound::opllRhythm(const Ym2413& opll, uint64_t clock) {
         Assignment rules;
         rules.drum = kRhythmDrums[d];
         see(voice, fp, rules, rules.drum, nullptr, 0);
-        noteOn(voice, fp, assignmentFor(fp), 0, std::pow(10.0, -3.0 * volumes[d] / 20.0), 64, clock);
+        noteOn(voice, fp, playAs(fp, clock), 0, std::pow(10.0, -3.0 * volumes[d] / 20.0), 64, clock);
     }
     rhythmKeys_ = keys;
 }

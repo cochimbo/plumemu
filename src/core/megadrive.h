@@ -21,6 +21,7 @@
 #include "psg.h"
 #include "roland.h"
 #include "sms.h"
+#include "song_request.h"
 #include "ym2413.h"
 #include "vgm.h"
 #include "vdp_md.h"
@@ -218,6 +219,11 @@ public:
     // [addr, addr + count) of anything but 0 or 0x80 (of anything, if all) are dropped.
     // count 0: none.
     void lockSoundRequests(uint32_t addr, int count, bool all = false);
+    // Telling which song the game plays: the ways it asks its sound driver for one (as
+    // Sacar canciones found them, at most M68000::kWatchedEntries routines). Each request
+    // made one of these ways goes to the Roland sound as songRequested(way's index, number).
+    // Empty for none; a new game starts with none.
+    void setSongRequests(std::vector<SongRequest> ways);
     // Writes a byte of work RAM or Z80 RAM (a Master System's at 0xC000) directly, past
     // the lock.
     void poke(uint32_t addr, uint8_t value);
@@ -233,6 +239,7 @@ private:
     void write16(uint32_t addr, uint16_t value) override;
     void irqAcknowledge(int level) override;
     bool tasWrites() const override { return false; }
+    void entryReached(int index) override;
     // Z80 bus.
     uint8_t read(uint16_t addr) override;
     void write(uint16_t addr, uint8_t value) override;
@@ -352,7 +359,13 @@ private:
     uint32_t lockAddr_ = 0;
     int lockCount_ = 0;
     bool lockAll_ = false;
-    bool watching_ = false;  // watch_ or a lock
+    bool watching_ = false;  // watch_, a lock or songBytes_
+    // setSongRequests(): the ways, whether any is a byte or a ring (written to), and the way
+    // of each routine watched.
+    std::vector<SongRequest> songWays_;
+    bool songBytes_ = false;
+    int entryWay_[M68000::kWatchedEntries]{};
+    void songWrite(uint32_t addr, uint8_t value);
     bool drawing_ = true;
     bool fromM68k_ = false;  // the Z80 bus write being made comes from the 68000  // THMB of the last loaded state, until a frame runs
 };

@@ -750,6 +750,11 @@ int main(int argc, char** argv) {
     auto applyInstruments = [&](const std::string& path) {
         roland->setAssignments(InstrumentEditor::assignmentsFor(paths.sound, path));
         roland->setSoundEffects(InstrumentEditor::effectsFor(paths.sound, path), settings.effectsOriginal);
+        // Its songs: what was chosen for each alone, and how the game asks for them, for the
+        // console to tell which one it plays.
+        std::vector<SongRequest> ways;
+        roland->setSongs(InstrumentEditor::songsFor(paths.sound, path, &ways));
+        app->console.setSongRequests(app->romLoaded && path == app->romPath ? std::move(ways) : std::vector<SongRequest>{});
     };
     // The game's instruments switched off in the Partitura, until another game loads.
     std::set<uint32_t> gameSilenced;
@@ -885,6 +890,7 @@ int main(int argc, char** argv) {
         useGameOptions(path);  // before loading: the region may be the game's own
         if (app->load(path, capturing ? nullptr : window)) {
             applySound();  // now it is known whether it is a disc
+            applyInstruments(path);  // the console's song requests, now that it has the game
             if (settings.achievements && !capturing) achievements.loadGame(app->console, app->achievementsHash);
             settings.addRecent(path);
             settings.addHistory(path);  // the library's Histórico tab
