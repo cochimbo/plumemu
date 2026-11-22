@@ -41,9 +41,13 @@ struct EditorRequests {
 // .vgm, lists the instruments in it and lets each one be given a General MIDI
 // instrument, a drum, or its own sound, comparing with the original as it plays.
 //
-// What is chosen is kept per game in sonido/<game>.ini. With no game it goes to
-// sonido/cache.ini, which every game reads (and where plumsg 0.0.22 and older also put
-// each game's choices); the game's own file wins over it.
+// What is chosen is kept for the song open alone (next to it, in
+// sonido/tracks/<game>/<song>.ini) or for the whole game in sonido/<game>.ini. With no
+// game it goes to sonido/cache.ini, which every game reads (and where plumsg 0.0.22 and
+// older also put each game's choices); the game's own file wins over it, and a song's
+// over both while the game plays that song. A song's file also keeps its instruments and,
+// for the songs Sacar canciones takes out, how the game asks for it: that is how the
+// game's song is told while it plays.
 class InstrumentEditor {
 public:
     explicit InstrumentEditor(std::string soundFolder);
@@ -55,6 +59,11 @@ public:
     static RolandSound::Assignments assignmentsFor(const std::string& soundFolder, const std::string& game);
     // A game's sound effects, as Sacar canciones found them (none if it was not run).
     static std::set<uint32_t> effectsFor(const std::string& soundFolder, const std::string& game);
+    // A game's songs: what was chosen for each one alone, its instruments and how the game
+    // asks for it (an index in *ways, which gets each way the game asks once: for
+    // MegaDrive::setSongRequests). From the files next to its songs and recordings.
+    static std::vector<RolandSound::Song> songsFor(const std::string& soundFolder, const std::string& game,
+                                                   std::vector<SongRequest>* ways);
 
     // Opens the editor for a game (its path; empty for none: then what is chosen goes
     // to the shared cache only).
@@ -117,6 +126,15 @@ private:
     bool loadTrack(const Track& track);
     std::string gameTracksFolder() const { return tracksFolder() + gameName_ + "/"; }
     void loadAssignments();
+    // A song's own file, next to it: what was chosen for it alone, its instruments and how
+    // the game asks for it ("peticion = ...", kept as it is).
+    static std::string songFile(const Track& track);
+    static void writeSong(const std::string& path, const RolandSound::Assignments& assigned,
+                          const std::set<uint32_t>& instruments, const std::string& request);
+    bool songOpen() const { return !game_.empty() && player_.loaded() && !track_.path.empty(); }
+    bool editingSong() const { return songOpen() && forSong_; }  // changes go to the song alone
+    RolandSound::Assignments chosen() const;  // the shared ones, the game's over them, the song's over those
+    std::set<uint32_t> trackInstruments() const;
     void assign(uint32_t fingerprint, const RolandSound::Assignment* a, EditorRequests& out);  // null: back to the rules
     void resetAll(const std::vector<Instrument>& list, EditorRequests& out);  // everything back to the rules
     void save(EditorRequests& out);  // writes the files and hands the synth what they say
@@ -159,6 +177,8 @@ private:
     bool loop_ = true;
     float seekTo_ = -1;  // seconds, while the position slider is dragged
     RolandSound::Assignments cache_, own_;
+    RolandSound::Assignments songOwn_;  // for the song open alone
+    bool forSong_ = true;               // what is changed goes to the song open, not the game
     uint32_t selected_ = 0;
     uint32_t mutedVoices_ = 0, soloVoices_ = 0;  // RolandSound voice bits, and bit 10 the DAC
     uint32_t soloInstrument_ = 0;

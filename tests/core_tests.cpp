@@ -3069,6 +3069,49 @@ void testSongExtract(testrom::Asking asking) {
     // The sound effects play an instrument no song plays: that one is an effect.
     const std::set<uint32_t> effects = extractor.effectInstruments();
     check(effects.size() == 1, ("Canciones: el instrumento de los efectos se reconoce como efecto" + how).c_str());
+    // While the game plays, its requests tell which song it is: what was chosen for that
+    // one alone is heard, though all four play the same instruments.
+    if (songs.size() == 4) {
+        bool written = true;
+        for (const auto& s : songs) {
+            SongRequest back;
+            uint32_t number = 0;
+            char hex[16];
+            std::snprintf(hex, sizeof hex, " %x", static_cast<unsigned>(s.number));
+            written = written && SongRequest::parse(s.request.format() + hex, &back, &number) && back == s.request &&
+                      number == static_cast<uint32_t>(s.number);
+        }
+        check(written, ("Canciones: cómo se pide cada una se escribe y se lee igual" + how).c_str());
+        std::vector<SongRequest> ways;
+        std::vector<RolandSound::Song> list;
+        for (const auto& s : songs) {
+            auto at = std::find(ways.begin(), ways.end(), s.request);
+            RolandSound::Song song;
+            song.way = static_cast<int>(at - ways.begin());
+            if (at == ways.end()) ways.push_back(s.request);
+            song.number = static_cast<uint32_t>(s.number);
+            list.push_back(song);
+        }
+        const uint32_t fp = RolandSound::psgToneFingerprint(0);
+        RolandSound::Assignments game;
+        game[fp].program = 30;
+        list[1].assigned[fp].program = 20;
+        RolandSound roland;
+        roland.setAssignments(game);
+        roland.setSongs(list);
+        MegaDrive md;
+        check(md.loadRom(path, &error), "Canciones: el juego se abre otra vez");
+        md.setDrawing(false);
+        md.setRoland(&roland, 100);
+        md.setSongRequests(ways);
+        for (int f = 0; f < 120; ++f) md.runFrame();
+        check(roland.currentSong() == 0 && roland.songByRequest() && roland.assignmentFor(fp).program == 30,
+              ("Canciones: al pedir el juego la primera, se sabe que suena ella" + how).c_str());
+        for (int f = 120; f < 960; ++f) md.runFrame();
+        check(roland.currentSong() == 1 && roland.assignmentFor(fp).program == 20,
+              ("Canciones: al pedir la segunda (entre efectos), suena lo elegido para ella" + how).c_str());
+        md.setRoland(nullptr, 100);
+    }
     std::filesystem::remove(path);
     if (asking != testrom::Asking::byQueue) return;
     VgmFile file;
@@ -3785,6 +3828,25 @@ void testSmsSongExtract() {
     VgmFile file;
     check(!songs.empty() && file.parse(songs[0].vgz, &error) && file.ymClock == 0 && file.psgClock > 0,
           "SMS songs: a Master System VGM");
+    // Playing it, the request byte tells the song.
+    if (songs.size() == 4) {
+        RolandSound roland;
+        std::vector<RolandSound::Song> list(4);
+        for (size_t i = 0; i < 4; ++i) {
+            list[i].way = 0;
+            list[i].number = static_cast<uint32_t>(songs[i].number);
+        }
+        roland.setSongs(list);
+        MegaDrive md;
+        check(md.loadRom(path, &error), "SMS songs: the game opens again");
+        md.setDrawing(false);
+        md.setRoland(&roland, 100);
+        md.setSongRequests({songs[0].request});
+        for (int f = 0; f < 180; ++f) md.runFrame();
+        check(songs[0].request.way == SongRequest::Way::Byte && roland.currentSong() == 0 && roland.songByRequest(),
+              "SMS songs: the game asking for the first, it is known to play");
+        md.setRoland(nullptr, 100);
+    }
     std::filesystem::remove(path);
 }
 
@@ -3834,6 +3896,77 @@ void testTextureCache() {
     cache.prune({});
     check(!cache.load(key, back, &bw, &bh), "texture cache: prune deletes what is not");
     fs::remove_all(dir, ec);
+}
+
+// Without the game's requests, the song is told by its instruments: what was chosen for
+// it alone sounds then, and the game's choices in a song with none of its own.
+void testRolandSongs() {
+    RolandSound roland;
+    std::vector<std::string> log;
+    roland.setLog(&log);
+    Psg psg;
+    const uint32_t bass = RolandSound::psgToneFingerprint(2);  // in every song
+    RolandSound::Assignments game;
+    game[bass].program = 30;
+    roland.setAssignments(game);
+    std::vector<RolandSound::Song> songs(3);
+    songs[0].instruments = {RolandSound::psgToneFingerprint(0), bass};
+    songs[0].assigned[bass].program = 10;
+    songs[1].instruments = {RolandSound::psgToneFingerprint(1), bass};
+    songs[1].assigned[bass].program = 20;
+    songs[2].instruments = {RolandSound::noiseFingerprint(4), bass};
+    roland.setSongs(songs);
+    uint64_t clock = 0;
+    const uint64_t second = static_cast<uint64_t>(RolandSound::kScoreClock);
+    // A few notes on the song's own channel and on PSG 3.
+    auto play = [&](int lead) {
+        for (int n = 0; n < 4; ++n, clock += second / 4) {
+            roland.beginFrame(clock);
+            const int channels[2] = {lead, 2};
+            for (int ch : channels) {
+                if (ch == 3) {
+                    psg.write(0xE4);  // white noise
+                    psg.write(0xF0);
+                } else {
+                    psg.write(static_cast<uint8_t>(0x80 | ch << 5 | 0x0E));
+                    psg.write(static_cast<uint8_t>(0x08 + n));
+                    psg.write(static_cast<uint8_t>(0x90 | ch << 5));
+                }
+                roland.psgWrite(psg, clock);
+            }
+            std::vector<int16_t> out;
+            roland.endFrame(clock + second / 8, out, 0, 8000);
+            for (int ch = 0; ch < 4; ++ch) psg.write(static_cast<uint8_t>(0x9F | ch << 5));
+            roland.psgWrite(psg, clock + second / 8);
+        }
+    };
+    play(0);
+    check(roland.currentSong() == 0 && roland.assignmentFor(bass).program == 10 && !roland.songByRequest(),
+          "Canciones en el juego: por sus instrumentos, la primera, con lo elegido para ella");
+    clock += 10 * second;
+    play(1);
+    check(roland.currentSong() == 1 && roland.assignmentFor(bass).program == 20,
+          "Canciones en el juego: la segunda, con lo suyo");
+    clock += 10 * second;
+    play(3);
+    check(roland.currentSong() == 2 && roland.assignmentFor(bass).program == 30,
+          "Canciones en el juego: una sin nada propio, con lo del juego");
+    // A request wins over the instruments, until a savestate is loaded.
+    songs[0].way = songs[1].way = songs[2].way = 0;
+    songs[0].number = 0x81;
+    songs[1].number = 0x82;
+    songs[2].number = 0x83;
+    roland.setSongs(songs);
+    roland.songRequested(0, 0x81);
+    roland.songRequested(0, 0xA1);  // a sound effect: not a song
+    clock += 10 * second;
+    play(3);
+    check(roland.currentSong() == 0 && roland.songByRequest(), "Canciones en el juego: la que pide el juego, aunque suene otra cosa");
+    roland.allNotesOff();
+    clock += 10 * second;
+    play(3);
+    check(roland.currentSong() == 2 && !roland.songByRequest(),
+          "Canciones en el juego: tras cargar un estado, otra vez por sus instrumentos");
 }
 
 int main() {
@@ -3888,6 +4021,7 @@ int main() {
     testSmsVgm();
     testSmsRoland();
     testSmsSongExtract();
+    testRolandSongs();
     testTextureCache();
     testSh2();
     testMars();

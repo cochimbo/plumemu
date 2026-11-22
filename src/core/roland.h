@@ -122,7 +122,27 @@ public:
     // The game's sound effects (FM instruments, as Sacar canciones finds them) and
     // whether they keep their own sound from the chip, unless assigned by hand.
     void setSoundEffects(std::set<uint32_t> effects, bool original);
-    // What an instrument plays now: its assignment, or what the rules give it.
+    // The game's songs, each with its instruments, what was chosen for it alone (over what
+    // was chosen for the whole game) and how the game asks for it, if known. As the game
+    // plays, the song it is playing is told by its requests (songRequested(), from the
+    // console) or, till one comes (and again after allNotesOff(): a savestate loaded), by
+    // the instruments heard in the last seconds; its choices are the ones heard.
+    struct Song {
+        std::set<uint32_t> instruments;
+        Assignments assigned;
+        int way = -1;         // MegaDrive::setSongRequests()'s index; -1: not known
+        uint32_t number = 0;  // what the game asks for it with
+    };
+    void setSongs(std::vector<Song> songs);
+    // The game asked its sound driver for `number` the way `way`: if it is one of the
+    // songs, that one plays now. (Other numbers are sounds, or songs not taken out.)
+    void songRequested(int way, uint32_t number);
+    // Which of them it is playing now (-1 for none it can tell), and whether it knows by the
+    // game's request.
+    int currentSong() const { return song_; }
+    bool songByRequest() const { return requested_; }
+    // What an instrument plays now: its assignment (for the song playing, or for the game),
+    // or what the rules give it.
     Assignment assignmentFor(uint32_t fingerprint) const;
     // The key its assignment is under: the fingerprint itself or one of its aliases (0
     // for none). Aliases are the fingerprints an FM instrument had before 0.0.23, one for
@@ -343,6 +363,18 @@ private:
     size_t scoreLimit_ = kScoreNotes;
     uint64_t scoreClock_ = 0;
     bool followOnly_ = false;
+    // The songs (setSongs), the one playing, and the instruments heard lately (each with
+    // its last note), to tell them apart when the game's requests are not known.
+    std::vector<Song> songs_;
+    int song_ = -1;
+    bool requested_ = false;  // song_ is the one the game asked for
+    std::map<uint32_t, uint64_t> recent_;
+    uint64_t guessedAt_ = 0;
+    void guessSong(uint64_t clock);
+    // What `fingerprint` plays for a note starting now, once it counts as heard.
+    Assignment playAs(uint32_t fingerprint, uint64_t clock);
+    // Its entry in `in`, under it or one of its aliases; null for none.
+    const Assignment* lookUp(const Assignments& in, uint32_t fingerprint) const;
 };
 
 }  // namespace plumsg

@@ -1102,6 +1102,17 @@ bool SongExtractor::tryRun(const std::string& romPath, const std::string& game, 
             p.total = static_cast<int>(numbers.size());
             Song song;
             song.number = static_cast<int>(number);
+            if (c.call) {
+                song.request.way = SongRequest::Way::Call;
+                song.request.numberReg = c.argBytes ? -1 : c.numberReg;
+                song.request.argBytes = c.argBytes;
+            } else if (c.ring) {
+                song.request.way = SongRequest::Way::Ring;
+                song.request.ringStart = c.ringStart;
+                song.request.ringMask = c.ringMask;
+                song.request.message = c.message;
+            }
+            song.request.address = c.address;
             VgmWriter::Tag tag;
             tag.title = trf("Canción %d", p.found + 1);
             tag.game = game;

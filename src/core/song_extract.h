@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "song_request.h"
+
 namespace plumsg {
 
 // Takes the music out of a game's ROM, without names: what the instrument editor's
@@ -34,6 +36,7 @@ class SongExtractor {
 public:
     struct Song {
         int number = 0;  // what the driver was asked for
+        SongRequest request;  // and how: to tell the song while the game plays
         double seconds = 0;
         double loopSeconds = 0;  // 0 if it does not loop
         std::vector<uint8_t> vgz;

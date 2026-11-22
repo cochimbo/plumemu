@@ -18,6 +18,8 @@ public:
     // On the Mega Drive the bus never completes TAS's write cycle, so TAS does not
     // write its result back. Plain 68000 test sets expect the write.
     virtual bool tasWrites() const { return true; }
+    // The program reached one of M68000::watchedEntries (its index), before running it.
+    virtual void entryReached(int /*index*/) {}
 };
 
 // Motorola 68000 interpreter: every instruction, addressing mode and exception, with
@@ -47,6 +49,11 @@ public:
     // skipPops: bytes of arguments the routine takes off the stack itself as it returns.
     uint32_t skipRoutine = 0;
     uint32_t skipPops = 0;
+    // Telling the song a game plays: the sound driver's routines it asks for songs with.
+    // Reaching one calls the bus's entryReached(). watchedCount 0: none.
+    static constexpr int kWatchedEntries = 4;
+    uint32_t watchedEntries[kWatchedEntries]{};
+    int watchedCount = 0;
     // Calls the routine at `entry` from where the program is, as the program would, with
     // the registers given (d0-d7, then a0-a6; `keep` in one keeps it as it is) and
     // interrupts masked; `argBytes` (2 or 4) of `arg` pushed first, for a routine that takes

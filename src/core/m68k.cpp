@@ -474,6 +474,9 @@ int M68000::step() {
             returnFromRoutine();
             return 4;
         }
+        if (watchedCount && !calling_)
+            for (int i = 0; i < watchedCount; ++i)
+                if (pc == watchedEntries[i]) bus_.entryReached(i);
         if (skipRoutine && pc == skipRoutine && !calling_) {
             pc = pop32();  // RTS
             a[7] += skipPops;
