@@ -2352,6 +2352,41 @@ void testSongRipper() {
         check(!player.finished() && std::count(log.begin(), log.end(), "0 on 60") >= 2,
               "songs: played back, the first song's notes come round again");
     }
+    // How the game asks for each, kept with it: as it is played, the synthesizer knows by
+    // that which song is playing, even when another has the same instruments.
+    check(songs.size() == 3 && songs[0].request == "byte 0" && songs[2].request == "byte 0",
+          "songs: each knows how the game asks for it");
+    if (songs.size() == 3) {
+        VgmFile f;
+        f.parse(songs[0].vgz, &error);
+        std::set<uint32_t> in;
+        for (const auto& [fp, seen] : VgmPlayer::instruments(f)) in.insert(fp);
+        std::vector<SynthMusic::Song> list(2);
+        list[0].instruments = list[1].instruments = in;  // told apart by the number alone
+        list[0].request = list[1].request = songs[0].request;
+        list[0].number = 3;
+        list[1].number = songs[0].number;  // the one the game asks for as it starts
+        for (uint32_t fp : in) {
+            list[0].assigned[fp].program = 20;
+            list[1].assigned[fp].program = 10;
+        }
+        GameBoy gb;
+        check(gb.loadRomData(gameBoySongs(), &error), "songs: the game loads, to be played");
+        gb.setSampleRate(44100);
+        SynthMusic synth;
+        std::vector<std::string> log;
+        synth.setLog(&log);
+        synth.setSongs(list);
+        SongWatcher watcher;
+        check(watcher.attach(&gb, &synth, {{list[0].request, 3}, {list[1].request, list[1].number}}),
+              "songs: the watcher takes the game");
+        gb.setSynth(&synth, 0);
+        for (int i = 0; i < 120; ++i) gb.runFrame();
+        check(synth.currentSong() == 1 && logHas(log, "0 program 10") && !logHas(log, "0 program 20"),
+              "songs: the song the game asks for is the one heard, by its number");
+        watcher.detach();
+        gb.setSynth(nullptr, 0);
+    }
     SongRipper::Progress none;
     songs.clear();
     check(!SongRipper::run(gameBoyScale(), options, &none, &songs, &error) && !error.empty(),
@@ -2536,6 +2571,58 @@ void testSynth() {
         check(bass, "synth: and the triangle its bass line, two octaves down");
         check(logHas(log, "2 program 33"), "synth: on a bass guitar");
         check(logHas(log, "9 on 38") || logHas(log, "9 on 42") || logHas(log, "9 on 36"), "synth: the noise on the drums");
+    }
+
+    // What is chosen for a song alone sounds when the game plays that song, told by its
+    // instruments; the game's choices in the rest.
+    {
+        SynthMusic synth;
+        std::vector<std::string> log;
+        synth.setLog(&log);
+        synth.setClock(1000);
+        const uint32_t leadA = SynthMusic::fingerprint(Kind::Pulse, 1), leadB = SynthMusic::fingerprint(Kind::Pulse, 2);
+        const uint32_t leadC = SynthMusic::fingerprint(Kind::Pulse, 4);
+        const uint32_t bass = SynthMusic::fingerprint(Kind::Triangle, 3);  // in every song
+        SynthMusic::Assignments game;
+        game[bass].program = 30;
+        synth.setAssignments(game);
+        std::vector<SynthMusic::Song> songs(3);
+        songs[0].instruments = {leadA, bass};
+        songs[0].assigned[bass].program = 10;
+        songs[1].instruments = {leadB, bass};
+        songs[1].assigned[bass].program = 20;
+        songs[2].instruments = {leadC, bass};  // nothing chosen for it alone
+        synth.setSongs(songs);
+        uint32_t triggers = 0;
+        uint64_t clock = 0;
+        auto play = [&](uint32_t lead) {
+            for (int n = 0; n < 4; ++n, clock += 250) {
+                synth.beginFrame(clock);
+                SynthMusic::VoiceState s;
+                s.sounding = true;
+                s.amplitude = 0.8;
+                s.note = 60 + n;
+                s.triggers = ++triggers;
+                s.keyed = true;
+                s.fingerprint = lead;
+                synth.update(0, s, clock);
+                s.note = 36 + n;
+                s.fingerprint = bass;
+                synth.update(2, s, clock);
+                std::vector<int16_t> out;
+                synth.endFrame(clock + 250, out, 0, 8000);
+            }
+        };
+        play(leadA);
+        check(synth.currentSong() == 0 && logHas(log, "2 program 10"), "synth: the first song's bass, chosen for it alone");
+        log.clear();
+        clock += 10000;  // the next song, a while later
+        play(leadB);
+        check(synth.currentSong() == 1 && logHas(log, "2 program 20"), "synth: the second song's, chosen for it");
+        log.clear();
+        clock += 10000;
+        play(leadC);
+        check(synth.currentSong() == 2 && logHas(log, "2 program 30"), "synth: a song with nothing of its own, the game's");
     }
 }
 
