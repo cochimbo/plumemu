@@ -55,6 +55,9 @@ public:
     // frontend holds a background extraction there while a game is being played.
     using WaitFn = std::function<void()>;
     void setWait(WaitFn wait) { wait_ = std::move(wait); }
+    // How many threads hear the game at once, each on a console of its own (0: as many as
+    // there are cores, up to 8). The songs found are the same however many.
+    void setThreads(int threads) { threads_ = threads; }
     // After run(), even a stopped one: the FM instruments (RolandSound fingerprints)
     // heard in the short sounds it skipped and in none of the songs, which are the
     // game's sound effects.
@@ -71,6 +74,7 @@ private:
                 std::string* error, bool pressStart, bool* notFound);
     LogFn log_;
     WaitFn wait_;
+    int threads_ = 0;
     std::set<uint32_t> effects_;
 };
 

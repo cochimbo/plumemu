@@ -3069,6 +3069,17 @@ void testSongExtract(testrom::Asking asking) {
     // The sound effects play an instrument no song plays: that one is an effect.
     const std::set<uint32_t> effects = extractor.effectInstruments();
     check(effects.size() == 1, ("Canciones: el instrumento de los efectos se reconoce como efecto" + how).c_str());
+    // On one thread or on several, the same songs, byte for byte, and the same effects.
+    const auto alone = [&](int threads) {
+        SongExtractor x;
+        x.setThreads(threads);
+        std::vector<std::vector<uint8_t>> files;
+        x.run(path, "Prueba", nullptr, [&](const SongExtractor::Song& s) { files.push_back(s.vgz); }, &error);
+        return std::make_pair(files, x.effectInstruments());
+    };
+    const auto one = alone(1), four = alone(4);
+    check(one.first.size() == 4 && one == four,
+          ("Canciones: en un hilo o en cuatro salen las mismas canciones y los mismos efectos" + how).c_str());
     std::filesystem::remove(path);
     if (asking != testrom::Asking::byQueue) return;
     VgmFile file;
