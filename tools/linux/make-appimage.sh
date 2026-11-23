@@ -51,6 +51,8 @@ cp "$work/pdfium/LICENSE" "$bin/pdfium-licenses/pdfium-LICENSE.txt"
 cp "$work/pdfium/licenses/"* "$bin/pdfium-licenses/"
 
 cp "$root/LICENSE" "$bin/LICENSE.txt"
+# shine, the MP3 encoder of Exportar a MP3 (LGPL 2), with its license.
+cp "$build/_deps/shine-src/COPYING" "$bin/shine-LICENSE.txt"
 
 # The menu entry and the plum icon.
 cp "$here/plumsg.desktop" "$work/plumsg.desktop"

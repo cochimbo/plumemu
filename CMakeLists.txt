@@ -118,6 +118,40 @@ else()
   target_compile_options(plumsg_rcheevos PRIVATE -w)
 endif()
 
+# shine (LGPL 2, fixed point): the MP3 encoder of the instrument editor's Exportar a MP3.
+# Pinned; built as a library of its own, so it can be swapped (its source is shine's).
+FetchContent_Declare(shine
+  GIT_REPOSITORY https://github.com/toots/shine.git
+  GIT_TAG ab5e3526b64af1a2eaa43aa6f441a7312e013519)
+FetchContent_GetProperties(shine)
+if(NOT shine_POPULATED)
+  FetchContent_Populate(shine)
+endif()
+add_library(plumsg_shine STATIC
+  ${shine_SOURCE_DIR}/src/lib/bitstream.c
+  ${shine_SOURCE_DIR}/src/lib/huffman.c
+  ${shine_SOURCE_DIR}/src/lib/l3bitstream.c
+  ${shine_SOURCE_DIR}/src/lib/l3loop.c
+  ${shine_SOURCE_DIR}/src/lib/l3mdct.c
+  ${shine_SOURCE_DIR}/src/lib/l3subband.c
+  ${shine_SOURCE_DIR}/src/lib/layer3.c
+  ${shine_SOURCE_DIR}/src/lib/reservoir.c
+  ${shine_SOURCE_DIR}/src/lib/tables.c)
+target_include_directories(plumsg_shine SYSTEM PUBLIC ${shine_SOURCE_DIR}/src/lib)
+if(MSVC)
+  target_compile_options(plumsg_shine PRIVATE /W0)
+  # (GCC's __attribute__((unused)) on two variables.)
+  target_compile_options(plumsg_shine PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/tools/shine/msvc_compat.h)
+else()
+  target_compile_options(plumsg_shine PRIVATE -w)
+endif()
+if(NOT MSVC)
+  find_library(PLUMSG_LIBM m)
+  if(PLUMSG_LIBM)
+    target_link_libraries(plumsg_shine PUBLIC ${PLUMSG_LIBM})
+  endif()
+endif()
+
 # Emulator core: no SDL, no OS dependencies.
 add_library(plumsg_core STATIC
   src/core/m68k.cpp
@@ -134,6 +168,7 @@ add_library(plumsg_core STATIC
   src/core/timbre.cpp
   src/core/vgm.cpp
   src/core/song_extract.cpp
+  src/core/song_export.cpp
   src/core/megadrive.cpp
   src/core/rewind.cpp
   src/core/cheats.cpp
@@ -155,7 +190,7 @@ add_library(plumsg_core STATIC
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
 target_include_directories(plumsg_core PUBLIC src src/core PRIVATE third_party/tsf third_party/stb)
-target_link_libraries(plumsg_core PUBLIC plumsg_miniz Threads::Threads PRIVATE plumsg_ymfm chdr-static plumsg_decoders)
+target_link_libraries(plumsg_core PUBLIC plumsg_miniz Threads::Threads PRIVATE plumsg_ymfm chdr-static plumsg_decoders plumsg_shine)
 
 # UDP sockets for netplay (the session itself is in the core).
 add_library(plumsg_net STATIC src/net/udp.cpp)

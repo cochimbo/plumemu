@@ -43,6 +43,7 @@
 #include "pad_test_rom.h"
 #include "sms_test_rom.h"
 #include "music_rom.h"
+#include "song_export.h"
 #include "song_extract.h"
 #include "timbre.h"
 
@@ -3030,6 +3031,83 @@ void testVgm() {
     check(!file.parse({1, 2, 3}, &error) && !error.empty(), "VGM: un archivo que no lo es se rechaza");
 }
 
+// Exportar a MP3: a song played through, round its loop and faded out, as an MP3.
+void testSongExport() {
+    // The test ROM's tune, recorded for 3 s with a loop back to its first second.
+    MegaDrive md;
+    md.loadRomData(testrom::build());
+    md.setSampleRate(44100);
+    for (int i = 0; i < 10; ++i) md.runFrame();
+    VgmWriter writer;
+    md.setVgmWriter(&writer);
+    VgmWriter::Mark loop{};
+    for (int i = 0; i < 180; ++i) {
+        if (i == 60) loop = writer.mark(md.masterClocks());
+        md.runFrame();
+    }
+    const VgmWriter::Mark end = writer.mark(md.masterClocks());
+    VgmWriter::Tag tag;
+    tag.title = "Canción 1";
+    tag.game = "Prueba";
+    const std::vector<uint8_t> bytes = writer.finish(md.masterClocks(), tag, true, &end, &loop);
+    md.setVgmWriter(nullptr);
+    VgmFile f;
+    if (!f.parse(bytes, nullptr) || !f.loop || f.loopSamples == 0) {
+        check(false, "Exportar: una canción con su vuelta");
+        return;
+    }
+    SongRender how;
+    how.loops = 3;
+    how.fadeSeconds = 2;
+    const double loopSeconds = static_cast<double>(f.loopSamples) / 44100.0, intro = f.seconds() - loopSeconds;
+    check(std::fabs(renderedSeconds(f, how) - (intro + 3 * loopSeconds + 2)) < 0.01, "Exportar: su inicio, tres vueltas y el fundido");
+    std::vector<int16_t> pcm;
+    std::atomic<float> done{0};
+    check(renderSong(f, nullptr, nullptr, nullptr, how, &pcm, &done) &&
+              pcm.size() == static_cast<size_t>(std::llround(renderedSeconds(f, how) * 44100)) * 2 && done == 1.0f,
+          "Exportar: se toca hasta el final");
+    int loud = 0;
+    for (size_t i = 0; i < pcm.size() / 2; ++i) loud = std::max(loud, std::abs(static_cast<int>(pcm[i])));
+    check(loud > 1000 && pcm.back() == 0 && std::abs(pcm[pcm.size() - 2]) < 50, "Exportar: suena, y se apaga al final");
+
+    // With the Roland sound: what was chosen for the song wins over what was for the game.
+    RolandSound roland;
+    std::vector<std::string> log;
+    roland.setLog(&log);
+    {
+        VgmPlayer player;
+        player.setRoland(&roland);
+        player.load(f);
+        player.analyse();
+    }
+    RolandSound::Assignments game, song;
+    for (const auto& [fp, seen] : roland.seen()) {
+        game[fp].program = 30;
+        song[fp].program = 20;
+    }
+    auto heard = [&](const char* what) {
+        return std::any_of(log.begin(), log.end(), [&](const std::string& l) { return l.find(what) != std::string::npos; });
+    };
+    log.clear();
+    check(!game.empty() && renderSong(f, &roland, &game, &song, how, &pcm) && heard(" program 20") && !heard(" program 30"),
+          "Exportar: suena lo elegido para la canción, encima de lo del juego");
+    log.clear();
+    check(renderSong(f, &roland, &game, nullptr, how, &pcm) && heard(" program 30"), "Exportar: sin nada propio, lo del juego");
+    std::atomic<bool> stop{true};
+    check(!renderSong(f, &roland, nullptr, nullptr, how, &pcm, nullptr, &stop), "Exportar: se puede parar");
+    roland.setLog(nullptr);
+
+    renderSong(f, nullptr, nullptr, nullptr, how, &pcm);
+    const std::vector<uint8_t> mp3 =
+        encodeMp3(std::vector<int16_t>(pcm.begin(), pcm.begin() + 44100 * 2 * 2), 44100, 192, {"Canción 01", "Juego", "", 1});
+    const size_t id3 = mp3.size() > 10 ? 10 + (mp3[6] << 21 | mp3[7] << 14 | mp3[8] << 7 | mp3[9]) : 0;
+    check(mp3.size() > id3 + 4 && std::memcmp(mp3.data(), "ID3", 3) == 0 && mp3[id3] == 0xFF && (mp3[id3 + 1] & 0xE0) == 0xE0,
+          "Exportar: un MP3, con su etiqueta");
+    // Two seconds at 192 kbit/s.
+    check(mp3.size() > id3 + 44000 && mp3.size() < id3 + 52000, "Exportar: del tamaño de su tasa de bits");
+    check(encodeMp3(pcm, 44100, 191, {}).empty(), "Exportar: no a una tasa de bits que el MP3 no tiene");
+}
+
 void testSongExtract(testrom::Asking asking) {
     // The music test ROM asks for its songs like Sonic does (or like Streets of Rage 2,
     // like EA's games or like the GEMS games): the extractor finds how, and takes out its four songs, each
@@ -4053,6 +4131,7 @@ int main() {
     testLoudness();
     testAchievements();
     testVgm();
+    testSongExport();
     testSongExtract(testrom::Asking::byQueue);
     testSongExtract(testrom::Asking::byCall);
     testSongExtract(testrom::Asking::byStack);

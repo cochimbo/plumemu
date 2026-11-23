@@ -394,6 +394,15 @@ the general ones). **Back to the general ones** removes them. They are saved in 
     to `sound\cache.ini`, which applies to all of them (versions up to 0.0.22 saved each
     game's settings there too, and they still play); a game's own settings override the
     shared ones.
+  - **Export to MP3...** saves the open song, or every song of the game, as it sounds in
+    the editor: with the synthesizer (what was chosen for the whole game and, over it, for
+    each song), the instruments left original from the chip, the reverb, chorus and
+    equalizer; or the original sound if **Original** is chosen. Its start, twice round its
+    loop and an eight-second fade (a song that ends just ends), at 192 kbit/s with its
+    title, game and number in the tag, in `sound\mp3\<game>\`. It runs in the background
+    with a progress bar and **Stop**; **Open the MP3s** opens the folder.
+    `plumsg-headless --play-vgm song.vgz --mp3 song.mp3` (with `--roland SF2` for the
+    synthesizer) does the same without a window.
 - In full screen, **Open ROM...** uses plumsg's own file browser (gamepad-friendly too)
   instead of the Windows dialog, which used to hide behind the game.
 
@@ -540,7 +549,7 @@ How to add texts or languages: [src/frontend/lang/README.md](src/frontend/lang/R
 ## Building
 
 You need CMake 3.16+, a C++17 compiler and SDL2 (if it is not installed, CMake downloads
-it). Dear ImGui, ymfm and libchdr are downloaded by themselves.
+it). Dear ImGui, ymfm, libchdr and shine are downloaded by themselves.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -679,7 +688,10 @@ following Hyllian's xbr-lv2 (MIT), libchdr (BSD-3-Clause, for `.chd` files), Tin
 (MIT, in `third_party/tsf`), cgltf (MIT, in `third_party/cgltf`), rcheevos (MIT, for RetroAchievements), minimp3 (CC0, in
 `third_party/minimp3`), stb_vorbis (public domain or MIT, in `third_party/stb`) and PDFium
 (BSD-3-Clause and Apache 2.0, the prebuilt `pdfium.dll` of bblanchon/pdfium-binaries, which reads
-the manuals; its licenses go in `pdfium-licenses` in the installation). The
+the manuals; its licenses go in `pdfium-licenses` in the installation). Export to MP3
+uses the shine encoder (LGPL 2, [toots/shine](https://github.com/toots/shine), built from
+its source as a library of its own, its license in `shine-LICENSE.txt` in the
+installation). The
 interface's typeface is Chakra Petch (SIL Open Font License 1.1, in
 `src/frontend/assets/fonts` with its license). The included
 SoundFont is GeneralUser GS by S. Christian Collins, with its own free license
