@@ -2973,12 +2973,13 @@ void Ui::drawLibraryGrid(const std::vector<size_t>& visible) {
             drawStar(draw, ImVec2(b0.x + s * 0.1f, b0.y + s * 0.08f), s * 0.8f, kFavoriteColour);
             if (ImGui::IsMouseHoveringRect(b0, ImVec2(b0.x + s, b0.y + s))) ImGui::SetTooltip("%s", tr("En favoritos"));
         }
-        // On the "Todos" tab, a badge on 32X and Mega CD covers says which console.
-        if (settings_.librarySystem < 0 && g.system != ConsoleSystem::MegaDrive) {
+        // On the "Todos" tab, a badge on every cover says which console, Mega Drive too.
+        if (settings_.librarySystem < 0) {
             const char* badge = systemName(g.system);
             const ImVec2 size = ImGui::CalcTextSize(badge);
             const ImVec2 b0(box.x + coverW - size.x - 10, box.y + 4);
-            const ImU32 colour = g.system == ConsoleSystem::Mega32X        ? IM_COL32(200, 60, 50, 230)
+            const ImU32 colour = g.system == ConsoleSystem::MegaDrive      ? IM_COL32(205, 135, 20, 230)
+                                 : g.system == ConsoleSystem::Mega32X      ? IM_COL32(200, 60, 50, 230)
                                  : g.system == ConsoleSystem::MasterSystem ? IM_COL32(40, 140, 80, 230)
                                  : g.system == ConsoleSystem::GameGear     ? IM_COL32(120, 70, 170, 230)
                                                                           : IM_COL32(40, 110, 200, 230);

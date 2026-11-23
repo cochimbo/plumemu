@@ -3190,6 +3190,17 @@ void testSongExtract(testrom::Asking asking) {
               ("Canciones: al pedir la segunda (entre efectos), suena lo elegido para ella" + how).c_str());
         md.setRoland(nullptr, 100);
     }
+    // On one thread or on several, the same songs, byte for byte, and the same effects.
+    const auto alone = [&](int threads) {
+        SongExtractor x;
+        x.setThreads(threads);
+        std::vector<std::vector<uint8_t>> files;
+        x.run(path, "Prueba", nullptr, [&](const SongExtractor::Song& s) { files.push_back(s.vgz); }, &error);
+        return std::make_pair(files, x.effectInstruments());
+    };
+    const auto one = alone(1), four = alone(4);
+    check(one.first.size() == 4 && one == four,
+          ("Canciones: en un hilo o en cuatro salen las mismas canciones y los mismos efectos" + how).c_str());
     std::filesystem::remove(path);
     if (asking != testrom::Asking::byQueue) return;
     VgmFile file;
