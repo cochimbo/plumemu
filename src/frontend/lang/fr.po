@@ -255,6 +255,9 @@ msgstr "Ouvrir le dossier des SoundFonts"
 msgid "Abrir la carpeta de grabaciones"
 msgstr "Ouvrir le dossier des enregistrements"
 
+msgid "Abrir los MP3"
+msgstr "Ouvrir les MP3"
+
 msgid "Acción"
 msgstr "Action"
 
@@ -722,6 +725,9 @@ msgstr ""
 
 msgid "Composición"
 msgstr "Composition"
+
+msgid "Con el sonido original (sin sintetizador)."
+msgstr "Avec le son d'origine (sans synthétiseur)."
 
 msgid "Conectado (sin cuenta tuya: menos peticiones al día)."
 msgstr "Connecté (sans compte personnel : moins de requêtes par jour)."
@@ -1281,6 +1287,9 @@ msgstr "En attente de l'autre joueur sur le port %d. En attendant, vous pouvez c
 msgid "Esperando notas... (la batería no se escribe: no tiene notas)"
 msgstr "En attente de notes... (la batterie ne s'écrit pas : elle n'a pas de notes)"
 
+msgid "Esta canción (%s)"
+msgstr "Cette chanson (%s)"
+
 msgid "Esta compilación de plumsg no trae la cuenta de desarrollador de ScreenScraper, así que no puede descargar nada. Los instaladores publicados sí la traen."
 msgstr "Cette version de plumsg n’inclut pas le compte développeur ScreenScraper, elle ne peut donc rien télécharger. Les installateurs publiés l’incluent."
 
@@ -1337,6 +1346,12 @@ msgstr "Europe (Mega-CD)"
 
 msgid "Europa (PAL)"
 msgstr "Europe (PAL)"
+
+msgid "Exportando %s"
+msgstr "Exportation de %s"
+
+msgid "Exportar a MP3..."
+msgstr "Exporter en MP3..."
 
 msgid "Extrusión"
 msgstr "Extrusion"
@@ -1544,6 +1559,13 @@ msgstr "Les graves, médiums et aigus du synthétiseur, ici et dans les jeux."
 msgid "Grosor"
 msgstr "Épaisseur"
 
+msgid ""
+"Guarda la mezcla (los instrumentos elegidos para cada canción) en MP3: dos vueltas a su bucle\n"
+"y se apaga. En %smp3/."
+msgstr ""
+"Enregistre le mixage (les instruments choisis pour chaque chanson) en MP3 : deux tours de sa boucle,\n"
+"puis un fondu. Dans %smp3/."
+
 msgid "Guardar el 3D solo para este juego"
 msgstr "Garder la 3D rien que pour ce jeu"
 
@@ -1611,6 +1633,12 @@ msgstr "Vous avez quitté la partie en réseau"
 
 msgid "Has salido de la partida."
 msgstr "Vous avez quitté la partie."
+
+msgid "He exportado %d canciones a MP3."
+msgstr "%d chansons exportées en MP3."
+
+msgid "He exportado 1 canción a MP3."
+msgstr "1 chanson exportée en MP3."
 
 msgid "He sacado %d canciones de la ROM: están en la lista de pistas."
 msgstr "J'ai extrait %d morceaux de la ROM : ils sont dans la liste des pistes."
@@ -2195,6 +2223,9 @@ msgstr "Impossible de télécharger la liste des codes. Y a-t-il une connexion I
 msgid "No se pudo escribir %s: ¿falta espacio en el disco?"
 msgstr "Impossible d'écrire %s : le disque est-il plein ?"
 
+msgid "No se pudo guardar %s"
+msgstr "Impossible d'enregistrer %s"
+
 msgid "No se pudo guardar el estado en %s: ¿falta espacio en el disco?"
 msgstr "Impossible d'enregistrer l'état dans %s : le disque est-il plein ?"
 
@@ -2341,6 +2372,12 @@ msgstr ""
 "Pour jouer à la manette depuis le canapé ou sur une portable\n"
 "(Steam Deck, ROG Ally, Legion Go, MSI Claw...) : texte\n"
 "plus grand et la manette dans toutes les fenêtres."
+
+msgid "Parado: %d canciones exportadas."
+msgstr "Arrêté : %d chansons exportées."
+
+msgid "Parado: 1 canción exportada."
+msgstr "Arrêté : 1 chanson exportée."
 
 msgid "Parado: las canciones sacadas hasta ahora se quedan en la lista."
 msgstr "Arrêté : les morceaux extraits jusqu'ici restent dans la liste."
@@ -3078,6 +3115,9 @@ msgstr "Type de manette"
 msgid "Tocar"
 msgstr "Jouer"
 
+msgid "Todas las canciones del juego (%d)"
+msgstr "Toutes les chansons du jeu (%d)"
+
 msgid "Todo a las sugerencias..."
 msgstr "Tout aux suggestions..."
 
@@ -3442,6 +3482,9 @@ msgstr "les temps de la feuille .cue reculent"
 
 msgid "medio"
 msgstr "médium"
+
+msgid "ninguna"
+msgstr "aucune"
 
 msgid "ninguno (lo que elijas vale para todos los juegos)"
 msgstr "aucun (ce que vous choisissez vaut pour tous les jeux)"

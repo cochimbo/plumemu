@@ -31,6 +31,7 @@
 #include "recording.h"
 #include "pad_test_rom.h"
 #include "sms_test_rom.h"
+#include "song_export.h"
 #include "song_extract.h"
 #include "system.h"
 #include "test_rom.h"
@@ -44,6 +45,9 @@ const char* kUsage = R"(usage: plumsg-headless <game|--test-rom|--pad-test-rom|-
   game                  cartridge (.md .gen .bin .smd .32x .zip) or disc (.cue .chd .iso)
   --play-vgm FILE       no game: play this .vgm or .vgz for --frames sixtieths of a
                         second, for --wav and --roland, and list its instruments
+  --mp3 FILE            with --play-vgm: export it as the instrument editor's Exportar a
+                        MP3 does (twice round its loop and faded out; with --roland,
+                        through it)
   --extract-songs DIR   take the game's songs out of its ROM (sound drivers like
                         Sonic's, Streets of Rage 2's, EA's or GEMS), one .vgz each in DIR,
                         saying what it finds
@@ -415,7 +419,7 @@ int extractSongs(const std::string& game, const std::string& dir) {
 
 // --play-vgm: the instrument editor's player, without a window.
 int playVgmFile(const std::string& path, long frames, const std::string& wav, const std::string& roland,
-                const std::string& midiLog) {
+                const std::string& midiLog, const std::string& mp3Out) {
     std::vector<uint8_t> bytes;
     VgmFile file;
     std::string error;
@@ -451,6 +455,14 @@ int playVgmFile(const std::string& path, long frames, const std::string& wav, co
     }
     if (!midiLog.empty()) rolandSound.setLog(&midiEvents);
     std::vector<int16_t> sound;
+    if (!mp3Out.empty()) {
+        if (!renderSong(file, roland.empty() ? nullptr : &rolandSound, nullptr, nullptr, SongRender{}, &sound)) return 1;
+        const std::vector<uint8_t> mp3 = encodeMp3(sound, 44100, 192, {file.title, file.game, std::string(), 0});
+        if (mp3.empty() || !writeFile(mp3Out, mp3.data(), mp3.size())) return 1;
+        if (!wav.empty() && !writeWav(wav, sound, 44100)) return 1;
+        std::printf("%.1f s to %s\n", static_cast<double>(sound.size() / 2) / 44100.0, mp3Out.c_str());
+        return 0;
+    }
     for (long i = 0; i < frames && !player.finished(); ++i) player.play(1.0 / 60, 44100, sound);
     bool ioError = !wav.empty() && !writeWav(wav, sound, 44100);
     if (!midiLog.empty()) {
@@ -464,7 +476,7 @@ int playVgmFile(const std::string& path, long frames, const std::string& wav, co
 int main(int argc, char** argv) {
     std::string effectsList;
     std::string game, playVgm, vgmOut, png, layers, wav, gifOut, aviOut, roland, midiLog, stateIn, stateOut, ramOut, hashLog, json, expectLog, biosDir, extractDir;
-    std::string outDir = ".";
+    std::string outDir = ".", mp3Out;
     std::vector<std::string> bios, cheats, scripts, lines;
     long frames = 600, overclock = 100, pngEvery = 0, netPort = 0, inputDelay = 2, netLag = 0, netLoss = 0;
     bool netHost = false;
@@ -537,6 +549,7 @@ int main(int argc, char** argv) {
         else if (a == "--effects") effectsList = next();
         else if (a == "--vgm") vgmOut = next();
         else if (a == "--play-vgm") playVgm = next();
+        else if (a == "--mp3") mp3Out = next();
         else if (a == "--extract-songs") extractDir = next();
         else if (a == "--save-state") stateOut = next();
         else if (a == "--dump-ram") ramOut = next();
@@ -572,7 +585,7 @@ int main(int argc, char** argv) {
             return 2;
         }
     }
-    if (!playVgm.empty()) return playVgmFile(playVgm, frames, wav, roland, midiLog);
+    if (!playVgm.empty()) return playVgmFile(playVgm, frames, wav, roland, midiLog, mp3Out);
     if (game.empty()) {
         std::fputs(kUsage, stderr);
         return 2;

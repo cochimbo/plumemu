@@ -93,6 +93,28 @@ std::set<uint32_t> songInstruments(const std::string& text) {
     return out;
 }
 
+// A name a file can have on any system.
+std::string fileSafe(std::string name) {
+    for (char& c : name)
+        if (std::strchr("<>:\"/\\|?*", c) || static_cast<unsigned char>(c) < 32) c = '_';
+    while (!name.empty() && (name.back() == ' ' || name.back() == '.')) name.pop_back();
+    while (!name.empty() && name.front() == ' ') name.erase(name.begin());
+    return name.empty() ? std::string("_") : name;
+}
+
+// A game's name without its region and version.
+std::string plainName(const std::string& game) {
+    std::string out;
+    int depth = 0;
+    for (char c : game) {
+        if (c == '(' || c == '[') ++depth;
+        else if ((c == ')' || c == ']') && depth > 0) --depth;
+        else if (depth == 0) out += c == '_' ? ' ' : c;
+    }
+    while (!out.empty() && out.back() == ' ') out.pop_back();
+    return out.empty() ? game : out;
+}
+
 std::string noteName(int note) {
     static const char* kNames[12] = {N_("Do"), N_("Do#"), N_("Re"), N_("Re#"), N_("Mi"), N_("Fa"), N_("Fa#"), N_("Sol"), N_("Sol#"), N_("La"), N_("La#"), N_("Si")};
     note = std::clamp(note, 0, 127);
@@ -142,7 +164,13 @@ InstrumentEditor::InstrumentEditor(std::string soundFolder) : folder_(std::move(
     player_.setRoland(&synth_);
 }
 
-InstrumentEditor::~InstrumentEditor() { endExtraction(); }
+InstrumentEditor::~InstrumentEditor() {
+    if (export_ && export_->thread.joinable()) {
+        export_->cancel = true;
+        export_->thread.join();
+    }
+    endExtraction();
+}
 
 RolandSound::Assignments InstrumentEditor::assignmentsFor(const std::string& soundFolder, const std::string& game) {
     RolandSound::Assignments all = RolandSound::parseAssignments(readText(soundFolder + "cache.ini"));
@@ -242,7 +270,14 @@ void InstrumentEditor::open(const std::string& game) {
     open_ = true;
     if (game == game_ && !tracks_.empty()) return;
     stop();
-    if (game != game_) endExtraction();
+    if (game != game_) {
+        endExtraction();
+        if (export_) {  // (its songs are another game's)
+            export_->cancel = true;
+            finishExport();
+        }
+        exported_.clear();
+    }
     game_ = game;
     gameName_ = withoutExtension(fileName(game));
     const ConsoleSystem system = game.empty() ? ConsoleSystem::MegaDrive : detectSystem(game);
@@ -373,6 +408,9 @@ void InstrumentEditor::useSoundfont(const RolandSound& from, int reverb, int cho
     soundfontReady_ = synth_.shareSoundfont(from) || synth_.ready();
     synth_.setEffects(reverb, chorus);
     synth_.setEqualizer(equalizer);
+    reverb_ = reverb;
+    chorus_ = chorus;
+    equalizer_ = equalizer;
     if (!soundfontReady_) rolandOutput_ = false;
     player_.setRolandOutput(rolandOutput_);
 }
@@ -632,6 +670,7 @@ void InstrumentEditor::draw(const EditorView& view, EditorRequests& out) {
         return;
     }
     if (!open_) stop();
+    if (export_ && export_->done) finishExport();
     if (!view.soundfontReady && !soundfontReady_) rolandOutput_ = false;
     ImGui::Text(tr("Juego: %s"), gameName_.empty() ? tr("ninguno (lo que elijas vale para todos los juegos)") : gameName_.c_str());
     drawTrack(view, out);
@@ -698,7 +737,7 @@ void InstrumentEditor::drawTrack(const EditorView& view, EditorRequests& out) {
             ImGui::SetTooltip(tr("La carpeta de las canciones de este juego: lo que pongas en ella (.vgm, .vgz o\n"
                               "el .zip de vgmrips) sale en la lista.\n%s"), gameTracksFolder().c_str());
         ImGui::SameLine();
-        ImGui::BeginDisabled(extraction_ != nullptr && !extraction_->done);
+        ImGui::BeginDisabled(extracting() || export_);
         if (ImGui::Button(smsGame_ ? tr("Sacar canciones (experimental)") : tr("Sacar canciones"))) startExtraction();
         ImGui::EndDisabled();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
@@ -797,9 +836,37 @@ void InstrumentEditor::drawTrack(const EditorView& view, EditorRequests& out) {
         ImGui::TextDisabled("%s%s%s", player_.file().game.c_str(), player_.file().title.empty() ? "" : " - ",
                             player_.file().title.c_str());
     }
+
+    // Exportar a MP3.
+    if (!gameName_.empty()) {
+        ImGui::BeginDisabled(extracting() || export_ || view.recording || tracks_.empty());
+        if (ImGui::Button(tr("Exportar a MP3..."))) ImGui::OpenPopup("exportar");
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip(tr("Guarda la mezcla (los instrumentos elegidos para cada canción) en MP3: dos vueltas a su bucle\n"
+                                 "y se apaga. En %smp3/."),
+                              folder_.c_str());
+        if (ImGui::BeginPopup("exportar")) {
+            if (!soundfontReady_ || !rolandOutput_)
+                ImGui::TextDisabled("%s", tr("Con el sonido original (sin sintetizador)."));
+            ImGui::BeginDisabled(track_.path.empty());
+            if (ImGui::Selectable(trf("Esta canción (%s)", track_.path.empty() ? tr("ninguna") : track_.title.c_str()).c_str()))
+                startExport({track_});
+            ImGui::EndDisabled();
+            if (ImGui::Selectable(trf("Todas las canciones del juego (%d)", static_cast<int>(tracks_.size())).c_str()))
+                startExport(tracks_);
+            ImGui::EndPopup();
+        }
+        if (!exported_.empty() && !export_) {
+            ImGui::SameLine();
+            if (ImGui::Button(tr("Abrir los MP3"))) openInSystem(exported_);
+        }
+        drawExport();
+    }
 }
 
 void InstrumentEditor::startExtraction() {
+    if (export_) return;
     endExtraction();
     extraction_ = std::make_unique<Extraction>();
     extractionSeen_ = 0;
@@ -1189,6 +1256,110 @@ void InstrumentEditor::drawAssignment(const std::vector<Instrument>& list, Edito
             assign(inst.fingerprint, &a, out);
         }
     }
+}
+
+// ---------------------------------------------------------------------------------
+// Exportar a MP3
+
+bool InstrumentEditor::readTrack(const Track& track, VgmFile* file) {
+    std::vector<uint8_t> bytes;
+    if (!readBytes(track.path, bytes)) return false;
+    if (!track.member.empty()) {
+        std::vector<uint8_t> zip = std::move(bytes);
+        bytes.clear();
+        for (auto& [name, data] : zipTracks(zip))
+            if (name == track.member) bytes = std::move(data);
+    }
+    return file->parse(std::move(bytes), nullptr);
+}
+
+void InstrumentEditor::startExport(const std::vector<Track>& which) {
+    if (export_ || extracting() || which.empty() || gameName_.empty()) return;
+    stop();
+    message_.clear();
+    std::vector<Export> list;
+    const std::string dir = folder_ + "mp3/" + fileSafe(gameName_) + "/";
+    std::set<std::string> names;
+    for (const Track& t : which) {
+        Export e;
+        e.track = t;
+        e.song = RolandSound::parseAssignments(readText(songFile(t)));
+        const auto at = std::find(tracks_.begin(), tracks_.end(), t);
+        e.number = at == tracks_.end() ? 0 : static_cast<int>(at - tracks_.begin()) + 1;
+        e.title = t.title;
+        const std::string file = fileSafe(t.title);
+        std::string unique = file;
+        for (int n = 2; names.count(lower(unique)); ++n) unique = file + " (" + std::to_string(n) + ")";
+        names.insert(lower(unique));
+        e.file = dir + unique + ".mp3";
+        list.push_back(std::move(e));
+    }
+    // The Roland sound it plays them with, as it is heard here (the chips' own if
+    // Original is chosen or there is no SoundFont): the editor's SoundFont, shared.
+    exportSynth_.reset();
+    if (soundfontReady_ && rolandOutput_) {
+        exportSynth_ = std::make_unique<RolandSound>();
+        if (exportSynth_->shareSoundfont(synth_)) {
+            exportSynth_->setEffects(reverb_, chorus_);
+            exportSynth_->setEqualizer(equalizer_);
+        } else {
+            exportSynth_.reset();
+        }
+    }
+    // What was chosen for the whole game (the shared cache, and the game's over it).
+    RolandSound::Assignments game = cache_;
+    for (const auto& [fp, a] : own_) game[fp] = a;
+    export_ = std::make_unique<ExportJob>();
+    export_->folder = dir;
+    export_->steps = static_cast<int>(list.size());
+    for (const Export& e : list) export_->labels.push_back(trf("Exportando %s", e.title.c_str()));
+    ExportJob* job = export_.get();
+    RolandSound* synth = exportSynth_.get();
+    const std::string album = plainName(gameName_);
+    job->thread = std::thread([job, synth, album, game = std::move(game), list = std::move(list)] {
+        std::error_code ec;
+        fs::create_directories(fs::u8path(job->folder), ec);
+        for (const Export& e : list) {
+            if (job->cancel) break;
+            job->part = 0;
+            VgmFile file;
+            if (!readTrack(e.track, &file)) {
+                job->error = trf("No se pudo leer %s.", e.track.title.c_str());
+                job->step = job->step + 1;
+                continue;
+            }
+            std::vector<int16_t> pcm;
+            if (!renderSong(file, synth, &game, &e.song, SongRender{}, &pcm, &job->part, &job->cancel)) break;
+            const std::vector<uint8_t> mp3 = encodeMp3(pcm, 44100, 192, {e.title, album, std::string(), e.number});
+            if (!mp3.empty() && writeBytes(e.file, mp3.data(), mp3.size())) job->written.push_back(e.file);
+            else job->error = trf("No se pudo guardar %s", e.file.c_str());
+            job->step = job->step + 1;
+        }
+        job->done = true;
+    });
+}
+
+void InstrumentEditor::drawExport() {
+    if (!export_) return;
+    const ExportJob& j = *export_;
+    const int step = std::min(j.step.load(), j.steps.load() - 1);
+    const float fraction = (static_cast<float>(j.step.load()) + j.part.load()) / static_cast<float>(std::max(1, j.steps.load()));
+    const std::string label =
+        step >= 0 && step < static_cast<int>(j.labels.size()) ? j.labels[static_cast<size_t>(step)] : std::string();
+    ImGui::ProgressBar(std::min(1.0f, fraction), ImVec2(360, 0), label.c_str());
+    ImGui::SameLine();
+    if (ImGui::Button(tr("Parar##exportar"))) export_->cancel = true;
+}
+
+void InstrumentEditor::finishExport() {
+    if (export_->thread.joinable()) export_->thread.join();
+    const std::unique_ptr<ExportJob> job = std::move(export_);
+    exportSynth_.reset();
+    const int n = static_cast<int>(job->written.size());
+    exported_ = n > 0 ? job->folder : std::string();
+    if (!job->error.empty()) message_ = job->error;
+    else if (job->cancel) message_ = n == 1 ? std::string(tr("Parado: 1 canción exportada.")) : trf("Parado: %d canciones exportadas.", n);
+    else message_ = n == 1 ? std::string(tr("He exportado 1 canción a MP3.")) : trf("He exportado %d canciones a MP3.", n);
 }
 
 }  // namespace plumsg

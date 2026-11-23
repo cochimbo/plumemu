@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -12,6 +13,7 @@
 #include <vector>
 
 #include "../core/roland.h"
+#include "../core/song_export.h"
 #include "../core/song_extract.h"
 #include "../core/vgm.h"
 
@@ -75,7 +77,10 @@ public:
 
     // The SoundFont to play the Roland sound with, shared with the emulator's.
     void useSoundfont(const RolandSound& from, int reverb, int chorus, const std::array<int, RolandSound::kEqBands>& equalizer);
-    void useEqualizer(const std::array<int, RolandSound::kEqBands>& equalizer) { synth_.setEqualizer(equalizer); }
+    void useEqualizer(const std::array<int, RolandSound::kEqBands>& equalizer) {
+        equalizer_ = equalizer;
+        synth_.setEqualizer(equalizer);
+    }
     void play(double seconds, double rate, std::vector<int16_t>& out);
 
     // For the score: the open track's notes, all of them (in its player's clock), and
@@ -160,6 +165,33 @@ private:
     void drawExtraction(EditorRequests& out);
     std::unique_ptr<Extraction> extraction_;
     int extractionSeen_ = 0;  // songs of it already in the list
+    bool extracting() const { return extraction_ && !extraction_->done; }
+
+    // Exportar a MP3, on a thread of its own: the songs, as chosen on the main thread.
+    struct Export {
+        Track track;
+        RolandSound::Assignments song;  // what was chosen for it alone
+        std::string file, title;
+        int number = 0;
+    };
+    struct ExportJob {
+        std::thread thread;
+        std::atomic<bool> cancel{false}, done{false};
+        std::atomic<int> step{0}, steps{1};
+        std::atomic<float> part{0};  // of the song it is on
+        std::vector<std::string> labels;  // of each song
+        std::vector<std::string> written;
+        std::string error, folder;
+    };
+    static bool readTrack(const Track& track, VgmFile* file);
+    void startExport(const std::vector<Track>& which);
+    void drawExport();
+    void finishExport();
+    std::unique_ptr<ExportJob> export_;
+    std::unique_ptr<RolandSound> exportSynth_;  // the export's, sharing the SoundFont
+    std::string exported_;  // the folder of the last export, to open it
+    int reverb_ = 0, chorus_ = 0;
+    std::array<int, RolandSound::kEqBands> equalizer_{};
 
     std::string folder_;  // sonido/, ending in a separator
     bool open_ = false;
