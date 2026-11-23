@@ -1,0 +1,556 @@
+# Changelog
+
+What each version brings, newest first. Installers are on the
+[releases](https://github.com/cochimbo/plumsg/releases) page.
+
+## 1.2.0
+
+- **Export songs to MP3**: the instrument editor has an "Exportar a MP3..." button that
+  saves the open song, or every song of the game, as it sounds there: the Roland sound
+  with what was chosen for the game and for each song, the instruments left on the
+  chip's own sound, the reverb, chorus and equalizer (or the original sound when
+  "Original" is chosen). Its start, its loop twice and an 8 s fade, at 192 kbit/s with
+  title, game and number in the ID3 tag, in `sonido/mp3/<game>/`. It runs on a thread of
+  its own, with a progress bar and Stop. The encoder is shine (LGPL 2); its license ships
+  with the installer and the AppImage.
+- **Instruments and volume per song**: the instrument editor keeps what you choose for
+  the open song apart from the rest of the game (or for the whole game, as before, with
+  "Cambiar en: Todo el juego"). While playing, the console watches which song the game
+  asks its sound driver for, and the Roland sound uses what was chosen for that song.
+- **Getting the songs out is faster**: "Sacar canciones" listens on as many threads as
+  there are cores (up to 8) and gives the same songs as on one thread. A song that came
+  out again with an effect over it, or with its channels in another order, is no longer
+  listed twice.
+- **Savestates keep the YM2612's held notes**: a state loaded kept the notes of what
+  played before, and a recording started there began with them held. Older states load
+  as before.
+- **Mega Drive label on the covers** of the library's "Todos" tab.
+
+## 1.1.0
+
+- **History and Favourites in the library**: two new tabs after "Todos". Histórico lists
+  the games you played, the last one first (up to 200), and Favoritos the ones you marked.
+  The game's right-click menu (also X on the pad or the menu key) adds or removes a
+  favourite and, on the history tab, takes a game out of it. A star marks favourites in
+  the grid, in the list and next to Play in the details panel, which also toggles it.
+  The library now opens on the tab you left it on.
+
+## 1.0.2
+
+- **The library marks the games with cheats on**: a small green bolt on the cover in the
+  grid, after the title in the list, next to the chosen game's name under the 3D shelf and
+  under Play in the details panel, with how many cheats are on. So you know before playing
+  that the game will start with its cheats applied. A game whose cheats are all off is not
+  marked.
+
+## 1.0.1
+
+- **Sonic 2's music plays at its speed again**: it went slow, at times up to half its
+  speed, with the sound at its right pitch and the game at 60 frames a second. The Z80's
+  interrupt, which the game's sound driver counts its tempo by, was held for only 4 Z80
+  cycles instead of a whole line, and a driver that had its interrupts off at that moment
+  missed it. Other games whose sound driver runs on the Z80 may sound right now too
+  ([#201](https://github.com/cochimbo/plumsg/issues/201)).
+
+## 1.0.0
+
+The first stable version: the installer and the AppImage are no longer marked as a
+pre-release.
+
+- **The Roland sound is as loud as the game's music**: the synthesizer's volume was the
+  same for every game, so depending on the song it came out up to 2.6 dB quieter or
+  8.8 dB louder than the original chips. Now the YM2612, the YM2413 and the PSG measure
+  how loud the channels the synthesizer plays would be, and the synthesizer follows them
+  over a few seconds, both in the game and in the music player. The songs measured stay
+  within 1 dB of the original. The equalizer changes the sound as before.
+- **One crosshair with the Justifier** (Lethal Enforcers I and II, Snatcher): the second,
+  pink gun shows its crosshair only once the second player moves it or pulls its trigger,
+  and until then it does not point at the screen.
+
+## 0.1.0-beta.17
+
+- **Native Linux version**: each release now also has `plumsg-<version>-x86_64.AppImage`,
+  one file that runs on most Linux desktops and on the Steam Deck without Proton (add it
+  to Steam as a non-Steam game). It brings the console models, the Roland SoundFont and
+  the manual reader, as the Windows installer does.
+- **Get the music of all games**: **Sound > Sacar la música de todos los juegos** goes
+  through the whole library (but Mega CD discs) in the background, taking out each game's
+  songs. It waits while you play and goes on after, skips the games that already have
+  songs (so it carries on where it stopped) and shows its progress at the bottom right.
+- **A music note on the covers** of the games that have songs, and a line in the details
+  panel saying how many.
+- **Batman & Robin's songs**: Sacar canciones now finds its 20 songs.
+- **Open folder** (SoundFonts, a game's songs, recordings, media) works on Linux.
+
+## 0.1.0-beta.16
+
+- **An 80s living room around the shelf** in the 3D view: papered walls over a wooden
+  dado, a parquet floor with a rug, a window with curtains, a floor lamp, a poster and a
+  walnut cabinet with a television and a video recorder. The room grows with the shelf.
+- **The Mega CD in the 3D view is the real first model**, made from photos of one: its
+  glossy front with the tray's door (MEGA-CD on it), SEGA, the Mega-CD player badge, the
+  READY and ACCESS windows (they light up once the disc is in) and the lights under them;
+  the plate on top with its slots, the connector rising at the right that the Mega Drive
+  plugs into, the grille and sockets on the back and the lock on the left side. The tray
+  slides out from behind its door, as on the real one, and fits a 12 cm disc. It is as wide
+  as the Mega Drive, which sits flat on it with its right side inside the cover.
+- **Turn the box and the cartridge every way with the pad**: the left stick turns the box
+  or the cartridge taken out freely, all the way round in any direction (upside down too),
+  while the right stick zooms; dragging with the mouse no longer stops at 60 degrees
+  either. Let go and they turn back to face you.
+- **The 32X in the 3D view is the real one**, made from photos: its head rounded at both
+  ends, glossy above the wave across its front and matt below, the MEGA DRIVE 32X badge
+  with SEGA in its arch, the raised track around its slot, the vents at both ends and the
+  plug that goes into the Mega Drive's slot, sitting on the dome as on the real console.
+  The badge lies on its flat top in front of the slot and the head stands on a visible neck.
+- **Game Gear cartridges like the real ones**: the handle, an arch standing out along the top with the
+  three ridges to pull it out by, the label in its recess, SEGA in relief in its pill and,
+  on the back, MADE IN JAPAN, the screw in its washer and the small hole. In the console it
+  goes in down to the top of its label, as a real one does, instead of standing half out.
+- **The covers come in at once**: they are kept, already decoded, in a cache
+  (`cache/covers` beside `plumsg.ini`, losslessly as QOI), so the next start reads them
+  several times quicker than decoding every PNG again; they are decoded by up to four
+  threads, the ones around the chosen game first, and more of them are uploaded each frame
+  while no game is running. A cover replaced or no longer in the library leaves the cache
+  on its own.
+- **Master System cartridges at their real size**: they were drawn smaller than the
+  console's slot (85% as wide and 70% as tall) and now fill it as they should.
+- The window's title shows the version: **plumsg 0.1.0-beta.16**.
+
+## 0.1.0-beta.15
+
+- **Read the manuals in the 3D view**: with a box open, a click on the manual in its lid
+  (or the left arrow) brings it out in front, open like a booklet. A click on the right
+  page, the right arrow, A, Page Down or RB turns to the next pages (with the page turning
+  over), the left page, the left arrow, Page Up or LB back; the wheel zooms in and dragging
+  moves over the page. The pages come from the PDF ScreenScraper has of the game, drawn
+  by PDFium (`pdfium.dll`, now in the installer).
+- **Download only what is missing, or everything again**: in **Scraping > What to
+  download...**, downloading a game again either adds only what it is missing (read from
+  what was found the first time, without asking ScreenScraper for the game again, so
+  adding the manuals to a whole library is quick) or overwrites all of its media. The
+  **Scraping** menu has **Download what is missing for the whole library** and
+  **Download everything again for the whole library**.
+- **Mega CD boxes with their real shape**: a game whose cover is about as wide as tall
+  gets a jewel case (thin and almost square) instead of a Mega Drive box; the tall ones of
+  the first American games keep it. Their whole sleeves are cut where they really are.
+- **Zoom on the box and the cartridge**: the wheel (or the right stick) comes closer to
+  the box, the cartridge or the manual taken out, not only on the shelf.
+- **32X cartridges** are wider than tall (111 x 72 mm), as they really are, and go into a
+  wider slot.
+- **Master System cartridges** lie straight in their boxes (their model came turned).
+- **No more flicker on the edges** of the boxes while moving along the shelf: the 3D view
+  is drawn with 4x multisampling and shrunk through mipmaps.
+- The window's title shows the version: **plumsg 0.1.0-beta.15**.
+- **The pad no longer gets locked out of the library**: with no game running, B no longer
+  closes it (Esc still does), and on the start screen A, B, Start or Back open it.
+
+## 0.1.0-beta.14
+
+- **ScreenScraper no longer says the requests ran out when they had not**: a good
+  answer was searched for words like "quota" or "threads" anywhere in it (in the
+  servers' counters or a game's text) and taken for an error. Answers are now read by
+  their fields, and when ScreenScraper really reports a limit its own message is shown.
+
+## 0.1.0-beta.13
+
+- **ScreenScraper says what goes wrong**: when a round of downloads stops (an account
+  ScreenScraper does not take, no connection, the day's requests used up), the reason
+  shows in colour on its own line in the library, in the media window and as a notice,
+  with **ScreenScraper account...** and **Try again** next to it; a refused account says
+  whether it is yours or plumsg's developer account, with the server's own message.
+- **Test the connection** in Scraping > ScreenScraper account... asks ScreenScraper
+  whether it takes the accounts and, with yours, how many requests you have used
+  today; it also runs on its own when you save your account.
+- Spaces or line breaks around an account (pasted with it) no longer break it.
+
+## 0.1.0-beta.12
+
+- New **Scraping** menu: **ScreenScraper account...** (your screenscraper.fr user name
+  and password, with **Use this account** and a line saying which one is in use), **What
+  to download...** and **Download media for the whole library**, without going through
+  a game's menu.
+- The developer account fields are gone: the one built into the installer is always
+  used, as in other emulators.
+
+## 0.1.0-beta.11
+
+- **Media come only from ScreenScraper**: covers, screenshots and descriptions are no
+  longer downloaded from libretro-thumbnails or Wikipedia. **Download missing covers**
+  is gone (**Download from ScreenScraper** does every game), **Find cover...** in a
+  game's menu now searches ScreenScraper by name, and the details panel shows the
+  screenshot and description ScreenScraper has of the game once its media are
+  downloaded. The library also finds a game's cover and label straight in its
+  ScreenScraper folder, so they show even without the copy in `covers\`. The
+  installer is built with plumsg's ScreenScraper developer account, so nothing has to
+  be typed in to start; your own screenscraper.fr account (Options) gives more requests.
+  Your own pictures (next to the game or with **Cover from image...**) still work.
+
+## 0.1.0-beta.10
+
+- The 3D shelf's **Game Gear** is modelled on the real one: its front traced from a
+  drawing of it, with the glass and its SEGA and Game Gear logos, the round pad, 1 and 2
+  dished in their collars, the blue Start in its notch, the speaker's grid, the power
+  switch with its red tab on top; and its own cartridge, which goes in with its label to
+  the back. Both are made by plumsg, rebuilt by `tools/models/gamegear.py`.
+- **Light gun games aim where you point**: Corpse Killer (Mega CD and CD 32X), Crime
+  Patrol, Mad Dog McCree I and II, Who Shot Johnny Rock?, Body Count, T2: The Arcade Game
+  and the Menacer 6-Game Cartridge get the Menacer in port 2 on their own while a pad is
+  chosen there, and Lethal Enforcers I and II and Snatcher the Justifier, each with the
+  offsets its own aiming code expects (Corpse Killer's shots landed off to one side and
+  some lines below the crosshair with the Menacer's generic offset).
+- The 3D shelf zooms in and out with the pad's **right stick**, as with the mouse wheel;
+  the camera stays centred on the chosen box at any distance, and zooming out reaches
+  the whole shelf around it. A pulsing gold frame marks the chosen box's spine, and the
+  3D boxes are grouped by console and, within each, by title (the sort selector is off
+  in that view).
+
+## 0.1.0-beta.9
+
+- **Master System Light Phaser and paddle** (#73): Consola > Mando 1 or Mando 2 (or a
+  game's options) plugs in the Light Phaser or the Japanese paddle (HPD-200). The games
+  that need one get it in port 1 on their own while a pad is chosen there: Safari Hunt,
+  Shooting Gallery, Marksman Shooting, Operation Wolf, Rambo III, Wanted, Gangster Town,
+  Assault City, Laser Ghost, Space Gun, Rescue Mission, Missile Defense 3-D for the gun;
+  Woody Pop, Alex Kidd BMX Trial, Galactic Protector and Megumi Rescue for the paddle.
+  The Light Phaser is aimed like the Mega Drive's guns, with the crosshair, the mouse or
+  the left stick (left click or A to shoot); the paddle's dial follows the mouse across
+  the picture, or the left stick (left click, A or B for its button).
+- **Console mode** for the Steam Deck, the ROG Ally, the MSI Claw, the Legion Go and
+  other PCs played with a pad: on by itself in Steam's game mode or Big Picture and on
+  those handhelds (Options > Console mode, `--console-mode`). Full screen without the
+  menu bar, the library at start, bigger letters (Options > Interface size, also by
+  hand), the pad in every window, and the states menu's Sistema tab reaching the
+  library, the controls, the cheats, the menu bar and Quit without a keyboard. Its own
+  on-screen keyboard, driven by the pad, types in the library's search, the netplay
+  address, the cheat codes and every other text box.
+- **Mega CD 32X** (#96): the six Mega CD 32X discs (Corpse Killer, Night Trap,
+  Fahrenheit, Slam City, Supreme Warrior, Surgical Strike) run with the Mega CD and the
+  32X together, the 32X with no cartridge: its boot ROMs take the SH-2s' program from
+  the frame buffer, as the real ones do on a Mega CD, and the 32X's PWM is mixed with the
+  Mega CD's PCM and CD audio. Corpse Killer only reads pad 1 with **Sin mando** (or the
+  Menacer) in port 2.
+- **Mode 1 for 32X cartridges** (#96): a 32X cartridge with a `.cue` of its name next to
+  it (the MSU-32X patches) starts with the Mega CD attached and plays its CD music, as
+  MSU-MD cartridges already did.
+- **Light guns** (#102): Consola > Mando 2 (or a game's options) plugs in Konami's
+  Justifier (Lethal Enforcers I and II, Snatcher), with its second gun for player 2, or
+  Sega's Menacer (T2: The Arcade Game, Menacer 6-Game Cartridge) instead of pad 2. A
+  crosshair on the game aims each gun, moved with the mouse or with the pad's left stick
+  (or d-pad); the left click or A pulls the trigger, the right click or C shoots off the
+  screen to reload, and the middle click or Start is Start.
+- The 3D shelf's Master System is a real 3D model too, with its two pads in front, plugged in, and
+  its own cartridge wearing each game's label: "Sega Master System" by dark_igorek
+  (CC BY 4.0).
+- Game Gear VDP timing (#76): against its H counter a Game Gear's line starts later than
+  a Master System's, so its V counter changes a cycle later and the latched H counter is
+  2 cycles ahead. VDPTEST's "GG 2 ASIC" test now passes all of its data, misc and sprite
+  tests (it failed 6).
+
+## 0.1.0-beta.8
+
+- **The library's 3D shelf** ("Cajas 3D", next to Cuadrícula and Lista): the games'
+  cases stand on a shelf with their spines out; the wheel zooms out to see it all and
+  dragging moves along it. A click (or A) takes a box out, and dragging turns it to see
+  its back; a second click opens its lid and brings out the cartridge (the disc on the
+  Mega CD), which dragging turns too; a third puts it into the console, which rises from
+  the floor, its power light comes on and the game starts. A click anywhere else puts
+  things back a step. The cartridges and consoles are built from their real
+  measurements: the Mega Drive and Master System of the first model, the Game Gear, the
+  32X in the Mega Drive's slot and the first Mega-CD under it, with its tray. The Mega
+  Drive is a real 3D model, "Sega Mega Drive" by synthetic worlds (Jon Blenky, CC BY
+  4.0), and so is its cartridge, "Sonic 2 Mega Drive Cartridge" by Naser (CC BY 4.0),
+  wearing each game's label; a .glb of your own with the same name in the "models"
+  folder next to plumsg.ini takes its place.
+- "Etiqueta del cartucho..." in a game's menu puts a scan of its cartridge label on the
+  3D cartridge; labels in an "etiquetas" (or "labels", "Named_Labels") folder next to
+  the ROMs are found by the game's name.
+- "Portada completa..." in a game's menu takes a whole sleeve (back, spine and front side
+  by side, as The Cover Project has them): the 3D box wears all of it, and the grid and
+  the details panel show its front.
+- **ScreenScraper** (screenscraper.fr): "Medios de ScreenScraper..." in a game's menu (or
+  in the details panel) identifies the game by its ROM (CRC32, name and size; a disc by
+  its name, or any game by its title if that fails) and downloads what ScreenScraper has
+  of it: front cover, whole sleeve, back cover, 3D box, cartridge label, cartridge,
+  screenshot, title screen, logo, marquee and fan art, and on request the video and the
+  manual. Its window shows everything downloaded (the cursor over one enlarges it, a
+  click opens it) with ScreenScraper's data of the game; if it is the wrong game,
+  **Buscar otro juego** searches by name in any console, shows each result's cover and
+  **Usar este juego** downloads that one's instead. The sleeve becomes the game's cover
+  (the 3D box wears it) and the label goes on its cartridge. **Descargar de ScreenScraper**
+  in the library does every game that has not been done yet, one by one, keeping the
+  covers already there unless ScreenScraper has the whole sleeve. ScreenScraper asks for
+  a developer account of the program as well as (optionally) the user's free account,
+  both in the window's **Cuenta** tab; builds can carry the developer one
+  (`PLUMSG_SCREENSCRAPER_DEVID` and `PLUMSG_SCREENSCRAPER_DEVPASSWORD` in CMake, from the
+  repository's secrets in the installer's build).
+
+## 0.1.0-beta.7
+
+- **A look of its own**: the interface takes its style from the console, black ribbed
+  plastic with the red of its "16-BIT" and chrome italic lettering, in the Chakra Petch
+  font. Window title bars, the "Jugar" button, the pad's buttons in the controls help
+  and the grid behind the library's covers match it.
+- "Opciones de este juego": each option has a General / Propio switch, and the on/off
+  ones a "Sí" / "No" list, instead of two boxes on a row.
+- The library's grid has a "Tamaño" slider to make the covers smaller or bigger.
+- Game Gear: World Series Baseball saves to the EEPROM on its cartridge and no longer
+  stays black ([#77](https://github.com/cochimbo/plumsg/issues/77)); Primal Rage gets
+  past its title screen, as the link port now reads back what the game writes to it
+  ([#78](https://github.com/cochimbo/plumsg/issues/78)); and the last line of the
+  pictures in Madou Monogatari I is no longer garbled: a change of sprite size at the
+  end of a line waits a line, as on the console
+  ([#82](https://github.com/cochimbo/plumsg/issues/82)).
+
+## 0.1.0-beta.6
+
+- **Virtua Racing** runs: the SVP chip on its cartridge (the SSP1601 DSP and its memory
+  controller) is emulated.
+- Master System: a BIOS dump loaded as a game ("[BIOS] Alex Kidd in Miracle World...")
+  no longer stays on the Sega logo: it finds the slots empty and runs the game it has
+  inside ([#136](https://github.com/cochimbo/plumsg/issues/136)).
+- 32X: the reset button resets only the 68000, as on the console, and the SH-2s go back
+  to their boot ROM; BC Racers starts again after a reset. testpico passes all its 57
+  tests ([#69](https://github.com/cochimbo/plumsg/issues/69)).
+- misc_test passes 23 of its 28 checks: the 68000's prefetch and DRAM
+  refresh, the Z80's reset, bus request and waits during DMA, and the VDP's sprite
+  table cache ([#137](https://github.com/cochimbo/plumsg/issues/137)). Sega's softcheck
+  says OK to every test ([#117](https://github.com/cochimbo/plumsg/issues/117)), and
+  m68k_opcode_sizes gets both checksums right
+  ([#111](https://github.com/cochimbo/plumsg/issues/111)).
+- Another World (Europe) starts on a PAL console: the top of the picture no longer goes
+  blank when it flips pages.
+- Honoo no Toukyuuji Dodge Danpei finds its EEPROM and gets past the SEGA logo
+  ([#115](https://github.com/cochimbo/plumsg/issues/115)).
+- Pad 2 can be unplugged ("Sin mando"), for games such as ESPN Sunday Night NFL that make
+  player 2 the computer only with the second port empty
+  ([#93](https://github.com/cochimbo/plumsg/issues/93)).
+
+## 0.1.0-beta.5
+
+- Master System: the games made only for European 50 Hz consoles (Back to the Future
+  Part III, Sonic 2, Sensible Soccer, RoboCop 3, Home Alone and others) start on a PAL
+  console instead of a black screen
+  ([#89](https://github.com/cochimbo/plumsg/issues/89)).
+- Paprium no longer runs at half speed when enemies are on screen: the copies of the
+  sprites' graphics from its chip no longer wait for the VDP's timed DMA
+  ([#68](https://github.com/cochimbo/plumsg/issues/68)).
+- Master System: the Codemasters games (Micro Machines, Cosmic Spacehead, the Dizzy
+  games) start on a PAL console too, as they were made for one: the top of the
+  picture of Micro Machines no longer flashes
+  ([#74](https://github.com/cochimbo/plumsg/issues/74)).
+- The "Opciones de este juego" tab draws each option's control again, instead of
+  an empty box next to its name.
+
+## 0.1.0-beta.4
+
+- The VDP writes through its 4-word FIFO in its access slots, with timed DMA:
+  VDPFIFOTesting passes all its 122 tests ([#90](https://github.com/cochimbo/plumsg/issues/90)),
+  and testpico 55 of its 57 ([#69](https://github.com/cochimbo/plumsg/issues/69)).
+- Master System: the VDP's counters, interrupts, latched H counter and sprite
+  collisions match the hardware, and SMSVDPTest passes everything
+  ([#72](https://github.com/cochimbo/plumsg/issues/72)).
+- "Direct colour" DMA pictures (colours written to the backdrop with the display off)
+  show, steady ([#95](https://github.com/cochimbo/plumsg/issues/95)).
+- Sprite masking after a line that ran out of sprite pixels, as on the console: the
+  Sprite Masking Test ROM passes all 9 tests in H32 and H40
+  ([#101](https://github.com/cochimbo/plumsg/issues/101)).
+- Mega CD: KRIKzz's mcd-verificator runs, loaded as a cartridge in place of the BIOS
+  (with a .cue of the same name in the tray), and passes 16 of its 19 groups; the CD
+  controller's flags, DMA and interrupts behave as it measures
+  ([#80](https://github.com/cochimbo/plumsg/issues/80)).
+- Paprium runs: the chip on its cartridge is emulated (it unpacks the graphics, builds
+  the sprites, scales the pictures in the menus, keeps the saves and plays the sound
+  effects), so the game gets past its "Vapor Ware" decoy to the NX terminal, the intro,
+  the menus and the levels ([#68](https://github.com/cochimbo/plumsg/issues/68)). Its
+  music is not in the ROM: it plays from the album's tracks (.ogg, .mp3 or .wav) put in
+  a folder with the ROM's name next to it.
+- The Score's figures no longer change as it scrolls: they are written from a bar line
+  before the view, and each staff keeps its clef.
+
+## 0.1.0-beta.3
+
+- **Score** (Sound > Score): the music's notes on staves as it plays, one track per
+  instrument like GarageBand, written as a score: in 4/4 at the tempo guessed from the
+  music (or set by hand), with whole to sixteenth notes, dots, ties, stems, flags and
+  beams, rests, bar lines, clefs, sharps and naturals. Play/pause, stop,
+  x0.5/x1/x2 speed, a playhead to drag along the instrument editor's tracks, and a switch
+  to mute each instrument. It works with the original sound too. The instrument editor
+  gets a Hear column to switch instruments off as well.
+
+## 0.1.0-beta.2
+
+- Danny Sullivan's Indy Heat (prototype) no longer stays on a black screen
+  ([#100](https://github.com/cochimbo/plumsg/issues/100)).
+- Trouble Shooter reads the pad right: Start and A work and C no longer pauses
+  ([#91](https://github.com/cochimbo/plumsg/issues/91)).
+- QuackShot (Rev A), Triple Play - Gold Edition, Tyrants - Fight Through Time and Sesame
+  Street Counting Cafe no longer stay on a black screen
+  ([#97](https://github.com/cochimbo/plumsg/issues/97),
+  [#92](https://github.com/cochimbo/plumsg/issues/92),
+  [#99](https://github.com/cochimbo/plumsg/issues/99),
+  [#75](https://github.com/cochimbo/plumsg/issues/75)).
+- Marko's Magic Football (Mega CD) draws its sky, its level map and its levels right
+  ([#79](https://github.com/cochimbo/plumsg/issues/79)).
+
+## 0.1.0-beta.1
+
+- **English names on disk and on the command line.** The settings folders (`profiles`,
+  `cheats`, `covers`, `game-info`, `sound`, `recordings`, `crash-reports`), the keys and
+  values in `plumsg.ini` and the per-game files, the command-line options and the crash
+  reports are now in English. Folders and files from earlier versions are renamed the
+  first time plumsg opens, old `.ini` files keep reading (and are saved in English), and
+  the Spanish options (`--pantalla-completa`, `--biblioteca`...) still work.
+- Compatibility list: [129 games tested](docs/compatibility.md), all of them start.
+- 32X: Darxide (PAL) and Tempo now start.
+- If plumsg closes suddenly, it leaves a report in `crash-reports\` and says so the next time it
+  opens.
+- About shows the version.
+- Library: a game's cover can be set from an image of your own (PNG or JPEG), with "Cover
+  from image..." in the game's menu or "Choose image from computer..." in Find cover, for
+  when it is not found online.
+- Error messages say what to do: a file that is not a game, a state that does not load or
+  save, no internet for covers or cheats.
+- Opening a folder as if it were a game no longer closes plumsg.
+- Get songs is marked experimental on the Master System and Game Gear, where it does not
+  find the music of many games yet.
+- Quick start guide, FAQ, this changelog and a bug report template; all documentation is
+  now in English.
+- Tests: save states from earlier versions keep loading, and the 240p Test Suite checks 35
+  video screens on every change.
+
+## 0.0.31 (2026-10-20)
+
+- Get songs: the final count no longer stops at the first song.
+
+## 0.0.30 (2026-10-20)
+
+- NBA Jam TE on 32X starts (cartridge serial EEPROM).
+- States menu: System tab (pause, reset, stop emulation).
+- Roland sound: better instrument suggestions, FM drums, and choosing the instrument by
+  comparing the sound.
+- Game details: Japanese and other scripts instead of `?????`.
+- Achievements: the challenge indicator no longer stays on top of the library.
+
+## 0.0.29 (2026-10-20)
+
+- 32X: SH-2 cache (Blackthorne goes from 5 to 30 fps) and fixed timers.
+
+## 0.0.28 (2026-10-20)
+
+- FPS counter with a graph (F).
+- Faster 32X.
+- Experimental upscaling of the 2D view: xBR and Anime4K.
+- `.chd` files can no longer overflow the stack.
+
+## 0.0.27 (2026-10-20)
+
+- Library: details panel and a sortable list view.
+
+## 0.0.26 (2026-10-20)
+
+- States menu with option tabs.
+
+## 0.0.25 (2026-10-19)
+
+- F11 and Alt+Enter: full screen also with the library or another window open.
+
+## 0.0.24 (2026-10-19)
+
+- Get songs: Ecco the Dolphin.
+
+## 0.0.23 (2026-10-19)
+
+- Instrument editor: Sonic 1, aligned tables, equalizer and "All back to suggestions".
+
+## 0.0.22 (2026-10-19)
+
+- Widescreen: each side adjustable live and savable per game.
+
+## 0.0.21 (2026-10-19)
+
+- **Master System and Game Gear**: VDP, Sega and Codemasters mappers, FM (YM2413), TMS9918
+  modes, the Game Gear's screen and palette, cheats, Roland sound and Get songs.
+- Run-ahead, no sprite limit, overclock and widescreen.
+- Record video (`.avi`) or GIF.
+
+## 0.0.20 (2026-10-19)
+
+- **RetroAchievements**: achievements, leaderboards and hardcore mode.
+- plumsg in English, French and Portuguese.
+- Get songs: Streets of Rage 3, Beyond Oasis, Castle of Illusion, QuackShot, NHL 96 and
+  other EA games.
+
+## 0.0.19 (2026-10-18)
+
+- **MSU-MD**: cartridges with their music on CD tracks.
+- Each game's own buttons.
+- Get songs: GEMS games (Sonic Spinball, Earthworm Jim, Taz).
+
+## 0.0.18 (2026-10-18)
+
+- Cheats from the internet: each game's lists from libretro-database.
+- Get songs finds how the game asks for its music (Streets of Rage 2 too).
+
+## 0.0.17 (2026-10-18)
+
+- Library: "Find cover..." in the game's menu.
+
+## 0.0.16 (2026-10-18)
+
+- Original sound effects with the Roland sound.
+- Plum icon and **Game > Stop emulation** (F12).
+
+## 0.0.14 (2026-10-18)
+
+- **Roland sound**: FM and PSG music played on a SoundFont, with its instrument editor.
+- Get songs from the ROM.
+
+## 0.0.9.1 (2026-10-18)
+
+- Mega CD: Silpheed no longer freezes as stage 1 starts.
+- Per-game options and a right-click menu in the library.
+
+## 0.0.9 (2026-10-17)
+
+- PLUMSG marquee; the mouse pointer hides while playing.
+
+## 0.0.8 (2026-10-17)
+
+- Two-player **netplay** with rollback.
+
+## 0.0.7.1 (2026-10-17)
+
+- `plumsg-headless`, the emulator without a window, for tests.
+- Opening games from the command line (LaunchBox, Playnite).
+- Mega CD: sound, region and Snatcher.
+
+## 0.0.7 (2026-10-17)
+
+- **Mega CD**: `.cue`, `.iso` and `.chd`, the second CPU, PCM, graphics and CD audio.
+
+## 0.0.6 (2026-10-17)
+
+- **32X**, without a BIOS.
+
+## 0.0.5 (2026-10-17)
+
+- Library with several folders and a tab per console; Mega CD BIOS.
+
+## 0.0.4 (2026-10-17)
+
+- Library with cover art, cheats and CRT filters.
+
+## 0.0.3 (2026-10-17)
+
+- Rewind, fast forward, slow motion, per-game 3D profiles and lighting.
+
+## 0.0.2 (2026-10-17)
+
+- States menu usable with a gamepad.
+- VDP: Contra Hard Corps and horizontal blanking.
+- 3D: the background no longer shows through the floor.
+
+## 0.0.1 (2026-10-17)
+
+- First version: Mega Drive with pseudo-3D and save states.

@@ -1,0 +1,380 @@
+#pragma once
+
+#include <array>
+#include <cstdint>
+#include <deque>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
+
+#include "loudness.h"
+
+namespace plumsg {
+
+class Ym2612;
+class Ym2413;
+class Psg;
+class TimbreMatcher;
+
+// The Roland sound: plays what the YM2612 (or a Master System's YM2413) and the PSG
+// are playing as General MIDI
+// notes on a SoundFont, like a Roland SC-55 would. It watches the register writes:
+// a key on is a note on, the frequency is the note plus pitch bend, the carriers'
+// total level is the expression, and each FM instrument (its operator settings) is
+// given a General MIDI instrument. The DAC, which plays voices and drums from
+// samples, is left to the console. It only adds sound: the console runs exactly the
+// same with it or without it.
+class RolandSound {
+public:
+    // The MIDI channels used: one per FM channel, one per PSG tone channel, and the
+    // drum channel for the PSG noise and for FM sounds played as drums.
+    static constexpr int kFmChannels = 6;
+    static constexpr int kPsgFirst = 6;
+    static constexpr int kDrums = 9;
+    // The console's sound channels, as bits of the masks below: FM 1-6 (bits 0-5), PSG
+    // tone 1-3 (bits 6-8) and the PSG noise (bit 9). Each one is a voice. A YM2413 has
+    // three more channels (FM 7-9, bits 11-13), and in rhythm mode, in their place, five
+    // drums (bits 14-18: bass drum, snare, tom, cymbal, hi-hat). Bit 10 is left to the
+    // players for the DAC.
+    static constexpr int kVoices = 19;
+    static constexpr int kNoise = 9;
+    static constexpr int kOpllHigh = 11;  // FM 7
+    static constexpr int kRhythmFirst = 14;
+    static constexpr uint32_t kAllVoices = ((1u << kVoices) - 1) & ~(1u << 10);
+    // The YM2413 channels (bit 0 = channel 1) of which every voice is in `voices`.
+    static uint32_t opllChannels(uint32_t voices);
+
+    // What an instrument plays instead of its own sound. Every instrument is known by its
+    // fingerprint: for FM, a hash of its operator settings (not its volume); for the PSG,
+    // the tone channel or the noise setting.
+    struct Assignment {
+        int program = -1;    // General MIDI instrument 0-127
+        int drum = -1;       // or a piece of the GM drum kit (note 35-81), played on the drum channel
+        bool original = false;  // or none: it keeps its own sound from the chip
+        int octave = 0;      // -3..3, added to every note
+        int volume = 100;    // percent of the note's own loudness
+        bool operator==(const Assignment& o) const {
+            return program == o.program && drum == o.drum && original == o.original && octave == o.octave &&
+                   volume == o.volume;
+        }
+        bool operator!=(const Assignment& o) const { return !(*this == o); }
+    };
+    using Assignments = std::map<uint32_t, Assignment>;
+    // A YM2413 instrument is FM: one of its 15 built in (opllFingerprint) or a hash of
+    // the game's own; its drums are Rhythm.
+    enum class Kind : uint8_t { Fm, PsgTone, PsgNoise, Rhythm };
+    static Kind kindOf(uint32_t fingerprint);
+    static uint32_t psgToneFingerprint(int channel) { return 0x50534700u + static_cast<uint32_t>(channel); }
+    static uint32_t noiseFingerprint(int control) { return 0x4E4F4900u + static_cast<uint32_t>(control & 7); }
+    static uint32_t opllFingerprint(int instrument) { return 0x4F504C00u + static_cast<uint32_t>(instrument & 15); }
+    static uint32_t rhythmFingerprint(int drum) { return 0x4F524800u + static_cast<uint32_t>(drum); }  // 0-4
+    // The YM2413's built-in instrument of a fingerprint (1-15), or 0.
+    static int opllInstrument(uint32_t fingerprint);
+    static const char* opllInstrumentName(int instrument);  // 1-15
+    static const char* rhythmName(int drum);                // 0-4
+
+    // An instrument heard since clearSeen(), for the instrument editor.
+    struct Seen {
+        Kind kind = Kind::Fm;
+        std::array<uint8_t, 28> ops{};  // FM: the operator bytes, as programFor() takes them
+        uint8_t algorithmFeedback = 0;
+        uint32_t channels = 0;  // the voices that played it, as a mask
+        int notes = 0;
+        int low = 127, high = 0;  // its lowest and highest note
+        Assignment rules;  // what the rules give it
+    };
+
+    RolandSound();
+    ~RolandSound();
+    RolandSound(const RolandSound&) = delete;
+    RolandSound& operator=(const RolandSound&) = delete;
+
+    // A SoundFont 2 file's contents. False if it is not one.
+    bool loadSoundfont(const std::vector<uint8_t>& data);
+    // The same SoundFont as `other`, sharing its samples (no second copy in memory).
+    bool shareSoundfont(const RolandSound& other);
+    bool ready() const;
+
+    // 0..100 each.
+    void setEffects(int reverb, int chorus);
+    // The equalizer: a gain in dB (-kEqRange..kEqRange) for each band, from the bass up.
+    static constexpr int kEqBands = 5;
+    static constexpr int kEqRange = 12;
+    static constexpr double kEqFrequencies[kEqBands] = {100, 400, 1200, 3500, 9000};
+    void setEqualizer(const std::array<int, kEqBands>& gains);
+    void setVolume(int percent) { volume_ = percent; }
+    // Whether the rules' instrument is tuned by comparing sounds: once an FM instrument
+    // has played 8 notes, it is played unheard, and so is each instrument of the
+    // SoundFont of the same General MIDI family (basses, pianos, brass...), and the
+    // closest sound is taken. In the background: it arrives some frames later.
+    void setTimbreMatching(bool on);
+    bool timbreMatching() const { return matching_; }
+    // Waits for the comparisons asked for so far, which the next frame takes (for the
+    // tests and the headless runs).
+    void waitForTimbres();
+
+    // The instruments chosen by hand; the rest follow the rules. Takes effect from each
+    // instrument's next note.
+    void setAssignments(Assignments assigned);
+    const Assignments& assignments() const { return assigned_; }
+    // The game's sound effects (FM instruments, as Sacar canciones finds them) and
+    // whether they keep their own sound from the chip, unless assigned by hand.
+    void setSoundEffects(std::set<uint32_t> effects, bool original);
+    // The game's songs, each with its instruments, what was chosen for it alone (over what
+    // was chosen for the whole game) and how the game asks for it, if known. As the game
+    // plays, the song it is playing is told by its requests (songRequested(), from the
+    // console) or, till one comes (and again after allNotesOff(): a savestate loaded), by
+    // the instruments heard in the last seconds; its choices are the ones heard.
+    struct Song {
+        std::set<uint32_t> instruments;
+        Assignments assigned;
+        int way = -1;         // MegaDrive::setSongRequests()'s index; -1: not known
+        uint32_t number = 0;  // what the game asks for it with
+    };
+    void setSongs(std::vector<Song> songs);
+    // The game asked its sound driver for `number` the way `way`: if it is one of the
+    // songs, that one plays now. (Other numbers are sounds, or songs not taken out.)
+    void songRequested(int way, uint32_t number);
+    // Which of them it is playing now (-1 for none it can tell), and whether it knows by the
+    // game's request.
+    int currentSong() const { return song_; }
+    bool songByRequest() const { return requested_; }
+    // What an instrument plays now: its assignment (for the song playing, or for the game),
+    // or what the rules give it.
+    Assignment assignmentFor(uint32_t fingerprint) const;
+    // The key its assignment is under: the fingerprint itself or one of its aliases (0
+    // for none). Aliases are the fingerprints an FM instrument had before 0.0.23, one for
+    // each release rate it was heard with; files saved then still use them.
+    uint32_t assignedAs(uint32_t fingerprint) const;
+    std::vector<uint32_t> aliases(uint32_t fingerprint) const;
+
+    // For listening in the editor: voices (mask) and instruments that stay silent, in
+    // the Roland sound and, through chipChannels(), in the chips'.
+    void setListening(uint32_t mutedVoices, std::set<uint32_t> silenced);
+    // The voices whose chip sound should be heard: those playing an instrument left
+    // original, and not muted.
+    uint32_t chipChannels() const { return chipChannels_; }
+    // The voices sounding a note now, and the instrument each one plays (0 for none yet).
+    uint32_t activeVoices() const;
+    uint32_t voiceInstrument(int voice) const { return voices_[static_cast<size_t>(voice)].fingerprint; }
+
+    const std::map<uint32_t, Seen>& seen() const { return seen_; }
+    void clearSeen() { seen_.clear(); }
+
+    // The notes played lately, for the score (Sonido > Partitura): each voice's notes at
+    // the chip's pitch, rounded, whatever they sound as (also those left original or
+    // muted). Drums are left out: they have no pitch to write.
+    struct ScoreNote {
+        int voice = 0;
+        int note = 60;           // MIDI note
+        uint64_t start = 0;      // master clock
+        uint64_t end = 0;        // 0 while it still sounds
+        uint32_t fingerprint = 0;
+    };
+    using Score = std::deque<ScoreNote>;
+    static constexpr size_t kScoreNotes = 4096;  // the oldest go beyond this
+    const Score& score() const { return score_; }
+    // How many notes it keeps (kScoreNotes unless changed): a whole track's, to write it all.
+    void setScoreLimit(size_t notes) { scoreLimit_ = notes; }
+    // The master clock the music has reached (the end of the last frame).
+    uint64_t scoreClock() const { return scoreClock_; }
+    static constexpr double kScoreClock = 53693175.0;  // its ticks per second
+    void clearScore() {
+        score_.clear();
+        scoreClock_ = 0;
+    }
+    // Only follows the music, for the score while the console's own sound is heard: no
+    // synth, every voice left to the chips.
+    void setFollowOnly(bool on);
+    bool followOnly() const { return followOnly_; }
+
+    // Assignment files: one line per instrument, "fingerprint = what [octave volume]",
+    // what being a program (0-127), "bateria N" or "original". Lines that make no sense
+    // are skipped.
+    static Assignments parseAssignments(const std::string& text);
+    static std::string formatAssignments(const Assignments& assignments);
+    // Names, for the editor and the files.
+    static const char* programName(int program);
+    static const char* drumName(int note);  // 35-81, else nullptr
+
+    // From the console, as it runs. `clock` is the master clock of the write.
+    void beginFrame(uint64_t clock);
+    void fmWrite(int offset, uint8_t value, const Ym2612& ym, uint64_t clock);
+    void psgWrite(const Psg& psg, uint64_t clock);
+    // An address (offset 0) or data (1) write to a Master System's YM2413.
+    void opllWrite(int offset, uint8_t value, const Ym2413& opll, uint64_t clock);
+    // How loud this frame the chips' channels that it plays would have been, at full
+    // volume (consumes and clears the meter): call it for each chip before endFrame.
+    // `weight` is the chip's volume in the console's mix. The synthesizer's own volume
+    // follows it slowly, over several seconds, so the music plays as loud as the
+    // game's: the SoundFont's instruments and the chip's are not equally loud, and
+    // each game mixes its music its own way.
+    void measureOriginal(LoudnessMeter& meter, double weight);
+    // The voices whose chip channels it plays (to measure them with setReplaced).
+    uint32_t replacedVoices() const { return kAllVoices & ~chipChannels_ & ~mutedVoices_; }
+    // Back to the volume it starts with, as for a new game.
+    void resetLoudness();
+    // Adds this frame's notes into `out` (interleaved stereo at `rate`), from sample
+    // pair `from` to the end: they cover the frame that ends at `clock`.
+    void endFrame(uint64_t clock, std::vector<int16_t>& out, size_t from, double rate);
+    // Drops this frame's notes unplayed (and stops what sounds), keeping track of the
+    // music: while the chips' own sound is being heard.
+    void skipFrame(uint64_t clock);
+    // Silences every note: after loading a savestate or rewinding, what was playing
+    // is not what the console plays now.
+    void allNotesOff();
+    // The YM2612 was reset mid-frame: its notes stop there.
+    void keysOff(uint64_t clock);
+
+    // How the game has played an FM instrument so far: what the rules go by besides
+    // its registers.
+    struct Heard {
+        int notes = 0;
+        std::array<uint16_t, 128> pitches{};  // notes started, by MIDI note
+        int held = 0;                         // notes let go
+        double heldSeconds = 0;               // how long those were held, in all
+        int swept = 0;     // of those, whose pitch fell 3 semitones or more (a kick drum)
+        int chords = 0;    // notes started while two other channels played it too
+        void add(int note);
+        int median() const;
+        int low() const;
+        int high() const;
+        int distinct() const;
+    };
+    // What the rules give an FM instrument (YM2612) from its registers (the 28
+    // operator bytes and the algorithm/feedback byte) and what was heard of it: a
+    // General MIDI program, or a drum. Public for the tests.
+    static Assignment suggest(const std::array<uint8_t, 4 * 7>& ops, uint8_t algorithmFeedback, const Heard& heard);
+    // The program suggest() gives after a single note.
+    static int programFor(const std::array<uint8_t, 4 * 7>& ops, uint8_t algorithmFeedback, int note);
+    // MIDI note (69 = A 440 Hz, fractional) of a YM2612 frequency setting.
+    static double fmNote(int fnum, int block, double chipClock);
+    static double psgNote(int period, double psgClock);
+    static double opllNote(int fnum, int block, double chipClock);
+
+    // What the translator sent, for the tests: one line per event.
+    void setLog(std::vector<std::string>* log) { log_ = log; }
+
+private:
+    enum class Ev : uint8_t { NoteOn, NoteOff, Program, Bend, Pan, Expression };
+    struct Event {
+        uint64_t clock;
+        Ev type;
+        uint8_t channel;
+        int value;  // note, program, bend (0..16383), pan (0..127) or expression (0..127)
+        int extra;  // note on: velocity
+    };
+    // One of the console's sound channels and the note it is playing.
+    struct Voice {
+        bool on = false;      // a note is sounding (on the chip)
+        bool midi = false;    // and it went to the synth (not left original, nor silenced)
+        bool drum = false;    // as a piece of the drum kit, which does not bend
+        int note = 0;         // the MIDI note sent
+        int octave = 0;       // semitones added to the chip's pitch
+        int volume = 100;
+        uint32_t fingerprint = 0;
+        double amplitude = 1.0;  // at note on, for the expression after it
+        uint64_t start = 0;      // the clock of the note on
+        double startNote = 0, lowest = 0;  // the chip's pitch then, and its lowest since
+        int scored = -1;          // the score note it is playing, as a MIDI note (-1 none)
+    };
+    // An FM instrument's suggestion and what it comes from.
+    struct Rule {
+        Assignment rules;
+        Heard heard;
+        std::array<uint8_t, 28> ops{};
+        uint8_t algorithmFeedback = 0;
+        bool fromYm2612 = false;  // not a YM2413's: those have no operators to compare
+        int asked = -1;    // the General MIDI family whose closest sound was asked for
+        int matched = -1;  // and the program that sounds closest, once known
+    };
+    // The rules' suggestion with the closest sound in its family, if known.
+    void settle(Rule& rule) const;
+    void askTimbre(uint32_t fingerprint, Rule& rule);
+    void takeTimbres();
+    // What each MIDI channel was last set to.
+    struct Channel {
+        int program = -1;
+        int bend = 8192;
+        int pan = 64;
+        int expression = 127;
+    };
+
+    void emit(uint64_t clock, Ev type, int channel, int value, int extra = 0);
+    void noteOn(int voice, uint32_t fingerprint, const Assignment& a, double note, double amplitude, int pan,
+                uint64_t clock);
+    void noteOff(int voice, uint64_t clock);
+    static int velocity(const Voice& v, double amplitude);
+    void updateChipChannels();
+    void expression(int voice, double amplitude, uint64_t clock);
+    void see(int voice, uint32_t fingerprint, const Assignment& rules, int note, const std::array<uint8_t, 28>* ops,
+             uint8_t algorithmFeedback);
+    void fmKey(int ch, bool on, const Ym2612& ym, uint64_t clock);
+    void fmPitch(int ch, const Ym2612& ym, uint64_t clock);
+    void fmLevel(int ch, const Ym2612& ym, uint64_t clock);
+    double fmAmplitude(int ch, const Ym2612& ym) const;
+    uint32_t fmFingerprint(int ch, const Ym2612& ym, std::array<uint8_t, 28>* ops, uint32_t* legacy) const;
+    bool isSoundEffect(uint32_t fingerprint) const;
+    void pitchTo(int voice, double note, uint64_t clock);
+    void scoreStart(int voice, int note, uint64_t clock);
+    void scoreEnd(int voice, uint64_t clock);
+    void opllKey(int ch, const Ym2413& opll, uint64_t clock);
+    double opllNoteOf(int ch, const Ym2413& opll) const;
+    void opllRhythm(const Ym2413& opll, uint64_t clock);
+    void apply(const Event& e);
+    void render(int16_t* out, int frames);
+    void updateLoudness(double seconds);
+
+    struct Synth;
+    std::unique_ptr<Synth> synth_;
+    std::array<Voice, kVoices> voices_{};
+    std::array<Channel, 16> channels_{};
+    std::array<uint8_t, 2> address_{};  // the register each YM2612 port points at
+    uint8_t opllAddress_ = 0;
+    uint8_t rhythmKeys_ = 0;            // the YM2413's rhythm keys, as last written (0x0E)
+    double opllClock_ = 53693175.0 / 15.0;
+    std::map<uint32_t, Rule> rules_;    // FM fingerprint -> what the rules give it
+    std::unique_ptr<TimbreMatcher> matcher_;
+    bool matching_ = true;
+    Assignments assigned_;              // chosen by hand
+    std::map<uint32_t, std::set<uint32_t>> legacy_;  // FM fingerprint -> its old ones heard
+    std::set<uint32_t> effects_;        // the game's sound effects
+    bool effectsOriginal_ = false;      // and they sound as on the chip
+    std::map<uint32_t, Seen> seen_;
+    uint32_t mutedVoices_ = 0;
+    std::set<uint32_t> silenced_;
+    uint32_t chipChannels_ = 0;
+    std::vector<Event> events_;
+    uint64_t frameStart_ = 0;
+    int volume_ = 100;
+    // Matching the game's loudness: this frame's mean squares (the chips' at full
+    // volume, and the synthesizer's before its gain), their sums decaying over
+    // kLoudnessSeconds, the seconds heard with both sounding, and the gain.
+    double originalFrame_ = 0;
+    bool originalMeasured_ = false;
+    LoudnessMeter synthMeter_;
+    double originalEnergy_ = 0, synthEnergy_ = 0, heardSeconds_ = 0;
+    double gain_ = 0;  // 0: the starting one
+    double chipClock_ = 53693175.0 / 7.0;
+    std::vector<std::string>* log_ = nullptr;
+    Score score_;
+    size_t scoreLimit_ = kScoreNotes;
+    uint64_t scoreClock_ = 0;
+    bool followOnly_ = false;
+    // The songs (setSongs), the one playing, and the instruments heard lately (each with
+    // its last note), to tell them apart when the game's requests are not known.
+    std::vector<Song> songs_;
+    int song_ = -1;
+    bool requested_ = false;  // song_ is the one the game asked for
+    std::map<uint32_t, uint64_t> recent_;
+    uint64_t guessedAt_ = 0;
+    void guessSong(uint64_t clock);
+    // What `fingerprint` plays for a note starting now, once it counts as heard.
+    Assignment playAs(uint32_t fingerprint, uint64_t clock);
+    // Its entry in `in`, under it or one of its aliases; null for none.
+    const Assignment* lookUp(const Assignments& in, uint32_t fingerprint) const;
+};
+
+}  // namespace plumsg

@@ -1,0 +1,688 @@
+#include "snes_apu.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+
+namespace plumnin::snes {
+
+namespace {
+
+// The IPL ROM, the 64 bytes at FFC0 that receive the game's sound program through the
+// ports.
+constexpr uint8_t kIpl[64] = {
+    0xCD, 0xEF, 0xBD, 0xE8, 0x00, 0xC6, 0x1D, 0xD0, 0xFC, 0x8F, 0xAA, 0xF4, 0x8F, 0xBB, 0xF5, 0x78,
+    0xCC, 0xF4, 0xD0, 0xFB, 0x2F, 0x19, 0xEB, 0xF4, 0xD0, 0xFC, 0x7E, 0xF4, 0xD0, 0x0B, 0xE4, 0xF5,
+    0xCB, 0xF4, 0xD7, 0x00, 0xFC, 0xD0, 0xF3, 0xAB, 0x01, 0x10, 0xEF, 0x7E, 0xF4, 0x10, 0xEB, 0xBA,
+    0xF6, 0xDA, 0x00, 0xBA, 0xF4, 0xC4, 0xF4, 0xDD, 0x5D, 0xD0, 0xDB, 0x1F, 0x00, 0x00, 0xC0, 0xFF,
+};
+
+// The DSP's Gaussian interpolation table: 512 points of the curve it was made from,
+// each group of four that a sample uses scaled to sum to 2048.
+const std::array<int16_t, 512>& gaussTable() {
+    static const std::array<int16_t, 512> table = [] {
+        const double pi = 3.14159265358979323846;
+        double curve[512];
+        for (int n = 0; n < 512; ++n) {
+            const double k = 0.5 + n;
+            const double s = std::sin(pi * k * 1.280 / 1024);
+            const double t = (std::cos(pi * k * 2.000 / 1023) - 1) * 0.50;
+            const double u = (std::cos(pi * k * 4.000 / 1023) - 1) * 0.08;
+            curve[511 - n] = s * (t + u + 1.0) / k;
+        }
+        std::array<int16_t, 512> out{};
+        for (int phase = 0; phase < 128; ++phase) {
+            const double sum = curve[phase] + curve[phase + 256] + curve[511 - phase] + curve[255 - phase];
+            const double scale = 2048.0 / sum;
+            for (int i : {phase, phase + 256, 511 - phase, 255 - phase})
+                out[static_cast<size_t>(i)] = static_cast<int16_t>(curve[i] * scale + 0.5);
+        }
+        return out;
+    }();
+    return table;
+}
+
+// The envelope and noise rates: how many samples between steps, and where in the
+// common counter each one fires.
+constexpr int kCounterRange = 2048 * 5 * 3;
+constexpr int kRates[32] = {kCounterRange + 1, 2048, 1536, 1280, 1024, 768, 640, 512, 384, 320, 256,
+                            192, 160, 128, 96, 80, 64, 48, 40, 32, 24, 20, 16, 12, 10, 8, 6, 5, 4, 3, 2, 1};
+constexpr int kOffsets[32] = {1, 0, 1040, 536, 0, 1040, 536, 0, 1040, 536, 0, 1040, 536, 0, 1040, 536,
+                              0, 1040, 536, 0, 1040, 536, 0, 1040, 536, 0, 1040, 536, 0, 1040, 0, 0};
+
+int clamp16(int v) { return v < -32768 ? -32768 : v > 32767 ? 32767 : v; }
+
+// The registers.
+enum : uint8_t {
+    VolL = 0x0, VolR = 0x1, PitchL = 0x2, PitchH = 0x3, Srcn = 0x4, Adsr1 = 0x5, Adsr2 = 0x6, Gain = 0x7, Envx = 0x8, Outx = 0x9
+};
+enum : uint8_t {
+    Mvoll = 0x0C, Mvolr = 0x1C, Evoll = 0x2C, Evolr = 0x3C, Kon = 0x4C, Koff = 0x5C, Flg = 0x6C, Endx = 0x7C,
+    Efb = 0x0D, Pmon = 0x2D, Non = 0x3D, Eon = 0x4D, Dir = 0x5D, Esa = 0x6D, Edl = 0x7D
+};
+
+}  // namespace
+
+// --- DSP --------------------------------------------------------------------------------
+
+Dsp::Dsp(std::array<uint8_t, 0x10000>& ram) : ram_(ram) {}
+
+void Dsp::power() {
+    regs_.fill(0);
+    regs_[Flg] = 0xE0;
+    voices_ = {};
+    counter_ = 0;
+    noise_ = 0x4000;
+    everyOther_ = true;
+    newKon_ = kon_ = koff_ = 0;
+    echoOffset_ = echoLength_ = 0;
+    esa_ = 0;
+    echoPos_ = 0;
+    for (auto& h : echoHistory_) h = {0, 0};
+}
+
+void Dsp::write(uint8_t address, uint8_t value) {
+    if (address & 0x80) return;  // 80-FF only mirror the registers for reading
+    regs_[address] = value;
+    if (address == Kon) newKon_ = value;
+    if (address == Endx) regs_[Endx] = 0;
+}
+
+bool Dsp::counterFires(int rate) const { return (counter_ + kOffsets[rate]) % kRates[rate] == 0; }
+
+void Dsp::runEnvelope(Voice& v, int index) {
+    int env = v.env;
+    if (v.envMode == Release) {
+        env -= 8;
+        if (env < 0) env = 0;
+        v.env = env;
+        return;
+    }
+    const uint8_t adsr1 = reg(index, Adsr1);
+    int rate;
+    int data = reg(index, Adsr2);
+    if (adsr1 & 0x80) {
+        if (v.envMode >= Decay) {
+            --env;
+            env -= env >> 8;
+            rate = data & 0x1F;
+            if (v.envMode == Decay) rate = ((adsr1 >> 3) & 0x0E) + 0x10;
+        } else {
+            rate = (adsr1 & 0x0F) * 2 + 1;
+            env += rate < 31 ? 0x20 : 0x400;
+        }
+    } else {
+        data = reg(index, Gain);
+        const int mode = data >> 5;
+        if (mode < 4) {
+            env = data * 0x10;
+            rate = 31;
+        } else {
+            rate = data & 0x1F;
+            if (mode == 4) {
+                env -= 0x20;
+            } else if (mode < 6) {
+                --env;
+                env -= env >> 8;
+            } else {
+                env += 0x20;
+                if (mode > 6 && static_cast<unsigned>(v.hiddenEnv) >= 0x600) env += 0x8 - 0x20;
+            }
+        }
+    }
+    // The sustain level ends the decay.
+    if ((env >> 8) == (data >> 5) && v.envMode == Decay) v.envMode = Sustain;
+    v.hiddenEnv = env;
+    if (static_cast<unsigned>(env) > 0x7FF) {
+        env = env < 0 ? 0 : 0x7FF;
+        if (v.envMode == Attack) v.envMode = Decay;
+    }
+    if (counterFires(rate)) v.env = env;
+}
+
+void Dsp::decodeBrr(Voice& v, uint8_t header) {
+    int nibbles = ram_[static_cast<uint16_t>(v.brrAddr + v.brrOffset)] << 8 | ram_[static_cast<uint16_t>(v.brrAddr + v.brrOffset + 1)];
+    const int shift = header >> 4;
+    const int filter = header & 0x0C;
+    for (int i = 0; i < 4; ++i, nibbles <<= 4) {
+        int s = static_cast<int16_t>(static_cast<uint16_t>(nibbles)) >> 12;
+        s = (s << shift) >> 1;
+        if (shift >= 0xD) s = s < 0 ? -0x800 : 0;
+        const int p1 = v.buffer[(v.bufferPos + 11) % 12];
+        const int p2 = v.buffer[(v.bufferPos + 10) % 12] >> 1;
+        if (filter >= 8) {
+            s += p1;
+            s -= p2;
+            if (filter == 8) {
+                s += p2 >> 4;
+                s += (p1 * -3) >> 6;
+            } else {
+                s += (p1 * -13) >> 7;
+                s += (p2 * 3) >> 4;
+            }
+        } else if (filter) {
+            s += p1 >> 1;
+            s += (-p1) >> 5;
+        }
+        s = clamp16(s);
+        v.buffer[v.bufferPos] = static_cast<int16_t>(static_cast<uint16_t>(s * 2));
+        v.bufferPos = static_cast<uint8_t>((v.bufferPos + 1) % 12);
+    }
+}
+
+int Dsp::interpolate(const Voice& v) const {
+    const auto& gauss = gaussTable();
+    const int offset = (v.interpPos >> 4) & 0xFF;
+    const int16_t* fwd = gauss.data() + 255 - offset;
+    const int16_t* rev = gauss.data() + offset;
+    int at = (v.bufferPos + (v.interpPos >> 12)) % 12;
+    auto next = [&] {
+        const int s = v.buffer[static_cast<size_t>(at)];
+        at = (at + 1) % 12;
+        return s;
+    };
+    int out = (fwd[0] * next()) >> 11;
+    out += (fwd[256] * next()) >> 11;
+    out += (rev[256] * next()) >> 11;
+    out = static_cast<int16_t>(out);
+    out += (rev[0] * next()) >> 11;
+    return clamp16(out) & ~1;
+}
+
+void Dsp::sample(std::vector<int16_t>& out) {
+    if (--counter_ < 0) counter_ = kCounterRange - 1;
+    everyOther_ = !everyOther_;
+    if (everyOther_) {
+        newKon_ &= static_cast<uint8_t>(~kon_);
+        kon_ = newKon_;
+        koff_ = regs_[Koff];
+    }
+    if (counterFires(regs_[Flg] & 0x1F)) {
+        const int feedback = (noise_ << 13) ^ (noise_ << 14);
+        noise_ = (feedback & 0x4000) ^ (noise_ >> 1);
+    }
+
+    int mainOut[2] = {0, 0}, echoOut[2] = {0, 0};
+    int lastOutput = 0;
+    uint8_t endx = regs_[Endx];
+    const uint8_t pmon = regs_[Pmon] & 0xFE, non = regs_[Non], eon = regs_[Eon];
+    for (int i = 0; i < 8; ++i) {
+        Voice& v = voices_[static_cast<size_t>(i)];
+        const uint8_t bit = static_cast<uint8_t>(1 << i);
+        const uint16_t dirAddr = static_cast<uint16_t>(regs_[Dir] * 0x100 + reg(i, Srcn) * 4);
+        const uint16_t entry = static_cast<uint16_t>(dirAddr + (v.konDelay ? 0 : 2));
+        const uint16_t nextAddr = static_cast<uint16_t>(ram_[entry] | ram_[static_cast<uint16_t>(entry + 1)] << 8);
+        int pitch = reg(i, PitchL) | (reg(i, PitchH) & 0x3F) << 8;
+        uint8_t header = ram_[v.brrAddr];
+        if (pmon & bit) pitch += ((lastOutput >> 5) * pitch) >> 10;
+        if (v.konDelay) {
+            if (v.konDelay == 5) {
+                v.brrAddr = nextAddr;
+                v.brrOffset = 1;
+                v.bufferPos = 0;
+                header = 0;
+            }
+            v.env = v.hiddenEnv = 0;
+            v.interpPos = 0;
+            if (--v.konDelay & 3) v.interpPos = 0x4000;
+            pitch = 0;
+        }
+        int output = interpolate(v);
+        if (non & bit) output = static_cast<int16_t>(static_cast<uint16_t>(noise_ * 2));
+        output = ((output * v.env) >> 11) & ~1;
+        const uint8_t envx = static_cast<uint8_t>(v.env >> 4);
+        if ((regs_[Flg] & 0x80) || (header & 3) == 1) {
+            v.envMode = Release;
+            v.env = 0;
+        }
+        if (everyOther_) {
+            if (koff_ & bit) v.envMode = Release;
+            if (kon_ & bit) {
+                ++kons_[static_cast<size_t>(i)];
+                v.konDelay = 5;
+                v.envMode = Attack;
+            }
+        }
+        if (!v.konDelay) runEnvelope(v, i);
+
+        // The next four samples of BRR, and on to the next block (or the loop) when
+        // this one is done.
+        bool looped = false;
+        if (v.interpPos >= 0x4000) {
+            decodeBrr(v, header);
+            v.brrOffset = static_cast<uint8_t>(v.brrOffset + 2);
+            if (v.brrOffset >= 9) {
+                v.brrAddr = static_cast<uint16_t>(v.brrAddr + 9);
+                if (header & 1) {
+                    v.brrAddr = nextAddr;
+                    looped = true;
+                }
+                v.brrOffset = 1;
+            }
+        }
+        v.interpPos = (v.interpPos & 0x3FFF) + pitch;
+        if (v.interpPos > 0x7FFF) v.interpPos = 0x7FFF;
+
+        const int heard = gains_[static_cast<size_t>(i)] == 100 ? output : output * gains_[static_cast<size_t>(i)] / 100;
+        for (int ch = 0; ch < 2; ++ch) {
+            const int amp = (heard * static_cast<int8_t>(reg(i, VolL + ch))) >> 7;
+            mainOut[ch] = clamp16(mainOut[ch] + amp);
+            if (eon & bit) echoOut[ch] = clamp16(echoOut[ch] + amp);
+        }
+        if (looped) endx |= bit;
+        if (v.konDelay == 5) endx = static_cast<uint8_t>(endx & ~bit);  // keyed on just now
+        reg(i, Outx) = static_cast<uint8_t>(output >> 8);
+        reg(i, Envx) = envx;
+        lastOutput = output;
+    }
+    regs_[Endx] = endx;
+
+    // The echo: the oldest sample of the buffer through the filter, mixed in, and the
+    // voices that echo written back with its feedback.
+    echoPos_ = static_cast<uint8_t>((echoPos_ + 1) & 7);
+    const uint16_t echoPtr = static_cast<uint16_t>(esa_ * 0x100 + echoOffset_);
+    for (int ch = 0; ch < 2; ++ch) {
+        const uint16_t at = static_cast<uint16_t>(echoPtr + ch * 2);
+        const int s = static_cast<int16_t>(static_cast<uint16_t>(ram_[at] | ram_[static_cast<uint16_t>(at + 1)] << 8));
+        echoHistory_[echoPos_][static_cast<size_t>(ch)] = s >> 1;
+    }
+    int echoIn[2];
+    for (int ch = 0; ch < 2; ++ch) {
+        auto tap = [&](int t) {
+            // Tap 0 is the oldest of the eight, tap 7 the sample just read.
+            const int s = echoHistory_[static_cast<size_t>((echoPos_ + 1 + t) & 7)][static_cast<size_t>(ch)];
+            return (s * static_cast<int8_t>(regs_[static_cast<size_t>(t * 0x10 + 0x0F)])) >> 6;
+        };
+        int sum = 0;
+        for (int t = 0; t < 7; ++t) sum += tap(t);
+        sum = static_cast<int16_t>(sum);
+        sum += static_cast<int16_t>(tap(7));
+        echoIn[ch] = clamp16(sum) & ~1;
+    }
+    int result[2];
+    for (int ch = 0; ch < 2; ++ch) {
+        result[ch] = clamp16(static_cast<int16_t>((mainOut[ch] * static_cast<int8_t>(regs_[ch ? Mvolr : Mvoll])) >> 7) +
+                             static_cast<int16_t>((echoIn[ch] * static_cast<int8_t>(regs_[ch ? Evolr : Evoll])) >> 7));
+        echoOut[ch] = clamp16(echoOut[ch] + static_cast<int16_t>((echoIn[ch] * static_cast<int8_t>(regs_[Efb])) >> 7)) & ~1;
+    }
+    if (regs_[Flg] & 0x40) result[0] = result[1] = 0;
+    out.push_back(static_cast<int16_t>(result[0]));
+    out.push_back(static_cast<int16_t>(result[1]));
+
+    if (!echoOffset_) echoLength_ = static_cast<uint16_t>((regs_[Edl] & 0x0F) * 0x800);
+    if (!(regs_[Flg] & 0x20)) {
+        for (int ch = 0; ch < 2; ++ch) {
+            const uint16_t at = static_cast<uint16_t>(echoPtr + ch * 2);
+            ram_[at] = static_cast<uint8_t>(echoOut[ch]);
+            ram_[static_cast<uint16_t>(at + 1)] = static_cast<uint8_t>(echoOut[ch] >> 8);
+        }
+    }
+    echoOffset_ = static_cast<uint16_t>(echoOffset_ + 4);
+    if (echoOffset_ >= echoLength_) echoOffset_ = 0;
+    esa_ = regs_[Esa];
+}
+
+std::vector<int16_t> Dsp::decodeSample(const std::array<uint8_t, 0x10000>& ram, uint16_t start, uint16_t loop,
+                                       size_t* loopIndex, bool* looped) {
+    std::vector<int16_t> out;
+    *loopIndex = 0;
+    *looped = false;
+    int p1 = 0, p2 = 0;  // the last two samples as the DSP keeps them (doubled)
+    uint16_t addr = start;
+    for (int block = 0; block < 7111; ++block) {  // 2 seconds at most
+        if (addr == loop) *loopIndex = out.size();
+        const uint8_t header = ram[addr];
+        const int shift = header >> 4, filter = header & 0x0C;
+        for (int b = 1; b <= 8; ++b) {
+            const uint8_t byte = ram[static_cast<uint16_t>(addr + b)];
+            for (int n : {byte >> 4, byte & 15}) {
+                int s = n >= 8 ? n - 16 : n;
+                s = (s << shift) >> 1;
+                if (shift >= 0xD) s = s < 0 ? -0x800 : 0;
+                const int q1 = p1, q2 = p2 >> 1;
+                if (filter >= 8) {
+                    s += q1;
+                    s -= q2;
+                    if (filter == 8) {
+                        s += q2 >> 4;
+                        s += (q1 * -3) >> 6;
+                    } else {
+                        s += (q1 * -13) >> 7;
+                        s += (q2 * 3) >> 4;
+                    }
+                } else if (filter) {
+                    s += q1 >> 1;
+                    s += (-q1) >> 5;
+                }
+                s = clamp16(s);
+                p2 = p1;
+                p1 = static_cast<int16_t>(static_cast<uint16_t>(s * 2));
+                out.push_back(static_cast<int16_t>(p1));
+            }
+        }
+        if (header & 1) {
+            *looped = (header & 2) != 0;
+            break;
+        }
+        addr = static_cast<uint16_t>(addr + 9);
+    }
+    return out;
+}
+
+void Dsp::musicVoice(int i, SynthMusic::VoiceState& out) {
+    using Kind = SynthMusic::Kind;
+    const size_t vi = static_cast<size_t>(i);
+    const Voice& v = voices_[vi];
+    out = {};
+    out.keyed = true;
+    out.triggers = kons_[vi];
+    // Sounding from its key on until its key off, the end of a sample that does not
+    // loop, or an envelope that has died away.
+    const bool dead = !v.konDelay && v.envMode != Attack && v.env == 0;
+    out.sounding = v.envMode != Release && !dead && !(regs_[Flg] & 0x80);
+    const int l = std::abs(static_cast<int>(static_cast<int8_t>(reg(i, VolL))));
+    const int r = std::abs(static_cast<int>(static_cast<int8_t>(reg(i, VolR))));
+    out.amplitude = std::min(1.0, std::max(l, r) / 127.0);
+    out.pan = l + r ? std::clamp(64 + (r - l) * 63 / (l + r), 0, 127) : 64;
+    out.envelope = v.env / 2047.0;
+    if (regs_[Non] & (1 << i)) {
+        const uint8_t rate = regs_[Flg] & 0x1F;
+        out.noise = rate / 2;
+        out.note = 60;
+        out.fingerprint = SynthMusic::fingerprint(Kind::Noise, SynthMusic::hash(&rate, 1));
+        return;
+    }
+    // The sample, looked at again on each key on.
+    const uint16_t dirAddr = static_cast<uint16_t>(regs_[Dir] * 0x100 + reg(i, Srcn) * 4);
+    const uint16_t start = static_cast<uint16_t>(ram_[dirAddr] | ram_[static_cast<uint16_t>(dirAddr + 1)] << 8);
+    if (!voiceSample_[vi] || sampledAt_[vi] != kons_[vi] || voiceSource_[vi] != start) {
+        sampledAt_[vi] = kons_[vi];
+        voiceSource_[vi] = start;
+        const uint16_t loop =
+            static_cast<uint16_t>(ram_[static_cast<uint16_t>(dirAddr + 2)] | ram_[static_cast<uint16_t>(dirAddr + 3)] << 8);
+        uint8_t head[36];
+        for (int b = 0; b < 36; ++b) head[b] = ram_[static_cast<uint16_t>(start + b)];
+        const uint32_t h = SynthMusic::hash(head, sizeof head, start * 65536u + loop);
+        const uint64_t key = static_cast<uint64_t>(start) << 48 | static_cast<uint64_t>(loop) << 32 | h;
+        auto found = musicSamples_.find(key);
+        if (found == musicSamples_.end()) {
+            MusicSample m;
+            size_t loopIndex = 0;
+            bool looped = false;
+            const std::vector<int16_t> pcm = decodeSample(ram_, start, loop, &loopIndex, &looped);
+            // The fingerprint is its data, wherever the game loaded it.
+            std::vector<uint8_t> bytes;
+            for (int16_t s : pcm) bytes.push_back(static_cast<uint8_t>(s >> 8));
+            m.fingerprint = SynthMusic::fingerprint(Kind::Sample, SynthMusic::hash(bytes.data(), bytes.size(), looped ? 1u : 0u));
+            m.hz = SynthMusic::analyzeSample(pcm.data(), pcm.size(), loopIndex, looped, 32000.0, &m.traits);
+            if (musicSamples_.size() > 512) musicSamples_.clear();
+            found = musicSamples_.emplace(key, m).first;
+        }
+        voiceSample_[vi] = &found->second;
+    }
+    const MusicSample& m = *voiceSample_[vi];
+    const int pitch = reg(i, PitchL) | (reg(i, PitchH) & 0x3F) << 8;
+    // The instrument is the sample and the envelope it is played with: drivers play their
+    // sound effects with the music's samples, on envelopes of their own (Super Mario
+    // World's jump and coins), and a sample struck and the same sample held are two
+    // instruments. With the GAIN, its mode but not its level, which games move to fade.
+    const uint8_t adsr1 = reg(i, Adsr1), gain = reg(i, Gain);
+    const uint8_t envelope[2] = {adsr1 & 0x80 ? adsr1 : uint8_t{0},
+                                 adsr1 & 0x80 ? reg(i, Adsr2) : static_cast<uint8_t>(gain & 0x80 ? gain & 0xE0 : 0)};
+    out.fingerprint = SynthMusic::fingerprint(Kind::Sample, SynthMusic::hash(envelope, 2, m.fingerprint));
+    out.traits = &m.traits;
+    out.note = m.hz > 0 ? SynthMusic::noteOf(m.hz * pitch / 4096.0) : 60;
+    // A sound with no clear pitch by the period that repeats least badly: the notes the
+    // game plays it on, should it play it as a tune. (Moved by octaves into the notes
+    // heard: a drum goes on sounding whatever its note.)
+    if (m.hz <= 0 && m.traits.roughHz > 0 && pitch > 0) {
+        double rough = SynthMusic::noteOf(m.traits.roughHz * pitch / 4096.0);
+        while (rough > 0 && rough <= 12) rough += 12;
+        while (rough >= 120) rough -= 12;
+        if (rough > 12) out.note = rough;
+    }
+    if (pitch == 0) out.sounding = false;
+}
+
+// --- The sound module -------------------------------------------------------------------
+
+Apu::Apu() : dsp_(ram_) { smp_.setBus(this); }
+
+void Apu::power() {
+    // The RAM is not cleared by the hardware; games do not rely on what it holds.
+    ram_.fill(0);
+    reset();
+}
+
+void Apu::reset() {
+    smp_.power();
+    dsp_.power();
+    in_.fill(0);
+    out_.fill(0);
+    control_ = 0x80;
+    dspAddr_ = 0;
+    test_ = 0x0A;
+    timers_ = {};
+    budget_ = 0;
+    dspClock_ = 0;
+    samples_.clear();
+    smp_.r.pc = static_cast<uint16_t>(kIpl[62] | kIpl[63] << 8);
+}
+
+void Apu::catchUp() {
+    while (budget_ > 0) smp_.step();
+}
+
+void Apu::cycle() {
+    budget_ -= masterHz_;
+    // T0 and T1 count at 8 kHz, T2 at 64 kHz.
+    for (int t = 0; t < 3; ++t) {
+        Timer& tm = timers_[static_cast<size_t>(t)];
+        if (++tm.stage < (t == 2 ? 16 : 128)) continue;
+        tm.stage = 0;
+        if (!tm.enabled) continue;
+        if (++tm.counter == tm.target) {
+            tm.counter = 0;
+            tm.output = (tm.output + 1) & 0x0F;
+        }
+    }
+    if (++dspClock_ == 32) {
+        dspClock_ = 0;
+        dsp_.sample(samples_);
+        ++dspSamples_;
+        if (synth_ && dspSamples_ % 64 == 0) {  // 500 times a second
+            for (int i = 0; i < 8; ++i) {
+                SynthMusic::VoiceState s;
+                dsp_.musicVoice(i, s);
+                synth_->update(i, s, dspSamples_);
+            }
+        }
+    }
+}
+
+uint8_t Apu::read(uint16_t a) {
+    cycle();
+    if (a >= 0xF0 && a <= 0xFF) {
+        switch (a) {
+            case 0xF2: return dspAddr_;
+            case 0xF3: return dsp_.read(dspAddr_);
+            case 0xF4:
+            case 0xF5:
+            case 0xF6:
+            case 0xF7: return in_[a - 0xF4u];
+            case 0xF8:
+            case 0xF9: return ram_[a];
+            case 0xFD:
+            case 0xFE:
+            case 0xFF: {
+                Timer& t = timers_[a - 0xFDu];
+                const uint8_t v = t.output;
+                t.output = 0;
+                return v;
+            }
+            default: return 0;
+        }
+    }
+    if (a >= 0xFFC0 && (control_ & 0x80)) return kIpl[a - 0xFFC0u];
+    return ram_[a];
+}
+
+void Apu::write(uint16_t a, uint8_t v) {
+    cycle();
+    ram_[a] = v;  // the registers' writes reach the RAM under them too
+    if (a < 0xF0 || a > 0xFF) return;
+    switch (a) {
+        case 0xF0: test_ = v; break;
+        case 0xF1:
+            for (int t = 0; t < 3; ++t) {
+                Timer& tm = timers_[static_cast<size_t>(t)];
+                const bool on = v & (1 << t);
+                if (on && !tm.enabled) tm.counter = tm.output = 0;
+                tm.enabled = on;
+            }
+            if (v & 0x10) in_[0] = in_[1] = 0;
+            if (v & 0x20) in_[2] = in_[3] = 0;
+            control_ = v;
+            break;
+        case 0xF2: dspAddr_ = v; break;
+        case 0xF3: dsp_.write(dspAddr_, v); break;
+        case 0xF4:
+        case 0xF5:
+        case 0xF6:
+        case 0xF7: out_[a - 0xF4u] = v; break;
+        case 0xFA:
+        case 0xFB:
+        case 0xFC: timers_[a - 0xFAu].target = v; break;
+        default: break;
+    }
+}
+
+void Apu::takeSamples(std::vector<int16_t>& out) {
+    // From 32 kHz to the frontend's rate, between each pair of samples.
+    const double step = 32000.0 / std::max(outRate_, 1000.0);
+    const size_t n = samples_.size() / 2;
+    for (size_t i = 0; i < n; ++i) {
+        const int16_t l = samples_[i * 2], r = samples_[i * 2 + 1];
+        while (resamplePos_ < 1.0) {
+            out.push_back(static_cast<int16_t>(lastL_ + (l - lastL_) * resamplePos_));
+            out.push_back(static_cast<int16_t>(lastR_ + (r - lastR_) * resamplePos_));
+            resamplePos_ += step;
+        }
+        resamplePos_ -= 1.0;
+        lastL_ = l;
+        lastR_ = r;
+    }
+    samples_.clear();
+}
+
+// ---- SPC files: the header and ID666 tag at 0, the RAM at 0x100, the DSP's registers at
+// 0x10100 and the 64 bytes under the IPL ROM at 0x101C0.
+
+namespace {
+constexpr char kSpcSignature[] = "SNES-SPC700 Sound File Data v0.30";
+constexpr size_t kSpcSize = 0x10200;
+// After the file, plumnin's own state of the sound processor and the DSP: with it the
+// notes that were sounding go on (an SPC alone has only the registers), and other players
+// ignore it.
+constexpr char kStateMark[16] = "plumnin APU 1";
+}  // namespace
+
+bool Apu::isSpc(const std::vector<uint8_t>& data) {
+    return data.size() >= kSpcSize && std::memcmp(data.data(), kSpcSignature, 27) == 0;
+}
+
+std::vector<uint8_t> Apu::saveSpc(const std::string& title, const std::string& game, int seconds) const {
+    std::vector<uint8_t> f(kSpcSize, 0);
+    std::memcpy(f.data(), kSpcSignature, sizeof kSpcSignature - 1);
+    f[0x21] = f[0x22] = 26;
+    f[0x23] = 26;  // an ID666 tag follows
+    f[0x24] = 30;  // version 0.30
+    const Smp::Regs& r = smp_.r;
+    f[0x25] = static_cast<uint8_t>(r.pc);
+    f[0x26] = static_cast<uint8_t>(r.pc >> 8);
+    f[0x27] = r.a;
+    f[0x28] = r.x;
+    f[0x29] = r.y;
+    f[0x2A] = r.p;
+    f[0x2B] = r.sp;
+    auto text = [&](size_t at, size_t length, const std::string& s) {
+        std::memcpy(&f[at], s.data(), std::min(length, s.size()));
+    };
+    text(0x2E, 32, title);
+    text(0x4E, 32, game);
+    text(0x7E, 16, "plumnin");
+    if (seconds > 0) {
+        const std::string length = std::to_string(std::min(seconds, 999));
+        text(0xA9, 3, length);
+        text(0xAC, 5, "10000");  // a fade of ten seconds
+    }
+    std::memcpy(&f[0x100], ram_.data(), 0x10000);
+    // The registers at F0-FF as the processor would find them going on: what the CPU
+    // last wrote to the ports, the timers' targets and outputs.
+    f[0x100 + 0xF0] = test_;
+    f[0x100 + 0xF1] = control_;
+    f[0x100 + 0xF2] = dspAddr_;
+    f[0x100 + 0xF3] = dsp_.read(dspAddr_);
+    for (int i = 0; i < 4; ++i) f[0x100 + 0xF4 + static_cast<size_t>(i)] = in_[static_cast<size_t>(i)];
+    for (int t = 0; t < 3; ++t) {
+        f[0x100 + 0xFA + static_cast<size_t>(t)] = timers_[static_cast<size_t>(t)].target;
+        f[0x100 + 0xFD + static_cast<size_t>(t)] = timers_[static_cast<size_t>(t)].output;
+    }
+    for (int i = 0; i < 128; ++i) f[0x10100 + static_cast<size_t>(i)] = dsp_.read(static_cast<uint8_t>(i));
+    std::memcpy(&f[0x101C0], &ram_[0xFFC0], 64);
+    StateWriter w;
+    const_cast<Apu*>(this)->state(w);
+    f.insert(f.end(), kStateMark, kStateMark + sizeof kStateMark);
+    f.insert(f.end(), w.data().begin(), w.data().end());
+    return f;
+}
+
+bool Apu::loadSpc(const std::vector<uint8_t>& f) {
+    if (!isSpc(f)) return false;
+    power();
+    std::memcpy(ram_.data(), &f[0x100], 0x10000);
+    std::memcpy(&ram_[0xFFC0], &f[0x101C0], 64);
+    Smp::Regs& r = smp_.r;
+    r.pc = static_cast<uint16_t>(f[0x25] | f[0x26] << 8);
+    r.a = f[0x27];
+    r.x = f[0x28];
+    r.y = f[0x29];
+    r.p = f[0x2A];
+    r.sp = f[0x2B];
+    test_ = 0x0A;
+    const uint8_t control = ram_[0xF1];
+    control_ = control & 0x87;  // (not its bits that clear the ports)
+    for (int t = 0; t < 3; ++t) {
+        Timer& tm = timers_[static_cast<size_t>(t)];
+        tm.enabled = control & (1 << t);
+        tm.target = ram_[0xFA + static_cast<size_t>(t)];
+        tm.output = ram_[0xFD + static_cast<size_t>(t)] & 0x0F;
+    }
+    dspAddr_ = ram_[0xF2];
+    for (int i = 0; i < 4; ++i) in_[static_cast<size_t>(i)] = out_[static_cast<size_t>(i)] = ram_[0xF4 + static_cast<size_t>(i)];
+    // The DSP: its registers as they were, then the voices that were keyed on, keyed on
+    // again (an SPC keeps no more of them than the registers).
+    const uint8_t* dsp = &f[0x10100];
+    for (int i = 0; i < 128; ++i) {
+        if (i == 0x4C || i == 0x5C) continue;  // KON, KOFF
+        dsp_.write(static_cast<uint8_t>(i), dsp[i]);
+    }
+    dsp_.write(0x5C, 0);
+    dsp_.write(0x4C, dsp[0x4C]);
+    // Saved by plumnin: exactly as it was.
+    if (f.size() > kSpcSize + sizeof kStateMark && std::memcmp(&f[kSpcSize], kStateMark, sizeof kStateMark) == 0) {
+        const std::array<uint8_t, 0x10000> ram = ram_;
+        StateReader r(&f[kSpcSize + sizeof kStateMark], f.size() - kSpcSize - sizeof kStateMark);
+        state(r);
+        if (!r.ok()) {  // broken: the registers, as from any SPC
+            ram_ = ram;
+            return true;
+        }
+        samples_.clear();
+        budget_ = 0;
+    }
+    return true;
+}
+
+}  // namespace plumnin::snes

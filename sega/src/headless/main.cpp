@@ -1,0 +1,995 @@
+// plumsg-headless: the emulator without a window, sound card or GPU, for tests, CI and
+// reproducing bugs. It runs a cartridge or a disc for a number of frames, feeds the
+// pads from an input script and writes what was asked for: screenshots, the sound as
+// WAV, a hash of every frame, savestates and memory dumps. It can also check the
+// result against expected hashes and say on which frame a run first went different.
+//
+// Run it without arguments (or with --help) for the options and the script format.
+
+#include <cctype>
+#include <chrono>
+#include <thread>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <map>
+#include <sstream>
+#include <set>
+#include <string>
+#include <vector>
+
+#include "cheats.h"
+#include "megadrive.h"
+#include "miniz.h"
+#include "net/udp.h"
+#include "netplay.h"
+#include "recording.h"
+#include "pad_test_rom.h"
+#include "sms_test_rom.h"
+#include "song_export.h"
+#include "song_extract.h"
+#include "system.h"
+#include "test_rom.h"
+
+using namespace plumsg;
+
+namespace {
+
+const char* kUsage = R"(usage: plumsg-headless <game|--test-rom|--pad-test-rom|--sms-test-rom|--gg-test-rom> [options]
+
+  game                  cartridge (.md .gen .bin .smd .32x .zip) or disc (.cue .chd .iso)
+  --play-vgm FILE       no game: play this .vgm or .vgz for --frames sixtieths of a
+                        second, for --wav and --roland, and list its instruments
+  --mp3 FILE            with --play-vgm: export it as the instrument editor's Exportar a
+                        MP3 does (twice round its loop and faded out; with --roland,
+                        through it)
+  --extract-songs DIR   take the game's songs out of its ROM (sound drivers like
+                        Sonic's, Streets of Rage 2's, EA's or GEMS), one .vgz each in DIR,
+                        saying what it finds
+  --test-rom            the built-in test program (planes, sprites, scroll, a tone)
+  --pad-test-rom        the built-in pad test: the backdrop shows the pressed buttons
+  --sms-test-rom        the built-in Master System test (tiles, a sprite, scroll, a tone)
+  --gg-test-rom         the same for the Game Gear
+  --two-pad-test-rom    the built-in two-pad test: every frame depends on all that both
+                        pads pressed before it (for checking netplay)
+
+Running
+  --frames N            frames to run (default 600); frames are numbered from 0
+  --region jp|us|eu     force the console's region (default: what the game says)
+  --six-button          6-button pads instead of 3-button ones
+  --no-pad2             nothing plugged into the second port (the script's p2 buttons do nothing)
+  --no-sprite-limit     draw every sprite on a line (the option against flicker)
+  --widescreen W:H      draw the picture W:H wide (16:9, 16:10) instead of 4:3
+  --widescreen L,R      or with L more columns on the left and R on the right (up to 56)
+  --overclock PERCENT   run the 68000 at 100-400% of its speed (default 100)
+  --bios FILE           Mega CD BIOS; its region comes from its header (else: all)
+  --bios-dir DIR        look for Mega CD BIOS files in DIR and its subfolders
+  --load-state FILE     start from this savestate (after loading the game)
+  --cheat CODE          Game Genie or Action Replay code, several joined with + (can repeat)
+
+Input
+  --input FILE          input script (see below)
+  --do "LINE"           one script line given on the command line (can repeat)
+
+Netplay (two plumsg over UDP, as the window's Red menu does)
+  --netplay-host PORT   wait for the other player on this UDP port; this side is pad 1
+  --netplay-join ADDR   join the host at ADDR (name or IP, :PORT, default 7845); pad 2
+  --input-delay N       frames between a press and its effect (host's choice, default 2)
+  --net-lag MS          hold each packet this side sends for MS milliseconds, and
+  --net-loss PERCENT    drop this many of them, to try a slow or bad connection
+  With either, the script's buttons for this side's pad drive it (p1.* on the host,
+  p2.* on the guest) and only button lines are allowed. A button on frame N takes
+  effect on frame N as long as N is not below the input delay (those frames have no
+  input), so both sides' scripts together, run without netplay, give the same
+  frames: compare them with --hash-log and --expect-log. The game starts from the
+  host's console when the guest arrives; the log has the frames both agreed on.
+
+Output
+  --png FILE            the last frame as PNG
+  --layers PREFIX       also PREFIX_planeB.png, PREFIX_planeA.png, PREFIX_sprites.png
+  --png-every N         a PNG every N frames, as frame_000123.png in --out-dir
+  --out-dir DIR         where screenshots without a name go (default: .)
+  --wav FILE            the whole run's sound (44100 Hz stereo)
+  --gif FILE            the run as an animated GIF, as plumsg's Grabar GIF makes it
+  --avi FILE            the run as a video with its sound (Motion JPEG and PCM)
+                        (both at the console's own size, and not with netplay)
+  --roland SF2          play the FM and PSG music as General MIDI on this SoundFont,
+                        as the Roland sound does (the DAC stays as it is)
+  --midi-log FILE       with --roland: the notes it played, one event per line
+  --effects LIST        with --roland: these FM instruments (hex fingerprints, as
+                        --extract-songs lists them) are sound effects, left original
+  --vgm FILE            the run's YM2612 and PSG music as a VGM (.vgz: compressed)
+  --save-state FILE     a savestate after the last frame
+  --dump-ram FILE       the 68000's work RAM (64 KB) after the last frame (a Master
+                        System game: its 8 KB of RAM)
+  --hash-log FILE       one line per frame: frame, picture hash, sound hash
+  --json FILE           the summary as JSON (- for standard output)
+  --quiet               no summary on standard output
+
+Checks (exit code 3 when one fails)
+  --expect-hash HEX     the last frame's picture hash must be HEX
+  --expect-audio HEX    the hash of the whole run's sound must be HEX
+  --expect-log FILE     every frame must match this --hash-log; the first frame that
+                        does not is reported
+
+Input scripts: one command per line, # starts a comment.
+  FRAMES BUTTONS...     hold the buttons during FRAMES; BUTTONS are up down left right
+                        a b c x y z start mode, for pad 2 written p2.a, p2.start...
+  FRAMES screenshot [FILE]   PNG after the frame (frame_000123.png in --out-dir)
+  FRAMES savestate FILE      savestate after the frame
+  FRAMES loadstate FILE      load a savestate before the frame
+  FRAMES dump-ram FILE       work RAM after the frame
+  FRAMES hash                print the frame's hash
+  FRAMES reset               press the reset button before the frame
+  FRAMES power               switch off and on again before the frame
+  FRAMES quit                stop after this frame
+FRAMES is N (one frame), N-M (M included) or N+K (K frames from N). Lines with
+buttons add up; a button is held only on the frames its lines cover.
+
+  # wait for the title, press Start, walk right while jumping
+  120+4    start
+  300-420  right
+  330+10   right c
+  420      screenshot level.png
+  600      quit
+
+Exit codes: 0 fine, 1 could not load or write something, 2 bad arguments or
+script, 3 a check failed.
+)";
+
+uint32_t fnvAdd(uint32_t h, uint32_t v) {
+    h ^= v;
+    return h * 16777619u;
+}
+
+// The same hash the tests and rom_runner print: FNV-1a over the visible pixels.
+uint32_t frameHash(const VideoFrameMd& f) {
+    uint32_t h = 2166136261u;
+    for (int y = 0; y < f.height; ++y)
+        for (int x = 0; x < f.width; ++x) h = fnvAdd(h, f.pixel(x, y));
+    return h;
+}
+
+uint32_t soundHash(uint32_t h, const std::vector<int16_t>& samples) {
+    for (int16_t s : samples) h = fnvAdd(h, static_cast<uint16_t>(s));
+    return h;
+}
+
+bool writeFile(const std::string& path, const void* data, size_t size) {
+    std::ofstream out(path, std::ios::binary);
+    out.write(static_cast<const char*>(data), static_cast<std::streamsize>(size));
+    return static_cast<bool>(out);
+}
+
+bool readFile(const std::string& path, std::vector<uint8_t>& data) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return false;
+    data.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    return true;
+}
+
+bool writePng(const std::string& path, const uint32_t* argb, int width, int height, int stride) {
+    std::vector<uint8_t> rgba(static_cast<size_t>(width) * height * 4);
+    for (int y = 0; y < height; ++y)
+        for (int x = 0; x < width; ++x) {
+            const uint32_t p = argb[y * stride + x];
+            uint8_t* o = &rgba[(static_cast<size_t>(y) * width + x) * 4];
+            o[0] = static_cast<uint8_t>(p >> 16);
+            o[1] = static_cast<uint8_t>(p >> 8);
+            o[2] = static_cast<uint8_t>(p);
+            o[3] = 0xFF;
+        }
+    size_t size = 0;
+    void* png = tdefl_write_image_to_png_file_in_memory(rgba.data(), width, height, 4, &size);
+    if (!png) return false;
+    const bool ok = writeFile(path, png, size);
+    mz_free(png);
+    return ok;
+}
+
+bool writeWav(const std::string& path, const std::vector<int16_t>& samples, int rate) {
+    std::ofstream out(path, std::ios::binary);
+    auto u32 = [&](uint32_t v) { out.write(reinterpret_cast<const char*>(&v), 4); };
+    auto u16 = [&](uint16_t v) { out.write(reinterpret_cast<const char*>(&v), 2); };
+    const uint32_t bytes = static_cast<uint32_t>(samples.size() * 2);
+    out.write("RIFF", 4);
+    u32(36 + bytes);
+    out.write("WAVEfmt ", 8);
+    u32(16);
+    u16(1);
+    u16(2);
+    u32(static_cast<uint32_t>(rate));
+    u32(static_cast<uint32_t>(rate) * 4);
+    u16(4);
+    u16(16);
+    out.write("data", 4);
+    u32(bytes);
+    out.write(reinterpret_cast<const char*>(samples.data()), bytes);
+    return static_cast<bool>(out);
+}
+
+std::string hex8(uint32_t v) {
+    char s[16];
+    std::snprintf(s, sizeof s, "%08x", v);
+    return s;
+}
+
+std::string jsonString(const std::string& s) {
+    std::string o = "\"";
+    for (char c : s) {
+        if (c == '"' || c == '\\') o += '\\', o += c;
+        else if (static_cast<unsigned char>(c) < 0x20) {
+            char u[8];
+            std::snprintf(u, sizeof u, "\\u%04x", c);
+            o += u;
+        } else o += c;
+    }
+    return o + "\"";
+}
+
+// What a script line does on its frames.
+struct Command {
+    enum Kind { Buttons, Screenshot, SaveState, LoadState, DumpRam, Hash, Reset, Power, Quit } kind = Buttons;
+    long first = 0, last = 0;  // frames, both included
+    PadState pad[2];
+    std::string file;
+    int line = 0;
+};
+
+bool parseFrames(const std::string& s, long* first, long* last) {
+    char* end = nullptr;
+    const long a = std::strtol(s.c_str(), &end, 10);
+    if (end == s.c_str() || a < 0) return false;
+    if (*end == 0) {
+        *first = *last = a;
+        return true;
+    }
+    const char sep = *end;
+    const char* rest = end + 1;
+    const long b = std::strtol(rest, &end, 10);
+    if (end == rest || *end != 0) return false;
+    if (sep == '-' && b >= a) *first = a, *last = b;
+    else if (sep == '+' && b > 0) *first = a, *last = a + b - 1;
+    else return false;
+    return true;
+}
+
+bool setButton(PadState& p, const std::string& name) {
+    static const std::map<std::string, bool PadState::*> kButtons = {
+        {"up", &PadState::up},   {"down", &PadState::down}, {"left", &PadState::left},   {"right", &PadState::right},
+        {"a", &PadState::a},     {"b", &PadState::b},       {"c", &PadState::c},         {"start", &PadState::start},
+        {"x", &PadState::x},     {"y", &PadState::y},       {"z", &PadState::z},         {"mode", &PadState::mode},
+    };
+    const auto it = kButtons.find(name);
+    if (it == kButtons.end()) return false;
+    p.*(it->second) = true;
+    return true;
+}
+
+// Parses one script line into `out` (nothing for blank and comment lines).
+bool parseLine(const std::string& raw, int lineNo, const std::string& where, std::vector<Command>& out) {
+    std::string text = raw.substr(0, raw.find('#'));
+    std::istringstream in(text);
+    std::vector<std::string> words;
+    for (std::string w; in >> w;) words.push_back(w);
+    if (words.empty()) return true;
+    auto fail = [&](const std::string& why) {
+        std::fprintf(stderr, "%s:%d: %s\n", where.c_str(), lineNo, why.c_str());
+        return false;
+    };
+    Command c;
+    c.line = lineNo;
+    if (!parseFrames(words[0], &c.first, &c.last)) return fail("bad frames '" + words[0] + "' (N, N-M or N+K)");
+    if (words.size() < 2) return fail("nothing to do");
+    std::string verb = words[1];
+    for (char& ch : verb) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    static const std::map<std::string, Command::Kind> kVerbs = {
+        {"screenshot", Command::Screenshot}, {"savestate", Command::SaveState}, {"loadstate", Command::LoadState},
+        {"dump-ram", Command::DumpRam},      {"hash", Command::Hash},           {"reset", Command::Reset},
+        {"power", Command::Power},           {"quit", Command::Quit},
+    };
+    const auto v = kVerbs.find(verb);
+    if (v != kVerbs.end()) {
+        c.kind = v->second;
+        const bool needsFile = c.kind == Command::SaveState || c.kind == Command::LoadState || c.kind == Command::DumpRam;
+        const bool takesFile = needsFile || c.kind == Command::Screenshot;
+        if (words.size() > (takesFile ? 3u : 2u)) return fail("too many words for " + verb);
+        if (needsFile && words.size() < 3) return fail(verb + " needs a file");
+        if (words.size() == 3) c.file = words[2];
+        out.push_back(c);
+        return true;
+    }
+    for (size_t i = 1; i < words.size(); ++i) {
+        std::string b = words[i];
+        for (char& ch : b) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        int port = 0;
+        if (b.rfind("p1.", 0) == 0) b = b.substr(3);
+        else if (b.rfind("p2.", 0) == 0) b = b.substr(3), port = 1;
+        if (!setButton(c.pad[port], b)) return fail("unknown button or command '" + words[i] + "'");
+    }
+    out.push_back(c);
+    return true;
+}
+
+void orPad(PadState& d, const PadState& s) {
+    d.up |= s.up, d.down |= s.down, d.left |= s.left, d.right |= s.right;
+    d.a |= s.a, d.b |= s.b, d.c |= s.c, d.start |= s.start;
+    d.x |= s.x, d.y |= s.y, d.z |= s.z, d.mode |= s.mode;
+}
+
+// A slower, lossier network than the real one, in front of the socket: what this side
+// sends waits `lagMs` and some packets never leave.
+class LaggyTransport : public NetTransport {
+public:
+    LaggyTransport(NetTransport& inner, long lagMs, long lossPercent)
+        : inner_(inner), lag_(static_cast<uint32_t>(lagMs)), loss_(static_cast<uint32_t>(lossPercent)) {}
+    void setNow(uint32_t now) {
+        now_ = now;
+        while (!queue_.empty() && queue_.front().first <= now_) {
+            inner_.send(queue_.front().second.data(), queue_.front().second.size());
+            queue_.pop_front();
+        }
+    }
+    void send(const uint8_t* data, size_t size) override {
+        seed_ = seed_ * 1103515245u + 12345u;
+        if ((seed_ >> 16) % 100 < loss_) return;
+        queue_.emplace_back(now_ + lag_, std::vector<uint8_t>(data, data + size));
+        setNow(now_);
+    }
+    bool receive(std::vector<uint8_t>& packet) override { return inner_.receive(packet); }
+    void keepPeer() override { inner_.keepPeer(); }
+
+private:
+    NetTransport& inner_;
+    uint32_t lag_, loss_;
+    uint32_t now_ = 0;
+    uint32_t seed_ = 1;
+    std::deque<std::pair<uint32_t, std::vector<uint8_t>>> queue_;
+};
+
+struct LogLine {
+    long frame;
+    uint32_t picture, sound;
+};
+
+bool readLog(const std::string& path, std::vector<LogLine>& log) {
+    std::ifstream in(path);
+    if (!in) return false;
+    for (std::string line; std::getline(in, line);) {
+        if (line.empty() || line[0] == '#') continue;
+        LogLine l{};
+        unsigned long p = 0, s = 0;
+        if (std::sscanf(line.c_str(), "%ld %lx %lx", &l.frame, &p, &s) < 2) continue;
+        l.picture = static_cast<uint32_t>(p);
+        l.sound = static_cast<uint32_t>(s);
+        log.push_back(l);
+    }
+    return true;
+}
+
+}  // namespace
+
+// --extract-songs: the instrument editor's Sacar canciones, without a window.
+int extractSongs(const std::string& game, const std::string& dir) {
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    SongExtractor extractor;
+    // (PLUMSG_RIP_THREADS=n: on n threads, to compare; as many as there are cores without it.)
+    if (const char* n = std::getenv("PLUMSG_RIP_THREADS")) extractor.setThreads(std::atoi(n));
+    extractor.setLog([](const std::string& s) {
+        std::printf("%s\n", s.c_str());
+        std::fflush(stdout);
+    });
+    const auto started = std::chrono::steady_clock::now();
+    std::string error;
+    std::string last;
+    std::string name = game.substr(game.find_last_of("/\\") == std::string::npos ? 0 : game.find_last_of("/\\") + 1);
+    name = name.substr(0, name.find_last_of('.'));  // the tag says the game's name, not its path
+    const bool ok = extractor.run(
+        game, name,
+        [&](const SongExtractor::Progress& p) {
+            if (p.doing.compare(0, 8, "Probando") != 0 && p.doing != last) std::printf("%s\n", p.doing.c_str());
+            last = p.doing;
+            return true;
+        },
+        [&](const SongExtractor::Song& song) {
+            char name[64];
+            std::snprintf(name, sizeof name, "/Song %02X.vgz", song.number);
+            std::ofstream out(dir + name, std::ios::binary);
+            out.write(reinterpret_cast<const char*>(song.vgz.data()), static_cast<std::streamsize>(song.vgz.size()));
+            if (!out) std::fprintf(stderr, "cannot write %s%s\n", dir.c_str(), name);
+        },
+        &error);
+    const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+    std::printf("%.0f s\n", took);
+    if (!extractor.effectInstruments().empty()) {
+        std::printf("Efectos de sonido:");
+        for (uint32_t fp : extractor.effectInstruments()) std::printf(" %08x", fp);
+        std::printf("\n");
+    }
+    if (!ok) {
+        std::fprintf(stderr, "%s\n", error.c_str());
+        return 1;
+    }
+    return 0;
+}
+
+// --play-vgm: the instrument editor's player, without a window.
+int playVgmFile(const std::string& path, long frames, const std::string& wav, const std::string& roland,
+                const std::string& midiLog, const std::string& mp3Out) {
+    std::vector<uint8_t> bytes;
+    VgmFile file;
+    std::string error;
+    if (!readFile(path, bytes) || !file.parse(std::move(bytes), &error)) {
+        std::fprintf(stderr, "%s: %s\n", path.c_str(), error.empty() ? "cannot read it" : error.c_str());
+        return 1;
+    }
+    RolandSound rolandSound;
+    std::vector<std::string> midiEvents;
+    VgmPlayer player;
+    player.load(file);
+    player.setRoland(&rolandSound);
+    player.setRolandOutput(!roland.empty());
+    if (!roland.empty()) {
+        std::vector<uint8_t> font;
+        if (!readFile(roland, font) || !rolandSound.loadSoundfont(font)) {
+            std::fprintf(stderr, "%s is not a SoundFont\n", roland.c_str());
+            return 1;
+        }
+    }
+    player.analyse();
+    std::printf("title: %s\ngame: %s\nlength: %.1f s%s\ninstruments:\n", file.title.c_str(), file.game.c_str(),
+                file.seconds(), file.loop ? " (loops)" : "");
+    for (const auto& [fp, seen] : rolandSound.seen()) {
+        const RolandSound::Assignment a = rolandSound.assignmentFor(fp);
+        std::printf("  %08x %s voices %03x notes %d (%d-%d): %s\n", fp,
+                    seen.kind == RolandSound::Kind::Fm        ? "FM"
+                    : seen.kind == RolandSound::Kind::PsgTone ? "PSG"
+                    : seen.kind == RolandSound::Kind::Rhythm  ? "rhythm"
+                                                              : "noise",
+                    seen.channels, seen.notes, seen.low, seen.high,
+                    a.drum >= 0 ? RolandSound::drumName(a.drum) : RolandSound::programName(a.program));
+    }
+    if (!midiLog.empty()) rolandSound.setLog(&midiEvents);
+    std::vector<int16_t> sound;
+    if (!mp3Out.empty()) {
+        if (!renderSong(file, roland.empty() ? nullptr : &rolandSound, nullptr, nullptr, SongRender{}, &sound)) return 1;
+        const std::vector<uint8_t> mp3 = encodeMp3(sound, 44100, 192, {file.title, file.game, std::string(), 0});
+        if (mp3.empty() || !writeFile(mp3Out, mp3.data(), mp3.size())) return 1;
+        if (!wav.empty() && !writeWav(wav, sound, 44100)) return 1;
+        std::printf("%.1f s to %s\n", static_cast<double>(sound.size() / 2) / 44100.0, mp3Out.c_str());
+        return 0;
+    }
+    for (long i = 0; i < frames && !player.finished(); ++i) player.play(1.0 / 60, 44100, sound);
+    bool ioError = !wav.empty() && !writeWav(wav, sound, 44100);
+    if (!midiLog.empty()) {
+        std::ofstream out(midiLog);
+        for (const std::string& e : midiEvents) out << e << "\n";
+        if (!out) ioError = true;
+    }
+    return ioError ? 1 : 0;
+}
+
+int main(int argc, char** argv) {
+    std::string effectsList;
+    std::string game, playVgm, vgmOut, png, layers, wav, gifOut, aviOut, roland, midiLog, stateIn, stateOut, ramOut, hashLog, json, expectLog, biosDir, extractDir;
+    std::string outDir = ".", mp3Out;
+    std::vector<std::string> bios, cheats, scripts, lines;
+    long frames = 600, overclock = 100, pngEvery = 0, netPort = 0, inputDelay = 2, netLag = 0, netLoss = 0;
+    bool netHost = false;
+    std::string netJoin;
+    int wideLeft = 0, wideRight = 0;
+    bool sixButton = false, noPad2 = false, noSpriteLimit = false, quiet = false, haveExpectHash = false, haveExpectAudio = false;
+    uint32_t expectHash = 0, expectAudio = 0;
+    Region region = Region::Auto;
+
+    if (argc < 2) {
+        std::fputs(kUsage, stderr);
+        return 2;
+    }
+    for (int i = 1; i < argc; ++i) {
+        const std::string a = argv[i];
+        bool missing = false;
+        auto next = [&]() -> std::string {
+            if (i + 1 < argc) return argv[++i];
+            missing = true;
+            return "";
+        };
+        auto number = [&](long* out) {
+            const std::string s = next();
+            char* end = nullptr;
+            *out = std::strtol(s.c_str(), &end, 10);
+            if (s.empty() || *end != 0 || *out < 0) missing = true;
+        };
+        auto hash = [&](uint32_t* out) {
+            const std::string s = next();
+            char* end = nullptr;
+            *out = static_cast<uint32_t>(std::strtoul(s.c_str(), &end, 16));
+            if (s.empty() || *end != 0) missing = true;
+        };
+        if (a == "--help" || a == "-h") {
+            std::fputs(kUsage, stdout);
+            return 0;
+        } else if (a == "--frames") number(&frames);
+        else if (a == "--region") {
+            const std::string r = next();
+            if (r == "jp" || r == "japan") region = Region::JapanNtsc;
+            else if (r == "us" || r == "usa") region = Region::UsaNtsc;
+            else if (r == "eu" || r == "europe" || r == "pal") region = Region::EuropePal;
+            else missing = true;
+        } else if (a == "--pal") region = Region::EuropePal;
+        else if (a == "--six-button") sixButton = true;
+        else if (a == "--no-pad2") noPad2 = true;
+        else if (a == "--no-sprite-limit") noSpriteLimit = true;
+        else if (a == "--widescreen") {
+            const std::string v = next();
+            int w = 0, h = 0;
+            if (std::sscanf(v.c_str(), "%d:%d", &w, &h) == 2 && w > 0 && h > 0) wideLeft = wideRight = VdpMd::wideColumnsFor(w, h);
+            else if (std::sscanf(v.c_str(), "%d,%d", &wideLeft, &wideRight) != 2 || wideLeft < 0 || wideRight < 0) missing = true;
+        }
+        else if (a == "--overclock") number(&overclock);
+        else if (a == "--bios") bios.push_back(next());
+        else if (a == "--bios-dir") biosDir = next();
+        else if (a == "--load-state") stateIn = next();
+        else if (a == "--cheat") cheats.push_back(next());
+        else if (a == "--input") scripts.push_back(next());
+        else if (a == "--do") lines.push_back(next());
+        else if (a == "--png") png = next();
+        else if (a == "--layers") layers = next();
+        else if (a == "--png-every") number(&pngEvery);
+        else if (a == "--out-dir") outDir = next();
+        else if (a == "--wav") wav = next();
+        else if (a == "--gif") gifOut = next();
+        else if (a == "--avi") aviOut = next();
+        else if (a == "--roland") roland = next();
+        else if (a == "--midi-log") midiLog = next();
+        else if (a == "--effects") effectsList = next();
+        else if (a == "--vgm") vgmOut = next();
+        else if (a == "--play-vgm") playVgm = next();
+        else if (a == "--mp3") mp3Out = next();
+        else if (a == "--extract-songs") extractDir = next();
+        else if (a == "--save-state") stateOut = next();
+        else if (a == "--dump-ram") ramOut = next();
+        else if (a == "--hash-log") hashLog = next();
+        else if (a == "--json") json = next();
+        else if (a == "--quiet") quiet = true;
+        else if (a == "--expect-hash") hash(&expectHash), haveExpectHash = true;
+        else if (a == "--expect-audio") hash(&expectAudio), haveExpectAudio = true;
+        else if (a == "--expect-log") expectLog = next();
+        else if (a == "--netplay-host") {
+            number(&netPort);
+            if (netPort == 0 || netPort > 65535) missing = true;
+            netHost = true;
+        } else if (a == "--netplay-join") netJoin = next();
+        else if (a == "--net-lag") number(&netLag);
+        else if (a == "--net-loss") {
+            number(&netLoss);
+            if (netLoss > 90) missing = true;
+        } else if (a == "--input-delay") {
+            number(&inputDelay);
+            if (inputDelay > 10) missing = true;
+        }
+        else if (a.size() > 2 && a.compare(0, 2, "--") == 0 && a != "--test-rom" && a != "--pad-test-rom" &&
+                 a != "--two-pad-test-rom" && a != "--sms-test-rom" && a != "--gg-test-rom") {
+            std::fprintf(stderr, "unknown option %s (see --help)\n", a.c_str());
+            return 2;
+        } else if (!game.empty()) {
+            std::fprintf(stderr, "only one game at a time (%s and %s)\n", game.c_str(), a.c_str());
+            return 2;
+        } else game = a;
+        if (missing) {
+            std::fprintf(stderr, "%s needs a valid value (see --help)\n", a.c_str());
+            return 2;
+        }
+    }
+    if (!playVgm.empty()) return playVgmFile(playVgm, frames, wav, roland, midiLog, mp3Out);
+    if (game.empty()) {
+        std::fputs(kUsage, stderr);
+        return 2;
+    }
+    if (!extractDir.empty()) return extractSongs(game, extractDir);
+    const bool netplay = netHost || !netJoin.empty();
+    if (netHost && !netJoin.empty()) {
+        std::fprintf(stderr, "--netplay-host and --netplay-join: one side or the other\n");
+        return 2;
+    }
+
+    // The script.
+    std::vector<Command> commands;
+    for (const std::string& path : scripts) {
+        std::ifstream in(path);
+        if (!in) {
+            std::fprintf(stderr, "cannot read %s\n", path.c_str());
+            return 1;
+        }
+        int n = 0;
+        for (std::string line; std::getline(in, line);)
+            if (!parseLine(line, ++n, path, commands)) return 2;
+    }
+    for (size_t i = 0; i < lines.size(); ++i)
+        if (!parseLine(lines[i], static_cast<int>(i + 1), "--do", commands)) return 2;
+
+    if (netplay)
+        for (const Command& c : commands)
+            if (c.kind != Command::Buttons) {
+                std::fprintf(stderr, "script line %d: only buttons can be scripted in netplay\n", c.line);
+                return 2;
+            }
+
+    std::vector<LogLine> expected;
+    if (!expectLog.empty() && !readLog(expectLog, expected)) {
+        std::fprintf(stderr, "cannot read %s\n", expectLog.c_str());
+        return 1;
+    }
+
+    // The console.
+    MegaDrive md;
+    md.setRegion(region);
+    for (int p = 0; p < 2; ++p) md.setPadType(p, sixButton ? PadType::SixButton : PadType::ThreeButton);
+    if (noPad2 && !netplay) md.setPadType(1, PadType::None);  // the guest plays on pad 2
+    md.vdp().setUnlimitedSprites(noSpriteLimit);
+    md.vdp().setWidescreen(wideLeft, wideRight);
+    md.setOverclock(static_cast<int>(overclock));
+    static const Region kRegions[3] = {Region::JapanNtsc, Region::UsaNtsc, Region::EuropePal};
+    if (!biosDir.empty()) {
+        const auto found = findCdBios({biosDir});
+        for (int r = 0; r < 3; ++r) {
+            std::vector<uint8_t> data;
+            if (!found[r].empty() && readFile(found[r], data)) md.setCdBios(kRegions[r], data);
+        }
+    }
+    for (const std::string& path : bios) {
+        std::vector<uint8_t> data;
+        if (!readFile(path, data)) {
+            std::fprintf(stderr, "cannot read BIOS %s\n", path.c_str());
+            return 1;
+        }
+        const BiosInfo info = identifyCdBios(data);
+        if (!info.valid) std::fprintf(stderr, "warning: %s: %s\n", path.c_str(), info.problem.c_str());
+        if (info.region == Region::Auto)
+            for (Region r : kRegions) md.setCdBios(r, data);
+        else
+            md.setCdBios(info.region, data);
+    }
+    if (game == "--test-rom") md.loadRomData(testrom::build());
+    else if (game == "--pad-test-rom") md.loadRomData(testrom::buildPadTest());
+    else if (game == "--two-pad-test-rom") md.loadRomData(testrom::buildTwoPadTest());
+    else if (game == "--sms-test-rom") md.loadRomData(smstestrom::build());
+    else if (game == "--gg-test-rom") md.loadRomData(smstestrom::build(true));
+    else {
+        std::string error;
+        if (!md.loadRom(game, &error)) {
+            std::fprintf(stderr, "cannot load %s: %s\n", game.c_str(), error.c_str());
+            return 1;
+        }
+        if (!md.loadNotice().empty()) std::fprintf(stderr, "%s\n", md.loadNotice().c_str());
+    }
+    if (!cheats.empty()) {
+        std::vector<CheatPatch> patches;
+        for (const std::string& code : cheats) {
+            std::vector<CheatPatch> p;
+            std::string error;
+            if (!decodeCheatCodes(code, &p, &error, md.isMasterSystem())) {
+                std::fprintf(stderr, "bad cheat %s: %s\n", code.c_str(), error.c_str());
+                return 2;
+            }
+            patches.insert(patches.end(), p.begin(), p.end());
+        }
+        md.setCheats(patches);
+    }
+    auto loadState = [&](const std::string& path) {
+        std::vector<uint8_t> data;
+        std::string error;
+        if (!readFile(path, data)) error = "cannot read it";
+        else if (md.loadState(data, &error)) return true;
+        std::fprintf(stderr, "cannot load state %s: %s\n", path.c_str(), error.c_str());
+        return false;
+    };
+    auto saveState = [&](const std::string& path) {
+        std::vector<uint8_t> data;
+        if (md.saveState(data) && writeFile(path, data.data(), data.size())) return true;
+        std::fprintf(stderr, "cannot write state %s\n", path.c_str());
+        return false;
+    };
+    auto dumpRam = [&](const std::string& path) {
+        const bool ok = md.masterSystem() ? writeFile(path, md.z80Ram().data(), md.z80Ram().size())
+                                          : writeFile(path, md.workRam().data(), md.workRam().size());
+        if (ok) return true;
+        std::fprintf(stderr, "cannot write %s\n", path.c_str());
+        return false;
+    };
+    auto screenshot = [&](std::string path, long frame) {
+        if (path.empty()) {
+            char name[32];
+            std::snprintf(name, sizeof name, "frame_%06ld.png", frame);
+            path = outDir + "/" + name;
+        }
+        const VideoFrameMd& f = md.frame();
+        if (writePng(path, f.rgba.data(), f.width, f.height, VideoFrameMd::kMaxWidth)) return true;
+        std::fprintf(stderr, "cannot write %s\n", path.c_str());
+        return false;
+    };
+    if (!stateIn.empty() && !loadState(stateIn)) return 1;
+
+    std::FILE* log = nullptr;
+    if (!hashLog.empty()) {
+        log = std::fopen(hashLog.c_str(), "w");
+        if (!log) {
+            std::fprintf(stderr, "cannot write %s\n", hashLog.c_str());
+            return 1;
+        }
+        std::fprintf(log, "# frame picture sound\n");
+    }
+
+    RolandSound rolandSound;
+    std::vector<std::string> midiEvents;
+    if (!roland.empty()) {
+        std::vector<uint8_t> font;
+        if (!readFile(roland, font) || !rolandSound.loadSoundfont(font)) {
+            std::fprintf(stderr, "%s is not a SoundFont\n", roland.c_str());
+            return 1;
+        }
+        if (!midiLog.empty()) rolandSound.setLog(&midiEvents);
+        std::set<uint32_t> effects;
+        for (size_t at = 0; at < effectsList.size();) {
+            char* stop = nullptr;
+            const unsigned long fp = std::strtoul(effectsList.c_str() + at, &stop, 16);
+            if (stop == effectsList.c_str() + at) break;
+            effects.insert(static_cast<uint32_t>(fp));
+            at = static_cast<size_t>(stop - effectsList.c_str());
+            while (at < effectsList.size() && (effectsList[at] == ',' || effectsList[at] == ' ')) ++at;
+        }
+        rolandSound.setSoundEffects(std::move(effects), true);
+        md.setRoland(&rolandSound, 0);
+    }
+    VgmWriter vgmWriter;
+    if (!vgmOut.empty()) md.setVgmWriter(&vgmWriter);
+
+    constexpr int kRate = 44100;
+    md.setSampleRate(kRate);
+    md.audio().clearSamples();
+    std::vector<int16_t> sound;
+    uint32_t audioHash = 2166136261u;
+    long divergence = -1;
+    std::string divergenceWhat;
+    size_t nextExpected = 0;
+    long ran = 0;
+    bool ioError = false;
+    // --gif and --avi: started on the first frame, which gives them their size.
+    GameRecording gifRecording, aviRecording;
+    auto recordVideo = [&](GameRecording& r, const std::string& path, GameRecording::Format format) {
+        if (path.empty()) return;
+        const VideoFrameMd& f = md.frame();
+        std::string error;
+        // As wide as H40 (an H32 picture is stretched to it, as on a TV) and as tall as the
+        // first frame without interlace.
+        const int height = f.interlaced ? f.height / 2 : f.height;
+        if (!r.active() && !r.start(path, format, VideoFrameMd::kMaxWidth, height, md.refreshRate(), 44100, &error)) {
+            std::fprintf(stderr, "%s\n", error.c_str());
+            ioError = true;
+            return;
+        }
+        r.addAudio(md.audio().samples().data(), md.audio().samples().size());
+        r.addFrame(f.rgba.data(), f.width, f.height, VideoFrameMd::kMaxWidth);
+    };
+
+    // What happens after each frame is final: the log, the expected log, the sound.
+    auto record = [&](long frame, uint32_t picture, const std::vector<int16_t>& samples) {
+        const uint32_t frameSound = soundHash(2166136261u, samples);
+        audioHash = soundHash(audioHash, samples);
+        if (!wav.empty()) sound.insert(sound.end(), samples.begin(), samples.end());
+        if (log) std::fprintf(log, "%ld %08x %08x\n", frame, picture, frameSound);
+        while (nextExpected < expected.size() && expected[nextExpected].frame < frame) ++nextExpected;
+        if (divergence < 0 && nextExpected < expected.size() && expected[nextExpected].frame == frame) {
+            const LogLine& e = expected[nextExpected];
+            if (e.picture != picture) {
+                divergence = frame;
+                divergenceWhat = "picture " + hex8(picture) + ", expected " + hex8(e.picture);
+            } else if (e.sound != frameSound) {
+                divergence = frame;
+                divergenceWhat = "sound " + hex8(frameSound) + ", expected " + hex8(e.sound);
+            }
+        }
+    };
+
+    const auto start = std::chrono::steady_clock::now();
+    std::string netError;
+    long rollbacks = 0;
+    int ping = 0;
+    if (netplay) {
+        UdpTransport udp;
+        bool ok = udp.open(netHost ? static_cast<int>(netPort) : 0) && (netHost || udp.setPeer(netJoin, 7845));
+        if (!ok) netError = udp.error();
+        NetplaySession::Config config;
+        config.inputDelay = static_cast<int>(inputDelay);
+        LaggyTransport link(udp, netLag, netLoss);
+        NetplaySession session(link, netHost ? NetplaySession::Role::Host : NetplaySession::Role::Guest, config);
+        // A frame can run several times (guessed pads, then the right ones): keep the
+        // last run of each, which is final once both sides have its pads.
+        std::vector<std::vector<int16_t>> frameSamples(static_cast<size_t>(frames));
+        std::vector<uint32_t> framePictures(static_cast<size_t>(frames));
+        session.onFrame = [&](uint32_t f, MegaDrive& m) {
+            if (f >= static_cast<uint32_t>(frames)) return;
+            frameSamples[f] = m.audio().samples();
+            framePictures[f] = frameHash(m.frame());
+        };
+        const int port = netHost ? 0 : 1;
+        const auto clockStart = std::chrono::steady_clock::now();
+        auto nowMs = [&] {
+            return static_cast<uint32_t>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - clockStart).count());
+        };
+        uint32_t doneAt = 0;
+        while (ok) {
+            const uint32_t now = nowMs();
+            link.setNow(now);
+            session.poll(md, now);
+            if (session.phase() == NetplaySession::Phase::Ended) {
+                netError = session.endReason();
+                break;
+            }
+            if (session.phase() == NetplaySession::Phase::Waiting && now > 60000) {
+                netError = "nobody joined within a minute";
+                break;
+            }
+            bool advanced = false;
+            if (session.frame() < static_cast<uint32_t>(frames)) {
+                const long n = static_cast<long>(session.frame()) + inputDelay;  // the frame this press lands on
+                PadState pads[2];
+                for (const Command& c : commands)
+                    if (n >= c.first && n <= c.last) orPad(pads[0], c.pad[0]), orPad(pads[1], c.pad[1]);
+                advanced = session.advance(md, pads[port]);
+                rollbacks += session.lastRollback();
+                md.audio().clearSamples();
+            } else {
+                session.catchUp(md);
+                if (session.confirmedFrames() >= static_cast<uint32_t>(frames)) {
+                    // Linger a moment so the other side gets our last pads too.
+                    if (doneAt == 0) doneAt = now;
+                    if (now - doneAt > 1000) break;
+                }
+            }
+            if (!advanced) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        ping = session.pingMs();
+        if (session.desyncFrame() >= 0 && netError.empty())
+            netError = "the two consoles went different on frame " + std::to_string(session.desyncFrame());
+        session.end();
+        if (netError.empty() || session.confirmedFrames() >= static_cast<uint32_t>(frames)) {
+            netError.clear();
+            // The log and the checks, from each frame's final run. md shows the last one.
+            for (long f = 0; f < frames; ++f) {
+                record(f, framePictures[f], frameSamples[f]);
+                ++ran;
+            }
+        }
+    }
+    for (long frame = 0; frame < frames && !netplay; ++frame) {
+        bool quit = false;
+        PadState pads[2];
+        for (const Command& c : commands) {
+            if (frame < c.first || frame > c.last) continue;
+            switch (c.kind) {
+                case Command::Buttons: orPad(pads[0], c.pad[0]), orPad(pads[1], c.pad[1]); break;
+                case Command::LoadState:
+                    if (!loadState(c.file)) ioError = true;
+                    rolandSound.allNotesOff();
+                    break;
+                case Command::Reset: md.reset(); break;
+                case Command::Power: md.powerCycle(); break;
+                default: break;
+            }
+        }
+        md.setPads(pads[0], pads[1]);
+        rolandSound.waitForTimbres();  // the same sound on every run
+        md.runFrame();
+        ++ran;
+        const uint32_t picture = frameHash(md.frame());
+        record(frame, picture, md.audio().samples());
+        if (!netplay) {
+            recordVideo(gifRecording, gifOut, GameRecording::Format::Gif);
+            recordVideo(aviRecording, aviOut, GameRecording::Format::Avi);
+        }
+        md.audio().clearSamples();
+        if (pngEvery > 0 && frame % pngEvery == 0 && !screenshot("", frame)) ioError = true;
+        for (const Command& c : commands) {
+            if (frame < c.first || frame > c.last) continue;
+            switch (c.kind) {
+                case Command::Screenshot: if (!screenshot(c.file, frame)) ioError = true; break;
+                case Command::SaveState: if (!saveState(c.file)) ioError = true; break;
+                case Command::DumpRam: if (!dumpRam(c.file)) ioError = true; break;
+                case Command::Hash: std::printf("frame %ld hash %08x\n", frame, picture); break;
+                case Command::Quit: quit = true; break;
+                default: break;
+            }
+        }
+        if (quit) break;
+    }
+    if (!netError.empty()) {
+        std::fprintf(stderr, "netplay: %s\n", netError.c_str());
+        return 1;
+    }
+    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    if (log) std::fclose(log);
+    if (!expected.empty() && divergence < 0 && static_cast<long>(expected.back().frame) >= ran) {
+        divergence = ran;
+        divergenceWhat = "the run ended before the expected log";
+    }
+
+    const VideoFrameMd& f = md.frame();
+    const uint32_t lastHash = frameHash(f);
+    if (!png.empty() && !screenshot(png, ran - 1)) ioError = true;
+    if (!layers.empty()) {
+        for (auto [name, layer] : {std::pair<const char*, const uint32_t*>{"_planeB.png", f.planeB.data()},
+                                   {"_planeA.png", f.planeA.data()}, {"_sprites.png", f.sprites.data()}})
+            if (!writePng(layers + name, layer, f.width, f.height, VideoFrameMd::kMaxWidth)) ioError = true;
+    }
+    if (!wav.empty() && !writeWav(wav, sound, kRate)) ioError = true;
+    for (GameRecording* r : {&gifRecording, &aviRecording}) {
+        std::string error;
+        if (!r->finish(&error)) {
+            std::fprintf(stderr, "%s\n", error.c_str());
+            ioError = true;
+        }
+    }
+    if (!vgmOut.empty()) {
+        const bool compress = vgmOut.size() > 4 && vgmOut.compare(vgmOut.size() - 4, 4, ".vgz") == 0;
+        const std::vector<uint8_t> file = vgmWriter.finish(md.masterClocks(), md.cartridge().header().title, compress);
+        std::ofstream out(vgmOut, std::ios::binary);
+        out.write(reinterpret_cast<const char*>(file.data()), static_cast<std::streamsize>(file.size()));
+        if (!out) ioError = true;
+    }
+    if (!midiLog.empty()) {
+        std::ofstream out(midiLog);
+        for (const std::string& e : midiEvents) out << e << "\n";
+        if (!out) ioError = true;
+    }
+    if (!stateOut.empty() && !saveState(stateOut)) ioError = true;
+    if (!ramOut.empty() && !dumpRam(ramOut)) ioError = true;
+
+    std::vector<std::string> failures;
+    if (haveExpectHash && lastHash != expectHash)
+        failures.push_back("picture hash " + hex8(lastHash) + ", expected " + hex8(expectHash));
+    if (haveExpectAudio && audioHash != expectAudio)
+        failures.push_back("sound hash " + hex8(audioHash) + ", expected " + hex8(expectAudio));
+    if (divergence >= 0) failures.push_back("frame " + std::to_string(divergence) + ": " + divergenceWhat);
+
+    const char* system = md.hasMsuMd() ? (md.is32x() ? "msu-32x" : "msu-md") : md.isMegaCd32x() ? "megacd32x" : md.isMegaCd() ? "megacd" : md.is32x() ? "32x" : md.isGameGear() ? "gamegear" : md.isMasterSystem() ? "mastersystem" : "megadrive";
+    const double fps = seconds > 0 ? ran / seconds : 0;
+    if (!quiet) {
+        std::printf("title: %s\nsystem: %s  region: %s\nframes: %ld  size: %dx%d  hash: %08x\n",
+                    md.cartridge().header().title.c_str(), system, md.pal() ? "pal" : "ntsc", ran, f.width, f.height,
+                    lastHash);
+        std::printf("audio hash: %08x\npc: %06x\n", audioHash, md.isMasterSystem() ? md.z80().pc : md.cpu().pc);
+        if (md.isMegaCd()) std::printf("sub pc: %06x\n", md.megaCd()->sub().pc);
+        if (md.is32x()) std::printf("sh-2 pc: %08x %08x\n", md.mars()->master().pc(), md.mars()->slave().pc());
+        std::printf("speed: %.0f fps (%.1fx)\n", fps, fps / md.refreshRate());
+        if (netplay) std::printf("netplay: %ld frames run again, ping %d ms\n", rollbacks, ping);
+        for (const std::string& s : failures) std::printf("FAILED: %s\n", s.c_str());
+    }
+    if (!json.empty()) {
+        std::ostringstream j;
+        j << "{\n  \"title\": " << jsonString(md.cartridge().header().title) << ",\n  \"system\": \"" << system
+          << "\",\n  \"pal\": " << (md.pal() ? "true" : "false") << ",\n  \"frames\": " << ran
+          << ",\n  \"width\": " << f.width << ",\n  \"height\": " << f.height << ",\n  \"hash\": \"" << hex8(lastHash)
+          << "\",\n  \"audio_hash\": \"" << hex8(audioHash) << "\",\n  \"pc\": \"" << hex8(md.isMasterSystem() ? md.z80().pc : md.cpu().pc) << "\"";
+        if (md.isMegaCd()) j << ",\n  \"sub_pc\": \"" << hex8(md.megaCd()->sub().pc) << "\"";
+        if (md.is32x())
+            j << ",\n  \"master_pc\": \"" << hex8(md.mars()->master().pc()) << "\",\n  \"slave_pc\": \""
+              << hex8(md.mars()->slave().pc()) << "\"";
+        j << ",\n  \"fps\": " << static_cast<long>(fps) << ",\n  \"divergence\": " << divergence;
+        if (netplay) j << ",\n  \"netplay_rollback_frames\": " << rollbacks << ",\n  \"netplay_ping_ms\": " << ping;
+        j << ",\n  \"failures\": [";
+        for (size_t i = 0; i < failures.size(); ++i) j << (i ? ", " : "") << jsonString(failures[i]);
+        j << "]\n}\n";
+        if (json == "-") std::fputs(j.str().c_str(), stdout);
+        else if (std::ofstream out(json); !(out << j.str())) ioError = true;
+    }
+    if (ioError) return 1;
+    return failures.empty() ? 0 : 3;
+}

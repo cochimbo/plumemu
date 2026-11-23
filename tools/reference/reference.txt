@@ -1,0 +1,45 @@
+# The image and sound reference: plumsg 6e2285f and plumnin 0432fe4, before they came
+# into plumemu, built on Linux (GCC 13, Release). Written by run.sh; see README.md.
+# name                    exit picture sound frame-log
+md-test-rom                0 d171be7e a9092dab 23221bf4b1b5
+md-test-rom-roland         0 d171be7e 7a5f9a83 65f725dc0a35
+md-test-rom-6button        0 48feecca 0b065117 053e233e2c1c
+md-test-rom-wide           0 bb495740 162e9691 4bf454801bc0
+md-pad-test-rom            0 d50d7dc5 daadcd35 4c497ef12dcd
+md-two-pad-test-rom        0 d6246c05 daadcd35 ca38da01c426
+sms-test-rom               0 4220de49 c10a694f f3b23dc65559
+sms-test-rom-roland        0 4220de49 65079cf1 d5e77f23df59
+gg-test-rom                0 72c5cc29 743c306c f0abe4fff5de
+gg-test-rom-roland         0 72c5cc29 85fc04c1 9f7295c4bd4d
+240p-sonido                0 30f97b0f 1b3fa58d 36c2ece48260
+240p-sonido-roland         0 30f97b0f 27fd468d eaa64ef52049
+240p-sincro-audio          0 96a707d5 21b45c3b 8bfc16d0adbe
+240p-scroll                0 22bd8bf2 5102146d bfb23ca949d7
+240p-mando                 0 5e2bbf00 f0f0898d 30417f26ccce
+240p-480i                  0 99bc0656 ebe015c5 823d7c6fefb2
+nes-test-rom               0 fd7c2f61 3a5b5b25 26b1877d7703
+nes-test-rom-synth         0 64c3f8c5 3a5b5b25 b95e76c115c0
+gb-test-rom                0 8ed7be75 c3f9ea05 014eb14012c5
+gb-test-rom-synth          0 8ed7be75 c3f9ea05 014eb14012c5
+gbc-test-rom               0 8ed7be75 c3f9ea05 014eb14012c5
+snes-test-rom              0 36e51785 c3f9ea05 a122341c3a95
+snes-test-rom-synth        0 36e51785 c3f9ea05 a122341c3a95
+gb-cpu_instrs              0 e24260fa 3c13310f c1ead0d3b30c
+gb-instr_timing            0 f55476b4 5c166c3d cedf7a203d32
+gb-dmg_sound               0 b588dbb5 f71d84c6 35dd95086deb
+gb-cgb_sound               0 4ff1b1dd 21391b7d 1d2de83fd4e9
+gb-halt_bug                0 07d16cfa 81d849f5 e8b84e5871c4
+gb-dmg-acid2               0 92f5e0d5 862a0499 e193aa8293b9
+gb-cgb-acid2               0 2382b2dc e0e72011 c1819c918cc6
+nes-instr_basics           0 7b7a902c 1f595beb 1c89060504fa
+nes-branch_timing          0 d3976821 91c39ab1 291716b21b59
+nes-apu_len_ctr            0 6b843d7f 51f75679 806a23cb7c29
+nes-apu_dmc_basics         0 c6e15a2e ed27206f 4dcdc4eb2c65
+nes-ppu_vbl_clear          0 d7821426 2b2af911 cc9b76e034c2
+nes-ppu_palette_ram        0 d7821426 ce039bb7 42a97509eae0
+nes-mmc3_clocking          0 1350d078 f6bbe0e3 d80b64760e60
+snes-cpu_adc               0 e5731aed 6b7a38e5 f03d10b19b77
+snes-cpu_mov               0 fe50375d 6b7a38e5 46c679ed58bf
+snes-bank_hirom            0 45d6fd9d 8cd4530d 76175e76d825
+snes-twinkle               0 44aa1dc5 8a4b140f 0a6110fb732c
+snes-twinkle-synth         0 44aa1dc5 78988158 4ce3ce4608f5

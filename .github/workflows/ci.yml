@@ -1,0 +1,159 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Each program with its window, its tests and its own extra checks. Built from the root
+  # CMakeLists.txt with only that program on, as plumsg's and plumnin's CI built them.
+  linux:
+    name: linux (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: sega
+            only: -DPLUM_BUILD_NINTENDO=OFF
+          - app: nintendo
+            only: -DPLUM_BUILD_SEGA=OFF
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Only documentation changed?
+        id: changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: bash tools/ci/needs-build.sh
+      - name: Install SDL2
+        if: steps.changes.outputs.build == 'true'
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
+      - name: Build
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release ${{ matrix.only }}
+          cmake --build build --parallel
+      - name: Tests
+        if: steps.changes.outputs.build == 'true'
+        run: ctest --test-dir build --output-on-failure
+      - name: Z80 exerciser (ZEXDOC)
+        if: steps.changes.outputs.build == 'true' && matrix.app == 'sega'
+        run: |
+          curl -sSfL -o zexdoc.com https://raw.githubusercontent.com/anotherlin/z80emu/master/testfiles/zexdoc.com
+          ./build/sega/zex_runner zexdoc.com
+      - name: 68000 single-step tests (Tom Harte)
+        if: steps.changes.outputs.build == 'true' && matrix.app == 'sega'
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/SingleStepTests/680x0 harte
+          git -C harte sparse-checkout set 68000/v1
+          git -C harte checkout e0d5ece9670205cc84a0101081837deb446f86a3
+          ./build/sega/m68k_json_runner --cycles --allow-failures 40 harte/68000/v1/*.json.gz
+      - name: Screenshot of the test ROM
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          if [ "${{ matrix.app }}" = sega ]; then
+            ./build/sega/rom_runner --test-rom --frames 120 --png test-rom.png
+          else
+            ./build/nintendo/plumnin-headless --test-rom --frames 120 --png test-rom.png --quiet
+          fi
+      - uses: actions/upload-artifact@v4
+        if: steps.changes.outputs.build == 'true'
+        with:
+          name: test-rom-screenshot-${{ matrix.app }}
+          path: test-rom.png
+
+  # Both programs without a window, in one build: builds without SDL2 or OpenGL, as a CI
+  # job or a Claude thread would to reproduce a bug, and keeps a run's outputs as an artifact.
+  headless:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Only documentation changed?
+        id: changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: bash tools/ci/needs-build.sh
+      - name: Build (no frontend)
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPLUM_BUILD_FRONTEND=OFF
+          cmake --build build --parallel --target plumsg-headless plumsg_core_tests plumnin-headless plumnin_core_tests
+      - name: Headless tests
+        if: steps.changes.outputs.build == 'true'
+        run: ctest --test-dir build --output-on-failure -R "headless|core_tests|240p"
+      # The picture and sound of a fixed set of runs of both programs must be the ones in
+      # tools/reference/reference.txt (see tools/reference/README.md).
+      - name: Picture and sound reference
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          tools/reference/fetch.sh reference-roms
+          tools/reference/run.sh build/sega/plumsg-headless build/nintendo/plumnin-headless reference-roms reference-now.txt > /dev/null
+          tools/reference/compare.sh reference-now.txt
+      # The Game Boy's test ROMs (blargg, mooneye, the acid2 pictures): downloaded, never committed.
+      - name: Game Boy test ROMs
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          curl -sSL -o gbtr.zip https://github.com/c-sp/game-boy-test-roms/releases/download/v7.0/game-boy-test-roms-v7.0.zip
+          mkdir -p gbtr && unzip -q gbtr.zip -d gbtr
+          cmake build -DGB_TEST_ROMS="$PWD/gbtr"
+          cmake --build build --parallel --target gb-test-roms
+          ctest --test-dir build --output-on-failure -R gb_test_roms
+      # The NES's (blargg, sprite hit and overflow, MMC3...), at a fixed commit.
+      - name: NES test ROMs
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          curl -sSL -o nestr.zip https://github.com/christopherpow/nes-test-roms/archive/95d8f621ae55cee0d09b91519a8989ae0e64753b.zip
+          unzip -q nestr.zip && mv nes-test-roms-95d8f621ae55cee0d09b91519a8989ae0e64753b nestr
+          cmake build -DNES_TEST_ROMS="$PWD/nestr"
+          cmake --build build --parallel --target nes-test-roms
+          ctest --test-dir build --output-on-failure -R nes_test_roms
+      # The SNES's: krom's test ROMs (only the ones the suite runs, at a fixed commit) and
+      # SingleStepTests' processor tests (the start of each 65816 file is enough).
+      - name: SNES test ROMs
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          base=https://raw.githubusercontent.com/PeterLemon/SNES/350b394e86ec5d62f600b5cbf64cdce3721bb6ef
+          cmake --build build --parallel --target snes-test-roms snes-single-step
+          ./build/nintendo/snes-test-roms --list > snes-roms.txt
+          xargs -P 16 -I{} curl -sSfL --create-dirs -o "snestr/{}" "$base/{}" < snes-roms.txt
+          mkdir -p ss65816 ssspc700
+          for i in $(seq 0 255); do h=$(printf %02x $i); echo "$h.e.json"; echo "$h.n.json"; done |
+            xargs -P 16 -I{} curl -sSfL -r 0-150000 -o ss65816/{} \
+              https://raw.githubusercontent.com/SingleStepTests/65816/307c63f5673c8c6b861c52f71ddb89212a227480/v1/{}
+          for i in $(seq 0 255); do printf '%02x.json\n' $i; done |
+            xargs -P 16 -I{} curl -sSfL -o ssspc700/{} \
+              https://raw.githubusercontent.com/SingleStepTests/spc700/67d15f492b2740964abd4efd1229e0ec9c342228/v1/{}
+          cmake build -DSNES_TEST_ROMS="$PWD/snestr" -DSNES_CPU_TESTS="$PWD/ss65816" -DSNES_SPC_TESTS="$PWD/ssspc700"
+          cmake --build build --parallel --target snes-test-roms snes-single-step
+          ctest --test-dir build --output-on-failure -R "snes_test_roms|snes_cpu_tests|snes_spc_tests"
+      - name: Sample runs with an input script
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          mkdir -p headless-out/sega headless-out/nintendo
+          ./build/sega/plumsg-headless --pad-test-rom --frames 120 --out-dir headless-out/sega \
+            --do "30+30 start" --do "45 screenshot" --do "90 screenshot" --json headless-out/sega/pad.json
+          ./build/sega/plumsg-headless --test-rom --frames 300 --png-every 100 --out-dir headless-out/sega \
+            --wav headless-out/sega/test-rom.wav --hash-log headless-out/sega/test-rom-hashes.txt \
+            --json headless-out/sega/test-rom.json
+          ./build/nintendo/plumnin-headless --test-rom --frames 120 --out-dir headless-out/nintendo \
+            --do "30+30 right" --do "45 screenshot" --do "90 screenshot" --json headless-out/nintendo/moves.json
+          ./build/nintendo/plumnin-headless --test-rom --system gb --frames 300 --png-every 100 \
+            --out-dir headless-out/nintendo --do "50-250 a" --wav headless-out/nintendo/test-pattern.wav \
+            --hash-log headless-out/nintendo/test-pattern-hashes.txt --json headless-out/nintendo/test-pattern.json
+          cp reference-now.txt headless-out/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: steps.changes.outputs.build == 'true' && always()
+        with:
+          name: headless-output
+          path: headless-out

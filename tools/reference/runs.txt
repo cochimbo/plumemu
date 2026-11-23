@@ -1,0 +1,67 @@
+# The runs of the image and sound reference (see README.md).
+#
+# One per line:  app | name | game | frames | extra arguments
+#   app     sega (plumsg-headless) or nintendo (plumnin-headless)
+#   name    what the run is called in the results
+#   game    a built-in test program (--test-rom...) or a path under the ROMs folder
+#           that fetch.sh fills ("240p/240pSuite-1.32.bin", "gb/blargg/...")
+#   frames  how many frames to run
+#   extra   more plumsg-headless / plumnin-headless arguments; @SF2 is the SoundFont
+#           (GeneralUser GS, which fetch.sh downloads), @DIR the ROMs folder
+#
+# Each run writes the hash of its last frame, of its whole sound and of the log with
+# one picture and sound hash per frame. A change in any of them shows up in the diff.
+
+# --- Sega: the built-in test programs, with the original sound and with Roland
+sega | md-test-rom          | --test-rom          | 600 |
+sega | md-test-rom-roland   | --test-rom          | 600 | --roland @SF2
+sega | md-test-rom-6button  | --test-rom          | 300 | --six-button --region eu
+sega | md-test-rom-wide     | --test-rom          | 300 | --widescreen 16:9
+sega | md-pad-test-rom      | --pad-test-rom      | 240 | --do "30+30 start" --do "60+30 a" --do "90+30 b" --do "120+30 c"
+sega | md-two-pad-test-rom  | --two-pad-test-rom  | 240 | --do "20+20 a" --do "50+20 p2.b"
+sega | sms-test-rom         | --sms-test-rom      | 600 |
+sega | sms-test-rom-roland  | --sms-test-rom      | 600 | --roland @SF2
+sega | gg-test-rom          | --gg-test-rom       | 600 |
+sega | gg-test-rom-roland   | --gg-test-rom       | 600 | --roland @SF2
+
+# --- Sega: the 240p Test Suite (in the repository) with some of its scripts
+sega | 240p-sonido          | 240p/240pSuite-1.32.bin | 2000 | --input @DIR/240p/guiones/sonido.txt
+sega | 240p-sonido-roland   | 240p/240pSuite-1.32.bin | 2000 | --input @DIR/240p/guiones/sonido.txt --roland @SF2
+sega | 240p-sincro-audio    | 240p/240pSuite-1.32.bin | 2000 | --input @DIR/240p/guiones/sincro-audio.txt
+sega | 240p-scroll          | 240p/240pSuite-1.32.bin | 2000 | --input @DIR/240p/guiones/scroll.txt
+sega | 240p-mando           | 240p/240pSuite-1.32.bin | 2000 | --input @DIR/240p/guiones/mando.txt
+sega | 240p-480i            | 240p/240pSuite-1.32.bin | 2000 | --input @DIR/240p/guiones/240p-480i.txt
+
+# --- Nintendo: the built-in test pattern on each console, with the chip and with the synthesizer
+nintendo | nes-test-rom          | --test-rom | 600 | --system nes --do "30+60 right" --do "100-300 a"
+nintendo | nes-test-rom-synth    | --test-rom | 600 | --system nes --do "100-300 a" --synth @SF2
+nintendo | gb-test-rom           | --test-rom | 600 | --system gb
+nintendo | gb-test-rom-synth     | --test-rom | 600 | --system gb --synth @SF2
+nintendo | gbc-test-rom          | --test-rom | 600 | --system gbc
+nintendo | snes-test-rom         | --test-rom | 600 | --system snes
+nintendo | snes-test-rom-synth   | --test-rom | 600 | --system snes --synth @SF2
+
+# --- Game Boy (c-sp's game-boy-test-roms v7.0)
+nintendo | gb-cpu_instrs         | gb/blargg/cpu_instrs/cpu_instrs.gb   | 3600 |
+nintendo | gb-instr_timing       | gb/blargg/instr_timing/instr_timing.gb | 600 |
+nintendo | gb-dmg_sound          | gb/blargg/dmg_sound/dmg_sound.gb     | 2400 |
+nintendo | gb-cgb_sound          | gb/blargg/cgb_sound/cgb_sound.gb     | 2400 |
+nintendo | gb-halt_bug           | gb/blargg/halt_bug.gb                | 600 |
+nintendo | gb-dmg-acid2          | gb/dmg-acid2/dmg-acid2.gb            | 300 |
+nintendo | gb-cgb-acid2          | gb/cgb-acid2/cgb-acid2.gbc           | 300 |
+
+# --- NES (christopherpow's nes-test-roms)
+nintendo | nes-instr_basics      | nes/instr_test-v5/rom_singles/01-basics.nes | 900 |
+nintendo | nes-branch_timing     | nes/branch_timing_tests/1.Branch_Basics.nes | 600 |
+nintendo | nes-apu_len_ctr       | nes/apu_test/rom_singles/1-len_ctr.nes | 900 |
+nintendo | nes-apu_dmc_basics    | nes/apu_test/rom_singles/7-dmc_basics.nes | 900 |
+nintendo | nes-ppu_vbl_clear     | nes/blargg_ppu_tests_2005.09.15b/vbl_clear_time.nes | 600 |
+nintendo | nes-ppu_palette_ram   | nes/blargg_ppu_tests_2005.09.15b/palette_ram.nes | 600 |
+nintendo | nes-mmc3_clocking     | nes/mmc3_irq_tests/1.Clocking.nes | 600 |
+
+# --- SNES (PeterLemon's SNES test ROMs)
+nintendo | snes-cpu_adc          | snes/CPUTest/CPU/ADC/CPUADC.sfc | 600 |
+nintendo | snes-cpu_mov          | snes/CPUTest/CPU/MOV/CPUMOV.sfc | 600 |
+nintendo | snes-bank_hirom       | snes/BANK/HiROMFastROM/BANKHiROMFastROM.sfc | 300 |
+nintendo | snes-twinkle          | snes/SPC700/Twinkle/Twinkle.sfc | 1200 |
+nintendo | snes-twinkle-synth    | snes/SPC700/Twinkle/Twinkle.sfc | 1200 | --synth @SF2

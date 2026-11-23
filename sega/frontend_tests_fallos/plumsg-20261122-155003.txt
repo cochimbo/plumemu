@@ -1,0 +1,19 @@
+plumsg 4c45d70-dirty closed because of a crash.
+
+What happened: the program aborted (SIGABRT)
+Where: -
+Game: roms/juego.md
+
+Stack:
+/home/user/build/frontend_tests(+0x40092)[0x555d7c649092]
+/home/user/build/frontend_tests(+0x402db)[0x555d7c6492db]
+/lib/x86_64-linux-gnu/libc.so.6(+0x45330)[0x7f6b5ca45330]
+/lib/x86_64-linux-gnu/libc.so.6(pthread_kill+0x11c)[0x7f6b5ca9ebec]
+/lib/x86_64-linux-gnu/libc.so.6(gsignal+0x1e)[0x7f6b5ca4527e]
+/lib/x86_64-linux-gnu/libc.so.6(abort+0xdf)[0x7f6b5ca288ff]
+/home/user/build/frontend_tests(+0x1d12c)[0x555d7c62612c]
+/home/user/build/frontend_tests(+0x2476d)[0x555d7c62d76d]
+/home/user/build/frontend_tests(+0x1f6df)[0x555d7c6286df]
+/lib/x86_64-linux-gnu/libc.so.6(+0x2a1ca)[0x7f6b5ca2a1ca]
+/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b)[0x7f6b5ca2a28b]
+/home/user/build/frontend_tests(+0x1f7e5)[0x555d7c6287e5]

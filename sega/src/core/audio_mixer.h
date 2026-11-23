@@ -1,0 +1,58 @@
+#pragma once
+
+#include <cstdint>
+#include <vector>
+
+namespace plumsg {
+
+// Mixes the sound chips into one stream at the frontend's rate. The YM2612 runs at
+// its own rate (about 53.3 kHz) and is resampled here with linear interpolation; the
+// PSG already produces samples at the output rate. Each frame the console hands over
+// what both produced; whatever one has more of waits for the next frame.
+class AudioMixer {
+public:
+    void setOutputRate(double hz) { outRate_ = hz; }
+    double outputRate() const { return outRate_; }
+    void setFmRate(double hz) { fmRate_ = hz; }
+    // Relative volumes in percent. The PSG is quieter than the FM on real hardware.
+    void setGains(int fm, int psg) {
+        fmGain_ = fm;
+        psgGain_ = psg;
+    }
+    double fmWeight() const { return fmGain_ / 100.0; }
+    double psgWeight() const { return psgGain_ / 100.0; }
+
+    // Consumes (and clears) interleaved stereo samples from both chips, and from the
+    // 32X's PWM when there is one (already at the output rate, like the PSG).
+    void mix(std::vector<int16_t>& fm, std::vector<int16_t>& psg, std::vector<int16_t>* pwm = nullptr);
+    void reset();
+
+    // Interleaved stereo samples at outputRate() produced since clearSamples().
+    const std::vector<int16_t>& samples() const { return out_; }
+    void clearSamples() { out_.clear(); }
+    // The same, to add more sound into (the Roland sound).
+    std::vector<int16_t>& output() { return out_; }
+
+    // The resampler's phase and what waits in the queues, so sound continues exactly
+    // the same after loading a savestate.
+    template <class Ar>
+    void state(Ar& ar) {
+        ar(pos_, prevL_, prevR_, fmQueue_, psgQueue_);
+    }
+    // What waits from the 32X or the Mega CD: a block of its own, so older states
+    // without it still load.
+    template <class Ar>
+    void addOnState(Ar& ar) {
+        ar(pwmQueue_);
+    }
+
+private:
+    double outRate_ = 44100.0;
+    double fmRate_ = 53267.0;
+    int fmGain_ = 100, psgGain_ = 50;
+    double pos_ = 0;  // position in FM input samples after prev_
+    int16_t prevL_ = 0, prevR_ = 0;
+    std::vector<int16_t> fmQueue_, psgQueue_, pwmQueue_, out_;
+};
+
+}  // namespace plumsg
