@@ -17,9 +17,18 @@ tools/reference/run.sh build/sega/plumsg-headless build/nintendo/plumnin-headles
 tools/reference/compare.sh now.txt                               # exit code 1 if anything changed
 ```
 
-The CI's headless job does the same on every pull request. A change that draws or sounds
-different on purpose rewrites `reference.txt` (run.sh's output, with its header kept)
-and says why in the pull request.
+`reference.txt` was made with GCC 13 (Ubuntu 24.04). Another compiler gives the same
+pictures and the same chip sound, but can round the Roland sound's and the synthesizer's
+samples differently (GCC 15 on GitHub's Ubuntu 26.04 does), so their runs (`-roland`,
+`-synth`) only compare with a build from the same compiler. That is why the CI's headless
+job does not use `reference.txt`: on every pull request (and push to main) it builds the
+base too and compares the two on the same machine:
+
+```sh
+tools/reference/compare.sh now.txt base.txt
+```
+
+A change that draws or sounds different on purpose says so, and why, in its pull request.
 
 The test ROMs from plumsg's issues are not here: GitHub only serves them to its own
 runners. They stay in plumsg's `Test ROMs` workflow (`.github/workflows/test-roms.yml`),
