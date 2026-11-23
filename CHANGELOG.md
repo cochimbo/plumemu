@@ -3,6 +3,29 @@
 What each version brings, newest first. Installers are on the
 [releases](https://github.com/cochimbo/plumsg/releases) page.
 
+## 1.2.0
+
+- **Export songs to MP3**: the instrument editor has an "Exportar a MP3..." button that
+  saves the open song, or every song of the game, as it sounds there: the Roland sound
+  with what was chosen for the game and for each song, the instruments left on the
+  chip's own sound, the reverb, chorus and equalizer (or the original sound when
+  "Original" is chosen). Its start, its loop twice and an 8 s fade, at 192 kbit/s with
+  title, game and number in the ID3 tag, in `sonido/mp3/<game>/`. It runs on a thread of
+  its own, with a progress bar and Stop. The encoder is shine (LGPL 2); its license ships
+  with the installer and the AppImage.
+- **Instruments and volume per song**: the instrument editor keeps what you choose for
+  the open song apart from the rest of the game (or for the whole game, as before, with
+  "Cambiar en: Todo el juego"). While playing, the console watches which song the game
+  asks its sound driver for, and the Roland sound uses what was chosen for that song.
+- **Getting the songs out is faster**: "Sacar canciones" listens on as many threads as
+  there are cores (up to 8) and gives the same songs as on one thread. A song that came
+  out again with an effect over it, or with its channels in another order, is no longer
+  listed twice.
+- **Savestates keep the YM2612's held notes**: a state loaded kept the notes of what
+  played before, and a recording started there began with them held. Older states load
+  as before.
+- **Mega Drive label on the covers** of the library's "Todos" tab.
+
 ## 1.1.0
 
 - **History and Favourites in the library**: two new tabs after "Todos". Histórico lists
