@@ -6,7 +6,7 @@
 #include <iterator>
 #include <mutex>
 
-#include "i18n.h"
+#include "core/i18n.h"
 #include "miniz.h"
 
 namespace plumnin {

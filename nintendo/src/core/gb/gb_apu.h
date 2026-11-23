@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "../state_io.h"
+#include "core/state_io.h"
 #include "../synth_music.h"
 
 namespace plumnin::gb {

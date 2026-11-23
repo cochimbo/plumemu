@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "../core/system.h"
-#include "texture_cache.h"
+#include "frontend/texture_cache.h"
 
 namespace plumnin {
 

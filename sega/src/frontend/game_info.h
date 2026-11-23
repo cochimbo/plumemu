@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "../core/system.h"
-#include "game_info_data.h"
+#include "frontend/game_info_data.h"
 
 namespace plumsg {
 

@@ -8,9 +8,9 @@
 #include <fstream>
 #include <system_error>
 
-#include "../core/i18n.h"
-#include "../render/gl.h"
-#include "library_names.h"
+#include "core/i18n.h"
+#include "render/gl.h"
+#include "frontend/library_names.h"
 #include "screenscraper_data.h"
 
 #define STB_IMAGE_IMPLEMENTATION

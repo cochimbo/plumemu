@@ -20,6 +20,14 @@ endif()
 
 include(FetchContent)
 
+# The code shared with plumnin (plumemu's common/, namespace plum) and the vendored
+# libraries both use (plumemu's third_party/).
+set(PLUM_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
+set(PLUM_COMMON_DIR ${PLUM_ROOT}/common)
+if(NOT TARGET plum_common)
+  add_subdirectory(${PLUM_COMMON_DIR} ${CMAKE_BINARY_DIR}/common)
+endif()
+
 # miniz (vendored, MIT): zip files, savestate compression and PNG screenshots.
 add_library(plumsg_miniz STATIC third_party/miniz/miniz.c)
 set_target_properties(plumsg_miniz PROPERTIES LINKER_LANGUAGE C)
@@ -152,8 +160,26 @@ if(NOT MSVC)
   endif()
 endif()
 
+# The version About and the crash reports show: -DPLUMSG_VERSION=... (the release workflow
+# passes the release's), else the tag and commit it was built from.
+set(PLUMSG_VERSION "" CACHE STRING "Version shown in About and in crash reports (empty: git describe)")
+set(plumsg_version "${PLUMSG_VERSION}")
+find_package(Git QUIET)
+if(NOT plumsg_version AND GIT_FOUND)
+  # Only this program's tags (plumsg-v1.2.0), as plumemu holds plumsg and plumnin.
+  execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --match "plumsg-v*" --always --dirty
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  OUTPUT_VARIABLE plumsg_version OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+  string(REGEX REPLACE "^plumsg-v" "" plumsg_version "${plumsg_version}")
+endif()
+if(NOT plumsg_version)
+  set(plumsg_version "dev")
+endif()
+set_source_files_properties(src/app_info.cpp PROPERTIES COMPILE_DEFINITIONS "PLUM_VERSION=\"${plumsg_version}\"")
+
 # Emulator core: no SDL, no OS dependencies.
 add_library(plumsg_core STATIC
+  src/app_info.cpp
   src/core/m68k.cpp
   src/core/z80.cpp
   src/core/vdp_md.cpp
@@ -170,7 +196,6 @@ add_library(plumsg_core STATIC
   src/core/song_extract.cpp
   src/core/song_export.cpp
   src/core/megadrive.cpp
-  src/core/rewind.cpp
   src/core/cheats.cpp
   src/core/sms.cpp
   src/core/vdp_sms.cpp
@@ -183,14 +208,14 @@ add_library(plumsg_core STATIC
   src/core/cd_image.cpp
   src/core/megacd.cpp
   src/core/netplay.cpp
-  src/core/i18n.cpp
-  src/core/recording.cpp
   src/render/planes.cpp
   src/render/profile3d.cpp
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
-target_include_directories(plumsg_core PUBLIC src src/core PRIVATE third_party/tsf third_party/stb)
-target_link_libraries(plumsg_core PUBLIC plumsg_miniz Threads::Threads PRIVATE plumsg_ymfm chdr-static plumsg_decoders plumsg_shine)
+target_include_directories(plumsg_core PUBLIC src src/core PRIVATE third_party/tsf ${PLUM_ROOT}/third_party/stb)
+target_link_libraries(plumsg_core PUBLIC plum_common plumsg_miniz Threads::Threads PRIVATE plumsg_ymfm chdr-static plumsg_decoders plumsg_shine)
+# While plumsg's own code is in namespace plumsg, it sees the common code's names (common/src/plum.h).
+target_compile_definitions(plumsg_core PUBLIC PLUM_APP_NAMESPACE=plumsg)
 
 # UDP sockets for netplay (the session itself is in the core).
 add_library(plumsg_net STATIC src/net/udp.cpp)
@@ -250,36 +275,36 @@ target_link_libraries(plumsg_imgui PUBLIC ${PLUMSG_SDL2_TARGET})
 
 add_executable(plumsg WIN32
   src/frontend/main.cpp
-  src/frontend/crash.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/crash.cpp
   src/frontend/input.cpp
-  src/frontend/audio.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/audio.cpp
   src/frontend/settings.cpp
   src/frontend/game_options.cpp
   src/frontend/instrument_editor.cpp
   src/frontend/score_view.cpp
   src/frontend/file_dialog.cpp
   src/frontend/ui.cpp
-  src/frontend/handheld.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/handheld.cpp
   src/frontend/osk.cpp
   src/frontend/theme.cpp
   src/frontend/library.cpp
   src/frontend/music_batch.cpp
-  src/frontend/texture_cache.cpp
-  src/frontend/library_names.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/texture_cache.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/library_names.cpp
   src/frontend/game_info.cpp
-  src/frontend/game_info_data.cpp
-  src/frontend/http.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/game_info_data.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/http.cpp
   src/frontend/screenscraper.cpp
   src/frontend/screenscraper_data.cpp
   src/frontend/ui_media.cpp
   src/frontend/manual.cpp
   src/frontend/cheat_database.cpp
-  src/frontend/languages.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/languages.cpp
   src/frontend/achievements_ui.cpp
-  src/render/gl.cpp
+  ${PLUM_COMMON_DIR}/src/render/gl.cpp
   src/render/gl_renderers.cpp
   src/render/box_shelf.cpp
-  src/render/room.cpp
+  ${PLUM_COMMON_DIR}/src/render/room.cpp
   src/render/console_models.cpp
   src/render/gltf_model.cpp
   src/render/upscale.cpp
@@ -289,7 +314,7 @@ if(WIN32)
   target_sources(plumsg PRIVATE src/frontend/plumsg.rc)
 endif()
 # stb_image (public domain / MIT, vendored) decodes the library's PNG and JPEG covers.
-target_include_directories(plumsg PRIVATE third_party/stb third_party/cgltf)
+target_include_directories(plumsg PRIVATE ${PLUM_ROOT}/third_party/stb third_party/cgltf)
 
 # The PLUMSG logo, the plum icon and the interface's fonts, built into the executable as
 # byte arrays (logo_png.h, chakra_petch_regular_ttf.h...).
@@ -339,22 +364,6 @@ target_link_libraries(plumsg PRIVATE ${PLUMSG_SDL2_TARGET})
 if(WIN32)
   target_link_libraries(plumsg PRIVATE comdlg32 wininet dbghelp advapi32)
 endif()
-# The version About and the crash reports show: -DPLUMSG_VERSION=... (the release workflow
-# passes the release's), else the tag and commit it was built from.
-set(PLUMSG_VERSION "" CACHE STRING "Version shown in About and in crash reports (empty: git describe)")
-set(plumsg_version "${PLUMSG_VERSION}")
-find_package(Git QUIET)
-if(NOT plumsg_version AND GIT_FOUND)
-  # Only this program's tags (plumsg-v1.2.0), as plumemu holds plumsg and plumnin.
-  execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --match "plumsg-v*" --always --dirty
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                  OUTPUT_VARIABLE plumsg_version OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-  string(REGEX REPLACE "^plumsg-v" "" plumsg_version "${plumsg_version}")
-endif()
-if(NOT plumsg_version)
-  set(plumsg_version "dev")
-endif()
-set_source_files_properties(src/frontend/crash.cpp src/frontend/ui.cpp PROPERTIES COMPILE_DEFINITIONS "PLUMSG_VERSION=\"${plumsg_version}\"")
 # ScreenScraper's developer account for plumsg (it gives one to each program that asks):
 # the installer's build passes it from the repository's secrets. Without one the user
 # can type one in the library's media window.
@@ -377,8 +386,9 @@ endif()  # PLUMSG_BUILD_FRONTEND
 
 if(PLUMSG_BUILD_TESTS)
   enable_testing()
-  add_executable(plumsg_core_tests tests/core_tests.cpp src/frontend/library_names.cpp src/frontend/game_info_data.cpp
-                 src/frontend/screenscraper_data.cpp src/frontend/texture_cache.cpp)
+  add_executable(plumsg_core_tests tests/core_tests.cpp src/frontend/screenscraper_data.cpp
+                 ${PLUM_COMMON_DIR}/src/frontend/library_names.cpp ${PLUM_COMMON_DIR}/src/frontend/game_info_data.cpp
+                 ${PLUM_COMMON_DIR}/src/frontend/texture_cache.cpp)
   target_include_directories(plumsg_core_tests PRIVATE tests)
   target_compile_definitions(plumsg_core_tests PRIVATE PLUMSG_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
   # The 32X C program's checks are worked out here too and must round as the SH-2's
@@ -423,7 +433,7 @@ if(PLUMSG_BUILD_TESTS)
   # The frontend's files (a game's own options and controls); needs SDL2 for the key names.
   if(PLUMSG_BUILD_FRONTEND)
     add_executable(plumsg_frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp src/frontend/input.cpp
-                   src/frontend/settings.cpp src/frontend/crash.cpp src/frontend/handheld.cpp)
+                   src/frontend/settings.cpp ${PLUM_COMMON_DIR}/src/frontend/crash.cpp ${PLUM_COMMON_DIR}/src/frontend/handheld.cpp)
     set_target_properties(plumsg_frontend_tests PROPERTIES OUTPUT_NAME frontend_tests)
     target_link_libraries(plumsg_frontend_tests PRIVATE plumsg_core ${PLUMSG_SDL2_TARGET})
     add_test(NAME sega_frontend_tests COMMAND plumsg_frontend_tests)

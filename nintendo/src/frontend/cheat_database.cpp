@@ -1,8 +1,8 @@
 #include "cheat_database.h"
 
-#include "http.h"
-#include "../core/i18n.h"
-#include "library_names.h"
+#include "frontend/http.h"
+#include "core/i18n.h"
+#include "frontend/library_names.h"
 
 #include <iterator>
 

@@ -3,7 +3,7 @@
 #include <cstring>
 #include <string>
 
-#include "anime4k_shaders.h"
+#include "render/anime4k_shaders.h"
 
 namespace plumnin {
 

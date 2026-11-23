@@ -6,7 +6,7 @@
 #include <utility>
 
 #include "../core/cd_image.h"
-#include "../core/i18n.h"
+#include "core/i18n.h"
 #include "../core/megadrive.h"
 #include "md5.h"
 #include "rc_client.h"

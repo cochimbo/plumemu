@@ -4,7 +4,7 @@
 #include <cctype>
 #include <cstring>
 
-#include "../i18n.h"
+#include "core/i18n.h"
 #include "../vgm.h"
 
 namespace plumnin {

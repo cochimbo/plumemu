@@ -14,7 +14,7 @@
 #include <unordered_map>
 
 #include "gb/gb.h"
-#include "i18n.h"
+#include "core/i18n.h"
 #include "nes/nes.h"
 #include "synth_music.h"
 #include "vgm.h"

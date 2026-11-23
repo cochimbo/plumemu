@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 # plumemu: plumsg (Sega, in sega/) and plumnin (Nintendo, in nintendo/) built together.
 # Each one is still its own CMake project with its own targets and options and can be
-# built alone (cmake -S sega); this file only adds them side by side, so both programs,
-# their headless runners and all their tests come out of one build folder:
+# built alone (cmake -S sega); this file adds them side by side, after the code they
+# share (common/), so both programs, their headless runners and all their tests come out
+# of one build folder:
 #   build/sega/plumsg, build/sega/plumsg-headless, build/sega/core_tests...
 #   build/nintendo/plumnin, build/nintendo/plumnin-headless, build/nintendo/core_tests...
 project(plumemu LANGUAGES C CXX)
@@ -26,6 +27,8 @@ endforeach()
 if(PLUM_BUILD_TESTS)
   enable_testing()
 endif()
+# The code both share (namespace plum): plum_common, and the sources each program lists.
+add_subdirectory(common)
 if(PLUM_BUILD_SEGA)
   add_subdirectory(sega)
 endif()

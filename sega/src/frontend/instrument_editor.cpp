@@ -17,7 +17,7 @@
 #include "imgui.h"
 #include "file_dialog.h"
 #include "theme.h"
-#include "../core/i18n.h"
+#include "core/i18n.h"
 #include "../core/system.h"
 #include "miniz.h"
 

@@ -20,6 +20,14 @@ endif()
 
 include(FetchContent)
 
+# The code shared with plumsg (plumemu's common/, namespace plum) and the vendored
+# libraries both use (plumemu's third_party/).
+set(PLUM_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
+set(PLUM_COMMON_DIR ${PLUM_ROOT}/common)
+if(NOT TARGET plum_common)
+  add_subdirectory(${PLUM_COMMON_DIR} ${CMAKE_BINARY_DIR}/common)
+endif()
+
 # miniz (vendored, MIT): zip files, savestate compression and PNG screenshots.
 add_library(plumnin_miniz STATIC third_party/miniz/miniz.c)
 set_target_properties(plumnin_miniz PROPERTIES LINKER_LANGUAGE C)
@@ -90,8 +98,26 @@ if(NOT MSVC)
   endif()
 endif()
 
+# The version About and the crash reports show: -DPLUMNIN_VERSION=... (the release workflow
+# passes the release's), else the tag and commit it was built from.
+set(PLUMNIN_VERSION "" CACHE STRING "Version shown in About and in crash reports (empty: git describe)")
+set(plumnin_version "${PLUMNIN_VERSION}")
+find_package(Git QUIET)
+if(NOT plumnin_version AND GIT_FOUND)
+  # Only this program's tags (plumnin-v1.2.0), as plumemu holds plumsg and plumnin.
+  execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --match "plumnin-v*" --always --dirty
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  OUTPUT_VARIABLE plumnin_version OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+  string(REGEX REPLACE "^plumnin-v" "" plumnin_version "${plumnin_version}")
+endif()
+if(NOT plumnin_version)
+  set(plumnin_version "dev")
+endif()
+set_source_files_properties(src/app_info.cpp PROPERTIES COMPILE_DEFINITIONS "PLUM_VERSION=\"${plumnin_version}\"")
+
 # Emulator core: no SDL, no OS dependencies.
 add_library(plumnin_core STATIC
+  src/app_info.cpp
   src/core/console.cpp
   src/core/consoles.cpp
   src/core/test_console.cpp
@@ -125,16 +151,15 @@ add_library(plumnin_core STATIC
   src/core/songs_snes.cpp
   src/core/song_export.cpp
   src/core/cheats.cpp
-  src/core/rewind.cpp
   src/core/netplay.cpp
-  src/core/recording.cpp
-  src/core/i18n.cpp
   src/render/planes.cpp
   src/render/profile3d.cpp
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
-target_include_directories(plumnin_core PUBLIC src src/core PRIVATE third_party/stb third_party/tsf)
-target_link_libraries(plumnin_core PUBLIC plumnin_miniz plumnin_shine Threads::Threads)
+target_include_directories(plumnin_core PUBLIC src src/core PRIVATE ${PLUM_ROOT}/third_party/stb third_party/tsf)
+target_link_libraries(plumnin_core PUBLIC plum_common plumnin_miniz plumnin_shine Threads::Threads)
+# While plumnin's own code is in namespace plumnin, it sees the common code's names (common/src/plum.h).
+target_compile_definitions(plumnin_core PUBLIC PLUM_APP_NAMESPACE=plumnin)
 
 # UDP sockets for netplay (the session itself is in the core).
 add_library(plumnin_net STATIC src/net/udp.cpp)
@@ -194,35 +219,35 @@ target_link_libraries(plumnin_imgui PUBLIC ${PLUMNIN_SDL2_TARGET})
 
 add_executable(plumnin WIN32
   src/frontend/main.cpp
-  src/frontend/crash.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/crash.cpp
   src/frontend/input.cpp
-  src/frontend/audio.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/audio.cpp
   src/frontend/settings.cpp
   src/frontend/game_options.cpp
   src/frontend/file_dialog.cpp
   src/frontend/ui.cpp
   src/frontend/instrument_editor.cpp
-  src/frontend/handheld.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/handheld.cpp
   src/frontend/osk.cpp
   src/frontend/theme.cpp
   src/frontend/library.cpp
   src/frontend/manual.cpp
-  src/frontend/texture_cache.cpp
-  src/frontend/library_names.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/texture_cache.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/library_names.cpp
   src/frontend/game_info.cpp
-  src/frontend/game_info_data.cpp
-  src/frontend/http.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/game_info_data.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/http.cpp
   src/frontend/screenscraper.cpp
   src/frontend/screenscraper_data.cpp
   src/frontend/ui_media.cpp
   src/frontend/cheat_database.cpp
-  src/frontend/languages.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/languages.cpp
   src/frontend/achievements_ui.cpp
-  src/render/gl.cpp
+  ${PLUM_COMMON_DIR}/src/render/gl.cpp
   src/render/gl_renderers.cpp
   src/render/upscale.cpp
   src/render/box_shelf.cpp
-  src/render/room.cpp
+  ${PLUM_COMMON_DIR}/src/render/room.cpp
   src/render/console_models.cpp
   src/render/gltf_model.cpp
 )
@@ -232,7 +257,7 @@ if(WIN32)
 endif()
 # stb_image (public domain / MIT, vendored) decodes the library's PNG and JPEG covers, and
 # cgltf (MIT, vendored) reads the 3D view's console models.
-target_include_directories(plumnin PRIVATE third_party/stb third_party/cgltf)
+target_include_directories(plumnin PRIVATE ${PLUM_ROOT}/third_party/stb third_party/cgltf)
 
 # The PLUMNIN logo, the plum icon and the interface's fonts, built into the executable as
 # byte arrays (logo_png.h, chakra_petch_regular_ttf.h...).
@@ -282,22 +307,6 @@ target_link_libraries(plumnin PRIVATE ${PLUMNIN_SDL2_TARGET})
 if(WIN32)
   target_link_libraries(plumnin PRIVATE comdlg32 wininet dbghelp advapi32)
 endif()
-# The version About and the crash reports show: -DPLUMNIN_VERSION=... (the release workflow
-# passes the release's), else the tag and commit it was built from.
-set(PLUMNIN_VERSION "" CACHE STRING "Version shown in About and in crash reports (empty: git describe)")
-set(plumnin_version "${PLUMNIN_VERSION}")
-find_package(Git QUIET)
-if(NOT plumnin_version AND GIT_FOUND)
-  # Only this program's tags (plumnin-v1.2.0), as plumemu holds plumsg and plumnin.
-  execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --match "plumnin-v*" --always --dirty
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                  OUTPUT_VARIABLE plumnin_version OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-  string(REGEX REPLACE "^plumnin-v" "" plumnin_version "${plumnin_version}")
-endif()
-if(NOT plumnin_version)
-  set(plumnin_version "dev")
-endif()
-set_source_files_properties(src/frontend/crash.cpp src/frontend/ui.cpp PROPERTIES COMPILE_DEFINITIONS "PLUMNIN_VERSION=\"${plumnin_version}\"")
 # ScreenScraper's developer account for plumnin (it gives one to each program that asks):
 # the installer's build passes it from the repository's secrets. Without one the user
 # can type one in the library's media window.
@@ -320,8 +329,9 @@ endif()  # PLUMNIN_BUILD_FRONTEND
 
 if(PLUMNIN_BUILD_TESTS)
   enable_testing()
-  add_executable(plumnin_core_tests tests/core_tests.cpp src/frontend/library_names.cpp src/frontend/game_info_data.cpp
-                 src/frontend/screenscraper_data.cpp src/frontend/texture_cache.cpp)
+  add_executable(plumnin_core_tests tests/core_tests.cpp src/frontend/screenscraper_data.cpp
+                 ${PLUM_COMMON_DIR}/src/frontend/library_names.cpp ${PLUM_COMMON_DIR}/src/frontend/game_info_data.cpp
+                 ${PLUM_COMMON_DIR}/src/frontend/texture_cache.cpp)
   target_include_directories(plumnin_core_tests PRIVATE tests)
   target_compile_definitions(plumnin_core_tests PRIVATE PLUMNIN_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
   set_target_properties(plumnin_core_tests PROPERTIES OUTPUT_NAME core_tests)
@@ -331,7 +341,7 @@ if(PLUMNIN_BUILD_TESTS)
   # The Game Boy's test ROMs, when their folder is given: -DGB_TEST_ROMS=path/to/game-boy-test-roms
   # (a release of https://github.com/c-sp/game-boy-test-roms, unpacked).
   add_executable(gb-test-roms tests/gb_test_roms.cpp)
-  target_include_directories(gb-test-roms PRIVATE third_party/stb)
+  target_include_directories(gb-test-roms PRIVATE ${PLUM_ROOT}/third_party/stb)
   target_link_libraries(gb-test-roms PRIVATE plumnin_core)
   set(GB_TEST_ROMS "" CACHE PATH "Folder of the game-boy-test-roms release, for the gb_test_roms test")
   if(GB_TEST_ROMS)
@@ -341,7 +351,7 @@ if(PLUMNIN_BUILD_TESTS)
   # The NES's test ROMs, when their folder is given: -DNES_TEST_ROMS=path/to/nes-test-roms
   # (a clone of https://github.com/christopherpow/nes-test-roms).
   add_executable(nes-test-roms tests/nes_test_roms.cpp)
-  target_include_directories(nes-test-roms PRIVATE third_party/stb)
+  target_include_directories(nes-test-roms PRIVATE ${PLUM_ROOT}/third_party/stb)
   target_link_libraries(nes-test-roms PRIVATE plumnin_core)
   set(NES_TEST_ROMS "" CACHE PATH "Folder of the nes-test-roms repository, for the nes_test_roms test")
   if(NES_TEST_ROMS)
@@ -351,7 +361,7 @@ if(PLUMNIN_BUILD_TESTS)
   # The SNES's test ROMs, when their folder is given: -DSNES_TEST_ROMS=path/to/SNES
   # (a clone of https://github.com/PeterLemon/SNES).
   add_executable(snes-test-roms tests/snes_test_roms.cpp)
-  target_include_directories(snes-test-roms PRIVATE third_party/stb)
+  target_include_directories(snes-test-roms PRIVATE ${PLUM_ROOT}/third_party/stb)
   target_link_libraries(snes-test-roms PRIVATE plumnin_core)
   set(SNES_TEST_ROMS "" CACHE PATH "Folder of PeterLemon's SNES repository, for the snes_test_roms test")
   if(SNES_TEST_ROMS)
@@ -386,7 +396,7 @@ if(PLUMNIN_BUILD_TESTS)
   # The frontend's files (a game's own options and controls); needs SDL2 for the key names.
   if(PLUMNIN_BUILD_FRONTEND)
     add_executable(plumnin_frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp src/frontend/input.cpp
-                   src/frontend/settings.cpp src/frontend/crash.cpp src/frontend/handheld.cpp)
+                   src/frontend/settings.cpp ${PLUM_COMMON_DIR}/src/frontend/crash.cpp ${PLUM_COMMON_DIR}/src/frontend/handheld.cpp)
     set_target_properties(plumnin_frontend_tests PROPERTIES OUTPUT_NAME frontend_tests)
     target_link_libraries(plumnin_frontend_tests PRIVATE plumnin_core ${PLUMNIN_SDL2_TARGET})
     add_test(NAME nintendo_frontend_tests COMMAND plumnin_frontend_tests)

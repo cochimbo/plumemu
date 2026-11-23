@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "../state_io.h"
+#include "core/state_io.h"
 
 namespace plumnin::gb {
 

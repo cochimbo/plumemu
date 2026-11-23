@@ -1,6 +1,6 @@
 #include "cheats.h"
 
-#include "i18n.h"
+#include "core/i18n.h"
 
 #include <algorithm>
 #include <cctype>

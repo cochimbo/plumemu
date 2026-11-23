@@ -8,7 +8,7 @@
 
 #include "cheats.h"
 #include "pad.h"
-#include "state_io.h"
+#include "core/state_io.h"
 #include "synth_music.h"
 #include "vgm.h"
 #include "system.h"

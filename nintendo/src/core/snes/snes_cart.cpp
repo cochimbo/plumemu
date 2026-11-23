@@ -1,6 +1,6 @@
 #include "snes_cart.h"
 
-#include "../i18n.h"
+#include "core/i18n.h"
 
 namespace plumnin::snes {
 

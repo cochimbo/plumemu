@@ -3,7 +3,7 @@
 #include <array>
 #include <cstdint>
 
-#include "../state_io.h"
+#include "core/state_io.h"
 #include "../video_frame.h"
 
 namespace plumnin::gb {

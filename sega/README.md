@@ -682,8 +682,8 @@ artifact.
 
 Own code under the [MIT License](LICENSE). Libraries: SDL2 (zlib), Dear ImGui (MIT), miniz
 (MIT, in `third_party/miniz`), stb_image and stb_image_write (public domain or MIT, in
-`third_party/stb`), ymfm (BSD-3-Clause), the Anime4K network weights (MIT, by bloc97, in
-`src/render/anime4k_shaders.h`, generated with `tools/anime4k.py`), the xBR shader written
+plumemu's `third_party/stb`), ymfm (BSD-3-Clause), the Anime4K network weights (MIT, by bloc97, in
+plumemu's `common/src/render/anime4k_shaders.h`, generated with plumemu's `tools/anime4k.py`), the xBR shader written
 following Hyllian's xbr-lv2 (MIT), libchdr (BSD-3-Clause, for `.chd` files), TinySoundFont
 (MIT, in `third_party/tsf`), cgltf (MIT, in `third_party/cgltf`), rcheevos (MIT, for RetroAchievements), minimp3 (CC0, in
 `third_party/minimp3`), stb_vorbis (public domain or MIT, in `third_party/stb`) and PDFium

@@ -1,13 +1,13 @@
 #include "megadrive.h"
 
-#include "i18n.h"
+#include "core/i18n.h"
 
 #include <algorithm>
 #include <cstring>
 #include <filesystem>
 
 #include "miniz.h"
-#include "state_io.h"
+#include "core/state_io.h"
 #include "system.h"
 
 namespace plumsg {

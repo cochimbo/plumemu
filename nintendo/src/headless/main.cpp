@@ -30,7 +30,7 @@
 #include "miniz.h"
 #include "net/udp.h"
 #include "netplay.h"
-#include "recording.h"
+#include "core/recording.h"
 #include "system.h"
 #include "test_console.h"
 
