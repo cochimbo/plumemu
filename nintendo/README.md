@@ -1,0 +1,281 @@
+<p align="center"><img src="src/frontend/assets/icon.png" alt="The plumnin plum" width="128"></p>
+
+# plumnin
+
+A **Game Boy**, **Game Boy Color**, **NES** and **Super Nintendo** emulator for Windows
+and Linux with a **pseudo-3D** effect that pulls the console's layers apart and puts them
+at different depths. It is the Nintendo sibling of
+[plumsg](https://github.com/cochimbo/plumsg), the Mega Drive emulator, and inherits its
+frontend, its 3D view, its library, netplay and the tools around them.
+
+## Status
+
+**The Game Boy, the Game Boy Color, the NES and the Super Nintendo are emulated.** A game
+made for the Color runs on a Color, the rest on a Game Boy with its green screen. What
+there is:
+
+- **Game Boy and Game Boy Color** (`src/core/gb/`): the SM83 processor cycle by cycle, the
+  timer, the picture processor with its background, window and sprites kept apart for the
+  3D view, the Color's palettes, VRAM banks and DMA, double speed, the sound (two square
+  waves, wave and noise), and the cartridges with ROM only, MBC1, MBC2, MBC3 (with its
+  clock, saved the way VBA-M and BGB save it) and MBC5. Cheats in Game Genie and GameShark
+  codes, and RetroAchievements. It passes all of blargg's tests but `oam_bug` (`cpu_instrs`,
+  `instr_timing`, `mem_timing`, `halt_bug`, `interrupt_time`, `dmg_sound`, `cgb_sound`),
+  `dmg-acid2`, `cgb-acid2` and all of mooneye's acceptance and cartridge tests for the
+  models it emulates (see Tests).
+- **NES** (`src/core/nes/`): the 2A03's 6502 cycle by cycle (with every unofficial
+  instruction, the dummy reads and writes, and the sprite and DMC DMAs that halt it), the
+  PPU dot by dot with its background and sprites kept apart for the 3D view (and an option
+  to lift the limit of 8 sprites a line), NTSC and PAL (from the header or the region
+  chosen), the sound (two pulses, triangle, noise and DMC), and the mappers NROM, MMC1,
+  UxROM, CNROM, MMC3 (MMC3A and MMC6 too), AxROM, MMC2, MMC4, Color Dreams, BNROM /
+  NINA-001, GxROM, Camerica, UNROM 180, Sunsoft FME-7 (without its sound) and Namco 108,
+  from iNES and NES 2.0 files. Battery saves, cheats in Game Genie and Pro Action Replay
+  codes, and RetroAchievements. It passes the 140 test ROMs of the suite in Tests:
+  blargg's processor, PPU, APU and DMA tests (also on PAL), the sprite 0 hit and overflow
+  tests, `ppu_vbl_nmi` and the MMC3's.
+- **Super Nintendo** (`src/core/snes/`): the 65C816 bus cycle by bus cycle (with the
+  memory's 6, 8 and 12 clock speeds, FastROM and the WRAM refresh), the DMA and HDMA, the
+  multiplier and divider, the H/V timers and the automatic pad read; the PPU a line at a
+  time with its eight modes (mode 7 with EXTBG, offset per tile, the high resolution of
+  modes 5 and 6 and pseudo high resolution), the sprites with their limits of 32 a line
+  and 34 tiles (and the option to lift them), the windows, mosaic, colour math with the
+  sub screen and the brightness, its backgrounds and sprites kept apart for the 3D view;
+  the sound module with the SPC700, its timers and IPL, and the DSP (BRR, Gaussian
+  interpolation, ADSR and GAIN, noise, pitch modulation and echo); LoROM, HiROM and
+  ExHiROM cartridges (with or without a copier's header), NTSC and PAL. Battery saves,
+  cheats in Game Genie and Pro Action Replay codes, and RetroAchievements. The processors
+  pass all of SingleStepTests' tests (147 100 of the 65C816 and 256 000 of the SPC700,
+  with every bus cycle), and krom's processor and bank test ROMs (see Tests).
+
+  Of the chips in the cartridges, NEC's signal processors: the DSP-1 (Super Mario Kart,
+  Pilotwings...), DSP-2, DSP-3 and DSP-4, and the ST010 and ST011, run their own
+  program, instruction by instruction. That program is in the chip and does not come
+  with plumnin: its file (`dsp1b.rom`, `dsp1.rom`, `dsp2.rom`, `dsp3.rom`, `dsp4.rom`,
+  `st010.rom` or `st011.rom`, as other emulators name them, in either byte order) goes
+  next to the game, in a `firmware` folder next to it, or in the `firmware` folder beside
+  `plumnin.ini`; without it the game says which file it needs. The Super FX (Star Fox,
+  Yoshi's Island, Doom...): the GSU with its cache, its buffered ROM and RAM accesses,
+  PLOT and RPIX in 2, 4 and 8 bits per pixel, its timing at 10.7 and 21.4 MHz and its
+  interrupt; it passes krom's test of each instruction and draws his PLOT demos as his
+  screenshots. The SA-1 (Super Mario RPG, the Kirbys...): its 65C816 at 10.7 MHz in
+  step with the console's, waiting when both want the same memory, I-RAM and BW-RAM
+  (also as a 2 or 4 bits a pixel bitmap) with their write protections, the ROM in 1 MB
+  windows, its multiplier, divider and sum of products, the bit field reader, its
+  timers, the interrupts and vectors both ways, and its DMA with both character
+  conversions. The S-DD1 (Star Ocean, Street Fighter Alpha 2): its ROM banks and the
+  decompression of graphics as a DMA reads them. The OBC1 (Metal Combat): its sprite
+  table in the cartridge's RAM. The Cx4 (Mega Man X2 and X3): Hitachi's HG51B169 runs
+  the game's program from its two caches, with its multiplier, data RAM, DMA and
+  interrupt; its table of constants is a firmware file (`cx4.rom`), looked for like the
+  DSPs'. The SPC7110 (Far East of Eden Zero, Momotarou Dentetsu Happy, Super Power
+  League 4): its banks of the data ROM, the data port, the multiplier and divider, and
+  the decompressor of 1, 2 and 4 bpp tiles (not Far East of Eden Zero's clock). Games
+  with the other chips (the ST018, the Super Game Boy) load with a warning
+  that they may not work: those are not emulated yet. Interlace: 448 (or 478) rows, the
+  two fields woven in modes 5 and 6 and with interlaced sprites, and the 263-line field.
+
+- The frontend from plumsg: the menus, the game library (covers, details and media from
+  ScreenScraper and libretro-database, console tabs for the four consoles), savestates
+  with thumbnails, rewind, run-ahead, fast forward and slow motion, cheats (with
+  RetroArch's lists from internet), each game's own options and controls, RetroAchievements,
+  GIF and video recording, console mode for playing from the sofa (Steam Deck, ROG
+  Ally...), and the interface in Spanish, English, French and Portuguese.
+- **Sound > Synthesizer**: the Game Boy's, the Color's and the NES's music played on
+  General MIDI instruments from a SoundFont, as a module like the Roland SC-55 would
+  (plumsg's Roland sound, for the Nintendo chips). Each channel's notes, pitch slides and
+  loudness are followed as the game plays them, and each of the game's instruments gets
+  a General MIDI one from some rules: the noise is the drums (bass drum, snare, hi-hat or
+  cymbal by its pitch and length); a pulse in the bass register is a synth bass, one
+  whose notes die away a guitar or a harp, and otherwise it goes by its width (12.5% an
+  oboe, 25% a trumpet, a square a clarinet); the NES triangle is the bass (a flute up
+  high); the Game Boy's wave goes by its harmonics (a sine a flute, odd harmonics a
+  clarinet, a saw strings). The NES's samples (the DMC) keep sounding as on the console.
+  **Original sound** lets you hear the chip underneath too, and **Reverb** and
+  **Chorus** add ambience. plumnin comes with **GeneralUser GS** in `soundfonts/` next to
+  the executable; any General MIDI `.sf2` left in `sound/soundfonts/` (**Open the
+  SoundFonts folder**) shows up in the list, and **Choose another (.sf2)...** opens one
+  from anywhere. On the **Super Nintendo** each key on of the DSP is a note: the
+  sample it plays is decoded from its BRR blocks once, and the note it was recorded at
+  is found with YIN's difference function over its loop (or its body, if it does not
+  loop), so the pitch register gives the note played and its slides; the voice's volume
+  and its left/right balance are the expression and the pan. A sample without a pitch,
+  or a short one played on one or two notes, is a drum (bass drum, snare, hi-hat or
+  cymbal by how bright it is; a hiss the game plays well below its own pitch, darker
+  than it is, a pedal hi-hat; and a click that holds much less sound than a drum, as much
+  softer); the rest go by their register (a bass), whether they hold
+  their note (a looped sample: a flute if it is nearly all fundamental, brass if bright,
+  strings otherwise; one that dies away: marimba, guitar or piano), and the DSP's noise
+  is the drums too. `plumnin-headless --synth file.sf2 --wav out.wav` records it without
+  a window.
+- **Sound > Instrument editor...** (or `--instruments`, or a game's menu in the library), as in plumsg: one
+  window with the game's songs (VGM files in `sound/tracks/<game>/`) above and their
+  instruments below. A song plays with **Play**, **To the start**, **Repeat** and a
+  position slider, as **Original** or through the **Synthesizer** (its SoundFont next to
+  it), while the game waits. Its instruments (pulses, waves, triangle, noise or samples,
+  lettered in the order they first sounded) show what each sounds as, its channels and
+  notes, and a tick to hear it; its channels can be soloed or silenced. Each can be given
+  another General MIDI instrument (with its octave and volume), a piece of the drum kit
+  or its **Original sound**, compared as it plays; **Hear only this one** silences the
+  rest and **Back to the suggestion** undoes it. With no song open and the game playing
+  through the synthesizer, it lists the instruments heard so far. It is heard at once in
+  the game and saved per game in `sound/<game>.ini`, in plumsg's format.
+  **Record from the game** saves what plays while you play, and **Open .vgm...** takes a
+  file or a vgmrips pack. On the Super Nintendo, whose sound processor plays a song by
+  itself, **Save what's playing** keeps the song as an `.spc` that goes on exactly as in
+  the game (plumnin's own state of the processor rides after the file; other players read
+  the usual SPC), and **Open .spc...** takes those of snesmusic.org. On the Game Boy, the Color and the NES, **Get songs** finds
+  them all by itself: it runs the game for a while watching the processor, finds the
+  sound driver (the routine called a few dozen times a second under which the chip is
+  written) and how the game asks it for a song (a routine called with its number, or a
+  byte the driver reads and clears), keeps the ways that play a song with a number the
+  game itself asked for, then asks for every number with only the driver running and
+  records each song until the driver comes back to where it was, which is its loop.
+  Tetris gives its 17 songs in a few seconds, Link's Awakening its 94 in a minute and a
+  half, Mega Man 2 on the NES its 58 in four; not every game's way of asking is found yet
+  (Battletoads', for one). It also learns the game's **sound effects**: the instruments of
+  the short sounds no song plays, kept in `sound/<game>.effects`; with **Sound > Original
+  sound effects** (on by default) they keep the chip's sound and only the music goes
+  through the synthesizer. On the Super Nintendo, **Get songs** runs the game for 80
+  seconds watching what it sends to the sound processor's ports and which byte of its
+  memory each value came from; then, from just before the game wrote that byte, runs it
+  again with every other number in its place. What starts other music on several voices
+  is a song, kept as an `.spc` from the moment it starts, its length that of its intro and
+  loop twice. Only the songs of the parts of the game it gets to are found, as the game
+  loads each part's music when it gets there: Super Mario World gives 24, Final Fantasy III
+  60, Secret of Mana 51, in two to eight minutes; Chrono Trigger, Donkey Kong Country and
+  Super Castlevania IV none yet.
+  **Export to MP3...** saves the open song, or every song of the game, as it plays here
+  (the synthesizer with what was chosen for each song, and the chip under it at its
+  volume): its start, twice round its loop and an eight-second fade, at 192 kbit/s with
+  its title, game and number in the tag, in `sound/mp3/<game>/`.
+  `plumnin-headless game.gb --rip-songs DIR` does it without a
+  window, `--vgm FILE` records a run, `--spc FILE` saves a SNES game's music after it, and a
+  `.vgm`, `.vgz` or `.spc` given instead of a game is played to `--wav` (or exported with
+  `--mp3`).
+- The 2D and pseudo-3D views, with the xBR and Anime4K upscalers and the scanline and
+  CRT filters.
+- **The library's 3D shelf** ("Cajas 3D", next to Cuadrícula and Lista), as plumsg's: the
+  games' boxes stand on a shelf in an old living room, their spines out. A click (or A)
+  takes one out; a second opens it as the cardboard boxes of the time open, by the tuck flap
+  at one end (the top of an NES or Game Boy box, the NES one tipped on its side first; the
+  right end of a Super Nintendo one), slides the card holder out and pulls the cartridge
+  out of it; a third puts it into
+  its console, which comes up through the floor: on top of the Super Nintendo, in through
+  the door of the NES and pushed down, at the back of the Game Boy or the Color, whose
+  screen lights up. Its light comes on and the game starts. Dragging turns what is out (or
+  moves along the shelf), the wheel and the right stick zoom. The boxes wear the covers
+  downloaded from ScreenScraper: the whole sleeve (**Portada completa**) where there is
+  one, for the spine and the back too, and the cartridges the label (**Etiqueta del
+  cartucho**), or else the front. The consoles are real 3D
+  models (see License), made lighter by `tools/models/prepare.py`; a `.glb` of the same
+  name in `models/` next to `plumnin.ini` takes their place.
+- **Manuals in the 3D boxes**, as in plumsg: with a box open and its cartridge out, a
+  click on the manual behind the holder (or the left arrow) brings it out in front, open
+  at its pages. A click on the right page (the right arrow, Page Down or RB) turns to the
+  next ones, on the left page (left arrow, Page Up or LB) back; the wheel zooms in and
+  dragging moves over the page. The pages are drawn from the PDF ScreenScraper has of the
+  game (**Manual** in **Scraping > What to download...**, saved as `manual.pdf` in the
+  game's folder) with PDFium, `pdfium.dll` (`libpdfium.so` on Linux) next to plumnin.
+- Netplay over UDP with rollback.
+- `plumnin-headless`, the emulator without a window, for tests, CI and reproducing bugs.
+- A common interface for the consoles (`src/core/console.h`): each console only has to
+  run its frames, draw its layers into a `VideoFrame` and describe its state. Savestates,
+  run-ahead, netplay and the achievements are built on it once for all of them.
+- A **test pattern** (`src/core/test_console.h`) that behaves like a console (a sprite the
+  pads move, two planes, a tone), so that everything above can be tried and tested
+  without any commercial ROM: `plumnin --test-pattern [gb|gbc|nes|snes]`.
+
+The plan, in order:
+
+1. The base. (done)
+2. Game Boy and Game Boy Color. (done)
+3. NES. (done)
+4. Super Nintendo. (done; of the cartridges' chips, the NEC DSPs, the Super FX, the SA-1, the S-DD1, the OBC1, the Cx4 and the SPC7110)
+5. In the future, the light guns: the NES Zapper and the SNES Super Scope.
+
+What plumsg had that only made sense on Sega's consoles (the Mega CD and its BIOS, the
+32X and Sega's light guns) is not here.
+
+## Building
+
+You need CMake 3.16+, a C++17 compiler and SDL2 (if it is not installed, CMake downloads
+it). Dear ImGui, rcheevos and shine are downloaded by themselves.
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+./build/plumnin --test-pattern
+```
+
+`-DPLUMNIN_BUILD_FRONTEND=OFF` builds only the core, `plumnin-headless` and the core tests,
+without SDL2 or OpenGL.
+
+On Windows, the `windows-installer.yml` workflow builds the installer with Inno Setup (see
+[installer/README.md](installer/README.md)). The same workflow builds the Linux AppImage
+with `tools/linux/make-appimage.sh <build dir> <version>`.
+
+## Tests
+
+- `core_tests`: the savestates, rewind, run-ahead, netplay (two sessions over a simulated
+  network that loses and reorders packets), RetroAchievements against a made-up server,
+  the 3D planes, cheats, the library's names, ScreenScraper's and libretro-database's
+  answers, on the test pattern; and the Game Boy and the NES on small programs the test
+  writes itself (their picture and layers, the pads, the sound, savestates, cheats, the
+  battery saves, and PAL on the NES), and the same on a small SNES program; and a
+  small program of its own for the NEC DSP, which a SNES program talks to on the bus,
+  one for the Super FX (its program, its registers and its interrupt) and one for the
+  SA-1 (started by the game, its multiplier, I-RAM, and its interrupt through SIV); the
+  S-DD1's decompression through a DMA, against a separate transcription of the
+  algorithm, the OBC1's sprite table, a small Cx4 program run from the ROM, and the SPC7110's units, its decompressor
+  against a separate transcription too; and interlace, in mode 1 and in mode 5.
+- `frontend_tests`: the settings files, each game's own options and the crash reports.
+- `headless`: `plumnin-headless` end to end: hashes, savestates, input scripts, recordings
+  and netplay between two processes.
+- `i18n`: every text in the interface has its translation (`tools/i18n.py`).
+- `gb_test_roms`: the Game Boy's test ROMs (blargg, mooneye, dmg-acid2, cgb-acid2), which
+  are not part of plumnin. Unpack a release of
+  [game-boy-test-roms](https://github.com/c-sp/game-boy-test-roms/releases) and configure
+  with `-DGB_TEST_ROMS=path/to/it`. `gb-test-roms --run ROM --png out.png` runs one to look
+  at it.
+- `nes_test_roms`: the NES's test ROMs, also not part of plumnin. Clone
+  [nes-test-roms](https://github.com/christopherpow/nes-test-roms) and configure with
+  `-DNES_TEST_ROMS=path/to/it`. `nes-test-roms --run ROM [--pal] --png out.png` runs one
+  and prints what it said.
+- `snes_test_roms`: krom's SNES test ROMs (each instruction of the processor and of the
+  Super FX, the cartridge's banks, the Super FX's PLOT demos against their screenshots,
+  a tune checked note by note). Clone
+  [PeterLemon/SNES](https://github.com/PeterLemon/SNES) and configure with
+  `-DSNES_TEST_ROMS=path/to/it`. `snes-test-roms --run ROM --png out.png` runs one.
+- `snes_cpu_tests` and `snes_spc_tests`: [SingleStepTests](https://github.com/SingleStepTests)'
+  tests of the 65C816 and of the SPC700, one instruction from a known state each.
+  Configure with `-DSNES_CPU_TESTS=path/to/65816/v1` and `-DSNES_SPC_TESTS=path/to/spc700/v1`;
+  the 65816's files are large, and the start of each one is enough (CI takes the first
+  150 KB). `snes-single-step 65816|spc700 FOLDER --cycles` also compares each bus cycle.
+
+```sh
+./build/plumnin-headless --test-rom --system gb --frames 300 --do "60-120 right a" --png out.png
+./build/plumnin-headless --help
+```
+
+## License
+
+MIT (see [LICENSE](LICENSE)). plumnin does not include any game or BIOS. The
+synthesizer uses TinySoundFont (MIT, `third_party/tsf`), Export to MP3 the shine encoder
+(LGPL 2, [toots/shine](https://github.com/toots/shine), built from its source as a
+library of its own, its license in `shine-LICENSE.txt` in the installation), and the SoundFont that comes
+with it is GeneralUser GS by S. Christian Collins, with its own free license
+(`soundfonts/GeneralUser-GS-LICENSE.txt` in the installation). The manuals are read with
+PDFium (BSD-3-Clause and Apache 2.0, the prebuilt library of bblanchon/pdfium-binaries;
+its licenses go in `pdfium-licenses` in the installation). The 3D shelf's consoles
+are ["Nintendo Game Boy (Original 1989)"](https://sketchfab.com/3d-models/nintendo-game-boy-original-1989-ad2f6be906e948f793fe722bbae5d29c)
+by lokeig (CC BY-NC 4.0: not for commercial use),
+["Game Boy Color"](https://sketchfab.com/3d-models/game-boy-color-03c6fe28d45244d2acd55486e3cfee19)
+by Wikiti, ["NES_OG-85"](https://sketchfab.com/3d-models/nes-og-85-f12c3312b9ad45f5a4a833f602358b60)
+by RadioactiveAG and ["Super nintendo"](https://sketchfab.com/3d-models/super-nintendo-d42c35b117974ade8842f0964f5fd59e)
+by quick_loop, with the ["Super Nintendo Cartridge"](https://sketchfab.com/3d-models/super-nintendo-cartridge-b2076d8a65d648ff99bf51ca9d5fca2a)
+by SomeKevin (CC BY 4.0), with the television "Television 01" by Gabriel Radić from Poly
+Haven (CC0); what was changed in each is in `assets/models/CREDITS.txt`. The 3D models are
+read with cgltf (MIT, `third_party/cgltf`). See
+[PRIVACY.md](PRIVACY.md) for what it connects to.
