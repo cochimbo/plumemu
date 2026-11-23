@@ -38,6 +38,10 @@ public:
     // The operators keyed on in each channel (0-5), as last written to register 0x28
     // (bits 4-7). Not kept in savestates.
     uint8_t keys(int channel) const { return keys_[static_cast<size_t>(channel)]; }
+    // What it keeps besides the chip's own state (the address written to each port, the
+    // keys held), for the savestates: without it a state loaded keeps those of what played
+    // before, and a recording started there says other notes are held.
+    template <class Ar> void latchState(Ar& ar) { ar(address_, keys_); }
     // Turns the FM channels in `mask` (bit 0 = channel 1) down to percent of their
     // volume, and the DAC with bit 6. For the Roland sound, which plays them instead,
     // and for listening to some channels alone.

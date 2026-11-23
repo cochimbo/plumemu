@@ -1242,6 +1242,11 @@ bool MegaDrive::saveState(std::vector<uint8_t>& out, bool quick) {
     }
     {
         StateWriter w;
+        ym_.latchState(w);
+        block("YMLT", w.data());
+    }
+    {
+        StateWriter w;
         psg_.state(w);
         block("PSG ", w.data());
     }
@@ -1528,6 +1533,7 @@ bool MegaDrive::loadState(const std::vector<uint8_t>& in, std::string* error) {
             if (b.ok() && ym_.loadState(chip)) ym_.setClockPosition(pos);
             else ok = false;
         }
+        else if (id == fourcc("YMLT")) ym_.latchState(b);
         else if (id == fourcc("OPLL")) {
             uint64_t pos = 0;
             std::vector<uint8_t> chip;
