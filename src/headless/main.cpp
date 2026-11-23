@@ -375,6 +375,8 @@ int extractSongs(const std::string& game, const std::string& dir) {
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
     SongExtractor extractor;
+    // (PLUMSG_RIP_THREADS=n: on n threads, to compare; as many as there are cores without it.)
+    if (const char* n = std::getenv("PLUMSG_RIP_THREADS")) extractor.setThreads(std::atoi(n));
     extractor.setLog([](const std::string& s) {
         std::printf("%s\n", s.c_str());
         std::fflush(stdout);
