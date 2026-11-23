@@ -92,14 +92,27 @@ jobs:
       - name: Headless tests
         if: steps.changes.outputs.build == 'true'
         run: ctest --test-dir build --output-on-failure -R "headless|core_tests|240p"
-      # The picture and sound of a fixed set of runs of both programs must be the ones in
-      # tools/reference/reference.txt (see tools/reference/README.md).
-      - name: Picture and sound reference
+      # The picture and sound of a fixed set of runs of both programs (tools/reference)
+      # must be the same as on the base: the commit before a push, or the pull request's
+      # base, built here with the same compiler (the Roland sound and the synthesizer use
+      # floating point, so another compiler can round their samples differently).
+      - name: Picture and sound, compared with the base
         if: steps.changes.outputs.build == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           tools/reference/fetch.sh reference-roms
           tools/reference/run.sh build/sega/plumsg-headless build/nintendo/plumnin-headless reference-roms reference-now.txt > /dev/null
-          tools/reference/compare.sh reference-now.txt
+          if [ -z "$BASE_SHA" ] || [[ "$BASE_SHA" =~ ^0+$ ]] || ! git worktree add --detach ../base "$BASE_SHA" ||
+             [ ! -f ../base/tools/reference/run.sh ]; then
+            echo "::notice::No base with tools/reference to compare with."
+            exit 0
+          fi
+          cmake -S ../base -B ../base/build -DCMAKE_BUILD_TYPE=Release -DPLUM_BUILD_FRONTEND=OFF > /dev/null
+          cmake --build ../base/build --parallel --target plumsg-headless plumnin-headless > /dev/null
+          # This change's list of runs drives both, so both do the same runs.
+          tools/reference/run.sh ../base/build/sega/plumsg-headless ../base/build/nintendo/plumnin-headless reference-roms reference-base.txt > /dev/null
+          tools/reference/compare.sh reference-now.txt reference-base.txt
       # The Game Boy's test ROMs (blargg, mooneye, the acid2 pictures): downloaded, never committed.
       - name: Game Boy test ROMs
         if: steps.changes.outputs.build == 'true'
