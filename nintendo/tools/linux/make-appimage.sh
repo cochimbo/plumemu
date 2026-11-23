@@ -33,7 +33,10 @@ install -m 755 "$build/plumnin" "$bin/plumnin"
 
 cp "$root/LICENSE" "$bin/LICENSE.txt"
 # shine, the MP3 encoder (LGPL 2), with its license.
-cp "$build/_deps/shine-src/COPYING" "$bin/shine-LICENSE.txt"
+# (In plumemu's build, build/sega or build/nintendo, the downloads are one folder up.)
+shine=$build/_deps/shine-src/COPYING
+[[ -f "$shine" ]] || shine=$build/../_deps/shine-src/COPYING
+cp "$shine" "$bin/shine-LICENSE.txt"
 
 # The synthesizer's SoundFont, GeneralUser GS (free to use and share, with its license),
 # next to the executable where plumnin looks for it.

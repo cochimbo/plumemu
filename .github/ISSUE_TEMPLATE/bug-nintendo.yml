@@ -1,6 +1,6 @@
-name: Report a bug
-description: A game that does not work right, a crash, or anything else that fails.
-labels: [bug]
+name: Report a bug in plumnin (Nintendo)
+description: "Game Boy, Game Boy Color, NES or Super Nintendo: a game that does not work right, a crash, or anything else that fails."
+labels: [bug, nintendo]
 body:
   - type: markdown
     attributes:

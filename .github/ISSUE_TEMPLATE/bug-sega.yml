@@ -1,11 +1,11 @@
-name: Report a bug
-description: A game that does not work right, a crash, or anything else that fails.
-labels: [bug]
+name: Report a bug in plumsg (Sega)
+description: "Mega Drive, 32X, Mega CD, Master System or Game Gear: a game that does not work right, a crash, or anything else that fails."
+labels: [bug, sega]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting. First, check the [FAQ](https://github.com/cochimbo/plumsg/blob/main/docs/faq.md) and the [compatibility list](https://github.com/cochimbo/plumsg/blob/main/docs/compatibility.md).
+        Thanks for reporting. First, check the [FAQ](https://github.com/cochimbo/plumemu/blob/main/sega/docs/faq.md) and the [compatibility list](https://github.com/cochimbo/plumemu/blob/main/sega/docs/compatibility.md).
         Do not attach ROMs, discs or BIOS files: the file name is enough.
   - type: input
     id: version

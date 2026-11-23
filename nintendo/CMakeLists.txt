@@ -288,9 +288,11 @@ set(PLUMNIN_VERSION "" CACHE STRING "Version shown in About and in crash reports
 set(plumnin_version "${PLUMNIN_VERSION}")
 find_package(Git QUIET)
 if(NOT plumnin_version AND GIT_FOUND)
-  execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --always --dirty
+  # Only this program's tags (plumnin-v1.2.0), as plumemu holds plumsg and plumnin.
+  execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --match "plumnin-v*" --always --dirty
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                   OUTPUT_VARIABLE plumnin_version OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+  string(REGEX REPLACE "^plumnin-v" "" plumnin_version "${plumnin_version}")
 endif()
 if(NOT plumnin_version)
   set(plumnin_version "dev")
@@ -318,12 +320,13 @@ endif()  # PLUMNIN_BUILD_FRONTEND
 
 if(PLUMNIN_BUILD_TESTS)
   enable_testing()
-  add_executable(core_tests tests/core_tests.cpp src/frontend/library_names.cpp src/frontend/game_info_data.cpp
+  add_executable(plumnin_core_tests tests/core_tests.cpp src/frontend/library_names.cpp src/frontend/game_info_data.cpp
                  src/frontend/screenscraper_data.cpp src/frontend/texture_cache.cpp)
-  target_include_directories(core_tests PRIVATE tests)
-  target_compile_definitions(core_tests PRIVATE PLUMNIN_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
-  target_link_libraries(core_tests PRIVATE plumnin_core plumnin_achievements)
-  add_test(NAME core_tests COMMAND core_tests)
+  target_include_directories(plumnin_core_tests PRIVATE tests)
+  target_compile_definitions(plumnin_core_tests PRIVATE PLUMNIN_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
+  set_target_properties(plumnin_core_tests PROPERTIES OUTPUT_NAME core_tests)
+  target_link_libraries(plumnin_core_tests PRIVATE plumnin_core plumnin_achievements)
+  add_test(NAME nintendo_core_tests COMMAND plumnin_core_tests)
 
   # The Game Boy's test ROMs, when their folder is given: -DGB_TEST_ROMS=path/to/game-boy-test-roms
   # (a release of https://github.com/c-sp/game-boy-test-roms, unpacked).
@@ -332,7 +335,7 @@ if(PLUMNIN_BUILD_TESTS)
   target_link_libraries(gb-test-roms PRIVATE plumnin_core)
   set(GB_TEST_ROMS "" CACHE PATH "Folder of the game-boy-test-roms release, for the gb_test_roms test")
   if(GB_TEST_ROMS)
-    add_test(NAME gb_test_roms COMMAND gb-test-roms ${GB_TEST_ROMS})
+    add_test(NAME nintendo_gb_test_roms COMMAND gb-test-roms ${GB_TEST_ROMS})
   endif()
 
   # The NES's test ROMs, when their folder is given: -DNES_TEST_ROMS=path/to/nes-test-roms
@@ -342,7 +345,7 @@ if(PLUMNIN_BUILD_TESTS)
   target_link_libraries(nes-test-roms PRIVATE plumnin_core)
   set(NES_TEST_ROMS "" CACHE PATH "Folder of the nes-test-roms repository, for the nes_test_roms test")
   if(NES_TEST_ROMS)
-    add_test(NAME nes_test_roms COMMAND nes-test-roms ${NES_TEST_ROMS})
+    add_test(NAME nintendo_nes_test_roms COMMAND nes-test-roms ${NES_TEST_ROMS})
   endif()
 
   # The SNES's test ROMs, when their folder is given: -DSNES_TEST_ROMS=path/to/SNES
@@ -352,7 +355,7 @@ if(PLUMNIN_BUILD_TESTS)
   target_link_libraries(snes-test-roms PRIVATE plumnin_core)
   set(SNES_TEST_ROMS "" CACHE PATH "Folder of PeterLemon's SNES repository, for the snes_test_roms test")
   if(SNES_TEST_ROMS)
-    add_test(NAME snes_test_roms COMMAND snes-test-roms ${SNES_TEST_ROMS})
+    add_test(NAME nintendo_snes_test_roms COMMAND snes-test-roms ${SNES_TEST_ROMS})
   endif()
 
   # SingleStepTests' processor tests, when their folders are given:
@@ -363,28 +366,29 @@ if(PLUMNIN_BUILD_TESTS)
   set(SNES_CPU_TESTS "" CACHE PATH "Folder of SingleStepTests' 65816 JSON files")
   set(SNES_SPC_TESTS "" CACHE PATH "Folder of SingleStepTests' SPC700 JSON files")
   if(SNES_CPU_TESTS)
-    add_test(NAME snes_cpu_tests COMMAND snes-single-step 65816 ${SNES_CPU_TESTS})
+    add_test(NAME nintendo_snes_cpu_tests COMMAND snes-single-step 65816 ${SNES_CPU_TESTS})
   endif()
   if(SNES_SPC_TESTS)
-    add_test(NAME snes_spc_tests COMMAND snes-single-step spc700 ${SNES_SPC_TESTS})
+    add_test(NAME nintendo_snes_spc_tests COMMAND snes-single-step spc700 ${SNES_SPC_TESTS})
   endif()
 
   # Every text in tr() has its translation in every .po (tools/i18n.py --update adds the new ones).
   find_package(Python3 COMPONENTS Interpreter QUIET)
   if(Python3_Interpreter_FOUND)
-    add_test(NAME i18n COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/tools/i18n.py --check)
+    add_test(NAME nintendo_i18n COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/tools/i18n.py --check)
   endif()
 
   # plumnin-headless end to end: hashes, savestates, input scripts and checks.
-  add_test(NAME headless COMMAND ${CMAKE_COMMAND} -DHEADLESS=$<TARGET_FILE:plumnin-headless>
+  add_test(NAME nintendo_headless COMMAND ${CMAKE_COMMAND} -DHEADLESS=$<TARGET_FILE:plumnin-headless>
            -DWORK=${CMAKE_CURRENT_BINARY_DIR}/headless_test
            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/headless_tests.cmake)
 
   # The frontend's files (a game's own options and controls); needs SDL2 for the key names.
   if(PLUMNIN_BUILD_FRONTEND)
-    add_executable(frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp src/frontend/input.cpp
+    add_executable(plumnin_frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp src/frontend/input.cpp
                    src/frontend/settings.cpp src/frontend/crash.cpp src/frontend/handheld.cpp)
-    target_link_libraries(frontend_tests PRIVATE plumnin_core ${PLUMNIN_SDL2_TARGET})
-    add_test(NAME frontend_tests COMMAND frontend_tests)
+    set_target_properties(plumnin_frontend_tests PROPERTIES OUTPUT_NAME frontend_tests)
+    target_link_libraries(plumnin_frontend_tests PRIVATE plumnin_core ${PLUMNIN_SDL2_TARGET})
+    add_test(NAME nintendo_frontend_tests COMMAND plumnin_frontend_tests)
   endif()
 endif()

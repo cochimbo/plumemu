@@ -345,9 +345,11 @@ set(PLUMSG_VERSION "" CACHE STRING "Version shown in About and in crash reports 
 set(plumsg_version "${PLUMSG_VERSION}")
 find_package(Git QUIET)
 if(NOT plumsg_version AND GIT_FOUND)
-  execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --always --dirty
+  # Only this program's tags (plumsg-v1.2.0), as plumemu holds plumsg and plumnin.
+  execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --match "plumsg-v*" --always --dirty
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                   OUTPUT_VARIABLE plumsg_version OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+  string(REGEX REPLACE "^plumsg-v" "" plumsg_version "${plumsg_version}")
 endif()
 if(NOT plumsg_version)
   set(plumsg_version "dev")
@@ -375,38 +377,39 @@ endif()  # PLUMSG_BUILD_FRONTEND
 
 if(PLUMSG_BUILD_TESTS)
   enable_testing()
-  add_executable(core_tests tests/core_tests.cpp src/frontend/library_names.cpp src/frontend/game_info_data.cpp
+  add_executable(plumsg_core_tests tests/core_tests.cpp src/frontend/library_names.cpp src/frontend/game_info_data.cpp
                  src/frontend/screenscraper_data.cpp src/frontend/texture_cache.cpp)
-  target_include_directories(core_tests PRIVATE tests)
-  target_compile_definitions(core_tests PRIVATE PLUMSG_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
+  target_include_directories(plumsg_core_tests PRIVATE tests)
+  target_compile_definitions(plumsg_core_tests PRIVATE PLUMSG_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
   # The 32X C program's checks are worked out here too and must round as the SH-2's
   # libgcc does, one operation at a time: a compiler that targets a CPU with FMA (GCC on
   # Ubuntu 26.04 does) would otherwise fuse a multiply and an add and round once.
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(core_tests PRIVATE -ffp-contract=off)
+    target_compile_options(plumsg_core_tests PRIVATE -ffp-contract=off)
   endif()
-  target_link_libraries(core_tests PRIVATE plumsg_core plumsg_achievements)
-  add_test(NAME core_tests COMMAND core_tests)
+  set_target_properties(plumsg_core_tests PROPERTIES OUTPUT_NAME core_tests)
+  target_link_libraries(plumsg_core_tests PRIVATE plumsg_core plumsg_achievements)
+  add_test(NAME sega_core_tests COMMAND plumsg_core_tests)
 
   # Every text in tr() has its translation in every .po (tools/i18n.py --update adds the new ones).
   find_package(Python3 COMPONENTS Interpreter QUIET)
   if(Python3_Interpreter_FOUND)
-    add_test(NAME i18n COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/tools/i18n.py --check)
+    add_test(NAME sega_i18n COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/tools/i18n.py --check)
   endif()
 
   # Runs a ROM (or the built-in test ROM) without a window and writes a PNG.
   add_executable(rom_runner tests/rom_runner.cpp)
   target_include_directories(rom_runner PRIVATE tests)
   target_link_libraries(rom_runner PRIVATE plumsg_core)
-  add_test(NAME rom_runner_test_rom COMMAND rom_runner --test-rom --frames 60)
+  add_test(NAME sega_rom_runner_test_rom COMMAND rom_runner --test-rom --frames 60)
 
   # plumsg-headless end to end: hashes, savestates, input scripts and checks.
-  add_test(NAME headless COMMAND ${CMAKE_COMMAND} -DHEADLESS=$<TARGET_FILE:plumsg-headless>
+  add_test(NAME sega_headless COMMAND ${CMAKE_COMMAND} -DHEADLESS=$<TARGET_FILE:plumsg-headless>
            -DWORK=${CMAKE_CURRENT_BINARY_DIR}/headless_test -DSTATES=${CMAKE_CURRENT_SOURCE_DIR}/tests/states
            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/headless_tests.cmake)
 
   # The 240p Test Suite's screens (tests/240p): each must draw as it did.
-  add_test(NAME 240p COMMAND ${CMAKE_COMMAND} -DHEADLESS=$<TARGET_FILE:plumsg-headless>
+  add_test(NAME sega_240p COMMAND ${CMAKE_COMMAND} -DHEADLESS=$<TARGET_FILE:plumsg-headless>
            -DWORK=${CMAKE_CURRENT_BINARY_DIR}/240p_test -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/240p_tests.cmake)
 
   # Tom Harte's 68000 single-step tests: m68k_json_runner path/to/v1/*.json.gz
@@ -419,9 +422,10 @@ if(PLUMSG_BUILD_TESTS)
 
   # The frontend's files (a game's own options and controls); needs SDL2 for the key names.
   if(PLUMSG_BUILD_FRONTEND)
-    add_executable(frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp src/frontend/input.cpp
+    add_executable(plumsg_frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp src/frontend/input.cpp
                    src/frontend/settings.cpp src/frontend/crash.cpp src/frontend/handheld.cpp)
-    target_link_libraries(frontend_tests PRIVATE plumsg_core ${PLUMSG_SDL2_TARGET})
-    add_test(NAME frontend_tests COMMAND frontend_tests)
+    set_target_properties(plumsg_frontend_tests PROPERTIES OUTPUT_NAME frontend_tests)
+    target_link_libraries(plumsg_frontend_tests PRIVATE plumsg_core ${PLUMSG_SDL2_TARGET})
+    add_test(NAME sega_frontend_tests COMMAND plumsg_frontend_tests)
   endif()
 endif()

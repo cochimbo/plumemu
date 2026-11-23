@@ -1,14 +1,17 @@
+# The Windows installer and the Linux AppImage of plumsg (sega/) and plumnin (nintendo/).
+# Each program is released with its own tags: plumsg-v1.2.0 publishes plumsg,
+# plumnin-v0.4.0-alpha publishes plumnin. Pushes to main and pull requests build both.
 name: Windows installer
 
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ['plumsg-v*', 'plumnin-v*']
   pull_request:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Tag to create and publish as a release (e.g. v0.0.1-alpha). Leave empty to only build.'
+        description: 'Tag to create and publish as a release (plumsg-v1.2.0 or plumnin-v0.4.0-alpha). Leave empty to only build.'
         required: false
         default: ''
 
@@ -19,13 +22,39 @@ env:
   SDL2_VERSION: 2.30.9
   GENERALUSER_COMMIT: main
   PDFIUM_BUILD: '8138'
-  APP_EXE: plumsg.exe
-  # Set when a v* tag is pushed, or when the workflow is run by hand with a release_tag.
-  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag }}
+  # Set when a plumsg-v* or plumnin-v* tag is pushed, or when the workflow is run by hand
+  # with a release_tag.
+  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/plum') && github.ref_name || inputs.release_tag }}
 
 jobs:
+  # Which programs this run builds: the one a release tag names, else both.
+  apps:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - id: pick
+        shell: bash
+        run: |
+          sega='{"app":"sega","name":"plumsg","prefix":"PLUMSG","only":"-DPLUM_BUILD_NINTENDO=OFF"}'
+          nintendo='{"app":"nintendo","name":"plumnin","prefix":"PLUMNIN","only":"-DPLUM_BUILD_SEGA=OFF"}'
+          case "$RELEASE_TAG" in
+            plumsg-v*) list="[$sega]" ;;
+            plumnin-v*) list="[$nintendo]" ;;
+            "") list="[$sega,$nintendo]" ;;
+            *) echo "::error::release_tag must look like plumsg-v1.2.3 or plumnin-v1.2.3"; exit 1 ;;
+          esac
+          echo "matrix={\"include\":$list}" >> "$GITHUB_OUTPUT"
+
   installer:
+    name: installer (${{ matrix.name }})
+    needs: apps
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.apps.outputs.matrix) }}
+    env:
+      APP_EXE: ${{ matrix.name }}.exe
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,19 +68,9 @@ jobs:
           BEFORE_SHA: ${{ github.event.before }}
         run: bash tools/ci/needs-build.sh
 
-      - name: Check for emulator sources
-        id: src
-        shell: pwsh
-        run: |
-          if ("${{ steps.changes.outputs.build }}" -ne "true") { "present=false" >> $env:GITHUB_OUTPUT }
-          elseif (Test-Path CMakeLists.txt) { "present=true" >> $env:GITHUB_OUTPUT }
-          else {
-            "present=false" >> $env:GITHUB_OUTPUT
-            Write-Host "::notice::No CMakeLists.txt at the repo root yet; skipping the installer build."
-          }
 
       - name: Download SDL2 (MSVC development package)
-        if: steps.src.outputs.present == 'true'
+        if: steps.changes.outputs.build == 'true'
         shell: pwsh
         run: |
           $zip = "$env:RUNNER_TEMP\sdl2.zip"
@@ -60,34 +79,38 @@ jobs:
           "SDL2_ROOT=$env:RUNNER_TEMP\sdl2\SDL2-$env:SDL2_VERSION" >> $env:GITHUB_ENV
 
       - name: Compute version
-        if: steps.src.outputs.present == 'true'
+        if: steps.changes.outputs.build == 'true'
         shell: pwsh
         run: |
           if ($env:RELEASE_TAG) {
-            if ($env:RELEASE_TAG -notmatch '^v\d') { Write-Host "::error::release_tag must look like v1.2.3"; exit 1 }
-            $v = $env:RELEASE_TAG.Substring(1)
+            $tag = "${{ matrix.name }}-v"
+            if (-not $env:RELEASE_TAG.StartsWith($tag) -or $env:RELEASE_TAG.Substring($tag.Length) -notmatch '^\d') {
+              Write-Host "::error::release_tag must look like ${tag}1.2.3"; exit 1
+            }
+            $v = $env:RELEASE_TAG.Substring($tag.Length)
           }
           else { $v = "0.0.0-dev.$env:GITHUB_RUN_NUMBER" }
           "APP_VERSION=$v" >> $env:GITHUB_ENV
 
       - name: Build emulator (Release)
-        if: steps.src.outputs.present == 'true'
+        if: steps.changes.outputs.build == 'true'
         shell: pwsh
         env:
-          # ScreenScraper's developer account for plumsg; empty if the secrets are not set.
+          # ScreenScraper's developer account; empty if the secrets are not set.
           SS_DEVID: ${{ secrets.SCREENSCRAPER_DEVID }}
           SS_DEVPASSWORD: ${{ secrets.SCREENSCRAPER_DEVPASSWORD }}
         run: |
           # A release shows its own version in About and crash reports; other builds, git describe.
-          $version = if ($env:RELEASE_TAG) { "-DPLUMSG_VERSION=$env:APP_VERSION" } else { "-DPLUMSG_VERSION=" }
-          cmake -S . -B build -A x64 "-DCMAKE_PREFIX_PATH=$env:SDL2_ROOT/cmake" "-DSDL2_DIR=$env:SDL2_ROOT/cmake" $version `
-            "-DPLUMSG_SCREENSCRAPER_DEVID=$env:SS_DEVID" "-DPLUMSG_SCREENSCRAPER_DEVPASSWORD=$env:SS_DEVPASSWORD"
+          $p = "${{ matrix.prefix }}"
+          $version = if ($env:RELEASE_TAG) { "-D${p}_VERSION=$env:APP_VERSION" } else { "-D${p}_VERSION=" }
+          cmake -S . -B build -A x64 ${{ matrix.only }} "-DCMAKE_PREFIX_PATH=$env:SDL2_ROOT/cmake" "-DSDL2_DIR=$env:SDL2_ROOT/cmake" $version `
+            "-D${p}_SCREENSCRAPER_DEVID=$env:SS_DEVID" "-D${p}_SCREENSCRAPER_DEVPASSWORD=$env:SS_DEVPASSWORD"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build build --config Release --parallel
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Stage files for the installer
-        if: steps.src.outputs.present == 'true'
+        if: steps.changes.outputs.build == 'true'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
@@ -107,14 +130,14 @@ jobs:
           $dll = Get-ChildItem build -Recurse -Filter SDL2.dll | Select-Object -First 1
           if ($dll) { Copy-Item $dll.FullName dist\ } else { Copy-Item "$env:SDL2_ROOT\lib\x64\SDL2.dll" dist\ }
           if (Test-Path "$env:SDL2_ROOT\README-SDL.txt") { Copy-Item "$env:SDL2_ROOT\README-SDL.txt" dist\ }
-          # The SoundFont for the Roland sound: GeneralUser GS by S. Christian Collins, free to
-          # use and redistribute (its license goes with it).
+          # The SoundFont for the Roland sound and the synthesizer: GeneralUser GS by
+          # S. Christian Collins, free to use and redistribute (its license goes with it).
           New-Item -ItemType Directory -Force dist\soundfonts | Out-Null
           $gu = "https://raw.githubusercontent.com/mrbumpy409/GeneralUser-GS/$env:GENERALUSER_COMMIT"
           Invoke-WebRequest "$gu/GeneralUser-GS.sf2" -OutFile dist\soundfonts\GeneralUser-GS.sf2
           Invoke-WebRequest "$gu/documentation/LICENSE.txt" -OutFile dist\soundfonts\GeneralUser-GS-LICENSE.txt
           # The 3D view's console models, with the credits their licenses ask for.
-          Copy-Item -Recurse assets\models dist\models
+          Copy-Item -Recurse ${{ matrix.app }}\assets\models dist\models
           # PDFium, to read the games' manuals in the 3D view (BSD and Apache licenses: its
           # LICENSE goes with it). Pinned to one build of bblanchon/pdfium-binaries.
           $pdf = "$env:RUNNER_TEMP\pdfium"
@@ -131,7 +154,7 @@ jobs:
           Get-ChildItem dist
 
       - name: Build installer (Inno Setup)
-        if: steps.src.outputs.present == 'true'
+        if: steps.changes.outputs.build == 'true'
         shell: pwsh
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
@@ -139,32 +162,37 @@ jobs:
             choco install innosetup --no-progress -y
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }
-          & $iscc "/DAppVersion=$env:APP_VERSION" "/DAppExeName=$env:APP_EXE" "/DSourceDir=$env:GITHUB_WORKSPACE\dist" "/DOutputDir=$env:GITHUB_WORKSPACE\dist-installer" installer\plumsg.iss
+          & $iscc "/DAppVersion=$env:APP_VERSION" "/DAppExeName=$env:APP_EXE" "/DSourceDir=$env:GITHUB_WORKSPACE\dist" "/DOutputDir=$env:GITHUB_WORKSPACE\dist-installer" ${{ matrix.app }}\installer\${{ matrix.name }}.iss
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Upload installer
-        if: steps.src.outputs.present == 'true'
+        if: steps.changes.outputs.build == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: plumsg-windows-installer
+          name: ${{ matrix.name }}-windows-installer
           path: dist-installer/*.exe
 
       - name: Attach installer to release
-        if: steps.src.outputs.present == 'true' && env.RELEASE_TAG != ''
+        if: steps.changes.outputs.build == 'true' && env.RELEASE_TAG != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           # Only used when the tag does not exist yet (manual run): tag the built commit.
           target_commitish: ${{ github.sha }}
           files: dist-installer/*.exe
-          # Tags with a suffix (v0.0.1-alpha, v1.0.0-rc1) are published as prereleases.
-          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
+          # Tags with a suffix (plumnin-v0.4.0-alpha, plumsg-v1.3.0-rc1) are published as prereleases.
+          prerelease: ${{ contains(env.RELEASE_TAG, '-alpha') || contains(env.RELEASE_TAG, '-beta') || contains(env.RELEASE_TAG, '-rc') }}
           generate_release_notes: true
 
   # The Linux build: one AppImage that runs on most desktops and on the Steam Deck without
   # Proton. Built on the oldest supported Ubuntu so it runs with older glibc versions too.
   appimage:
+    name: appimage (${{ matrix.name }})
+    needs: apps
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.apps.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -194,8 +222,9 @@ jobs:
         if: steps.changes.outputs.build == 'true'
         run: |
           if [ -n "$RELEASE_TAG" ]; then
-            [[ "$RELEASE_TAG" =~ ^v[0-9] ]] || { echo "::error::release_tag must look like v1.2.3"; exit 1; }
-            echo "APP_VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
+            tag="${{ matrix.name }}-v"
+            [[ "$RELEASE_TAG" =~ ^${tag}[0-9] ]] || { echo "::error::release_tag must look like ${tag}1.2.3"; exit 1; }
+            echo "APP_VERSION=${RELEASE_TAG#$tag}" >> "$GITHUB_ENV"
           else
             echo "APP_VERSION=0.0.0-dev.$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
           fi
@@ -208,13 +237,14 @@ jobs:
         run: |
           version=""
           if [ -n "$RELEASE_TAG" ]; then version="$APP_VERSION"; fi
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPLUMSG_BUILD_TESTS=OFF -DPLUMSG_VERSION="$version" \
-            -DPLUMSG_SCREENSCRAPER_DEVID="$SS_DEVID" -DPLUMSG_SCREENSCRAPER_DEVPASSWORD="$SS_DEVPASSWORD"
-          cmake --build build --parallel --target plumsg
+          p=${{ matrix.prefix }}
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release ${{ matrix.only }} -DPLUM_BUILD_TESTS=OFF -D${p}_VERSION="$version" \
+            -D${p}_SCREENSCRAPER_DEVID="$SS_DEVID" -D${p}_SCREENSCRAPER_DEVPASSWORD="$SS_DEVPASSWORD"
+          cmake --build build --parallel --target ${{ matrix.name }}
 
       - name: Build AppImage
         if: steps.changes.outputs.build == 'true'
-        run: bash tools/linux/make-appimage.sh build "$APP_VERSION" dist-appimage
+        run: bash ${{ matrix.app }}/tools/linux/make-appimage.sh build/${{ matrix.app }} "$APP_VERSION" dist-appimage
 
       - name: Check that it starts
         if: steps.changes.outputs.build == 'true'
@@ -226,25 +256,26 @@ jobs:
           HOME=$RUNNER_TEMP/home timeout 10 xvfb-run -a -s "-screen 0 1280x720x24" "$app"
           rc=$?
           set -e
-          if [ "$rc" -ne 124 ]; then echo "::error::plumsg exited with $rc before 10 seconds"; exit 1; fi
+          if [ "$rc" -ne 124 ]; then echo "::error::${{ matrix.name }} exited with $rc before 10 seconds"; exit 1; fi
 
       - name: Upload AppImage
         if: steps.changes.outputs.build == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: plumsg-linux-appimage
+          name: ${{ matrix.name }}-linux-appimage
           path: dist-appimage/*.AppImage
 
   # After the Windows job, which creates the release when the run is a manual one, so
   # the two do not both try to create it.
   appimage-release:
     needs: [installer, appimage]
-    if: needs.appimage.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != '')
+    if: needs.appimage.result == 'success' && (startsWith(github.ref, 'refs/tags/plum') || inputs.release_tag != '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: plumsg-linux-appimage
+          # A release is always of one program, the one its tag names.
+          name: ${{ startsWith(env.RELEASE_TAG, 'plumsg-') && 'plumsg' || 'plumnin' }}-linux-appimage
           path: dist-appimage
       - name: Attach AppImage to release
         uses: softprops/action-gh-release@v2
@@ -252,4 +283,4 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           target_commitish: ${{ github.sha }}
           files: dist-appimage/*.AppImage
-          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
+          prerelease: ${{ contains(env.RELEASE_TAG, '-alpha') || contains(env.RELEASE_TAG, '-beta') || contains(env.RELEASE_TAG, '-rc') }}

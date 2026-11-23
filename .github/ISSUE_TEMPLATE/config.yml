@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: plumsg FAQ
+    url: https://github.com/cochimbo/plumemu/blob/main/sega/docs/faq.md
+    about: BIOS, gamepads, netplay, where saves are kept...
+  - name: plumnin README
+    url: https://github.com/cochimbo/plumemu/blob/main/nintendo/README.md
+    about: What plumnin does, how to build it, where saves are kept...

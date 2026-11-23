@@ -19,11 +19,11 @@ esac
 
 build=true
 if [[ -n "$range" ]] && files=$(git diff --name-only "$range" 2>/dev/null) && [[ -n "$files" ]]; then
-  # Documentation: anything in docs/, and .md files (outside tests/, where a .md can
-  # be a Mega Drive ROM, only the READMEs).
+  # Documentation: anything in a docs/ folder, and .md files (in a tests/ folder, where
+  # a .md can be a Mega Drive ROM, only the READMEs). plumsg is in sega/, plumnin in nintendo/.
   code=$(printf '%s\n' "$files" | awk '
-    /^tests\// { if ($0 !~ /README\.md$/) print; next }
-    /^docs\// || /\.md$/ { next }
+    /(^|\/)tests\// { if ($0 !~ /README\.md$/) print; next }
+    /(^|\/)docs\// || /\.md$/ { next }
     { print }')
   if [[ -z "$code" ]]; then
     build=false

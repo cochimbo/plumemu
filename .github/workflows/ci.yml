@@ -6,8 +6,19 @@ on:
   pull_request:
 
 jobs:
+  # Each program with its window, its tests and its own extra checks. Built from the root
+  # CMakeLists.txt with only that program on, as plumsg's and plumnin's CI built them.
   linux:
+    name: linux (${{ matrix.app }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: sega
+            only: -DPLUM_BUILD_NINTENDO=OFF
+          - app: nintendo
+            only: -DPLUM_BUILD_SEGA=OFF
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,22 +37,39 @@ jobs:
       - name: Build
         if: steps.changes.outputs.build == 'true'
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release ${{ matrix.only }}
           cmake --build build --parallel
-      - name: Core tests
+      - name: Tests
         if: steps.changes.outputs.build == 'true'
         run: ctest --test-dir build --output-on-failure
-      - name: Screenshot of the test pattern
+      - name: Z80 exerciser (ZEXDOC)
+        if: steps.changes.outputs.build == 'true' && matrix.app == 'sega'
+        run: |
+          curl -sSfL -o zexdoc.com https://raw.githubusercontent.com/anotherlin/z80emu/master/testfiles/zexdoc.com
+          ./build/sega/zex_runner zexdoc.com
+      - name: 68000 single-step tests (Tom Harte)
+        if: steps.changes.outputs.build == 'true' && matrix.app == 'sega'
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/SingleStepTests/680x0 harte
+          git -C harte sparse-checkout set 68000/v1
+          git -C harte checkout e0d5ece9670205cc84a0101081837deb446f86a3
+          ./build/sega/m68k_json_runner --cycles --allow-failures 40 harte/68000/v1/*.json.gz
+      - name: Screenshot of the test ROM
         if: steps.changes.outputs.build == 'true'
-        run: ./build/plumnin-headless --test-rom --frames 120 --png test-pattern.png --quiet
+        run: |
+          if [ "${{ matrix.app }}" = sega ]; then
+            ./build/sega/rom_runner --test-rom --frames 120 --png test-rom.png
+          else
+            ./build/nintendo/plumnin-headless --test-rom --frames 120 --png test-rom.png --quiet
+          fi
       - uses: actions/upload-artifact@v4
         if: steps.changes.outputs.build == 'true'
         with:
-          name: test-pattern-screenshot
-          path: test-pattern.png
+          name: test-rom-screenshot-${{ matrix.app }}
+          path: test-rom.png
 
-  # The emulator without a window: builds without SDL2 or OpenGL, as a CI job or a
-  # Claude thread would to reproduce a bug, and keeps a run's outputs as an artifact.
+  # Both programs without a window, in one build: builds without SDL2 or OpenGL, as a CI
+  # job or a Claude thread would to reproduce a bug, and keeps a run's outputs as an artifact.
   headless:
     runs-on: ubuntu-latest
     steps:
@@ -59,11 +87,19 @@ jobs:
       - name: Build (no frontend)
         if: steps.changes.outputs.build == 'true'
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPLUMNIN_BUILD_FRONTEND=OFF
-          cmake --build build --parallel --target plumnin-headless core_tests
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPLUM_BUILD_FRONTEND=OFF
+          cmake --build build --parallel --target plumsg-headless plumsg_core_tests plumnin-headless plumnin_core_tests
       - name: Headless tests
         if: steps.changes.outputs.build == 'true'
-        run: ctest --test-dir build --output-on-failure -R "headless|core_tests"
+        run: ctest --test-dir build --output-on-failure -R "headless|core_tests|240p"
+      # The picture and sound of a fixed set of runs of both programs must be the ones in
+      # tools/reference/reference.txt (see tools/reference/README.md).
+      - name: Picture and sound reference
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          tools/reference/fetch.sh reference-roms
+          tools/reference/run.sh build/sega/plumsg-headless build/nintendo/plumnin-headless reference-roms reference-now.txt > /dev/null
+          tools/reference/compare.sh reference-now.txt
       # The Game Boy's test ROMs (blargg, mooneye, the acid2 pictures): downloaded, never committed.
       - name: Game Boy test ROMs
         if: steps.changes.outputs.build == 'true'
@@ -89,7 +125,7 @@ jobs:
         run: |
           base=https://raw.githubusercontent.com/PeterLemon/SNES/350b394e86ec5d62f600b5cbf64cdce3721bb6ef
           cmake --build build --parallel --target snes-test-roms snes-single-step
-          ./build/snes-test-roms --list > snes-roms.txt
+          ./build/nintendo/snes-test-roms --list > snes-roms.txt
           xargs -P 16 -I{} curl -sSfL --create-dirs -o "snestr/{}" "$base/{}" < snes-roms.txt
           mkdir -p ss65816 ssspc700
           for i in $(seq 0 255); do h=$(printf %02x $i); echo "$h.e.json"; echo "$h.n.json"; done |
@@ -101,17 +137,23 @@ jobs:
           cmake build -DSNES_TEST_ROMS="$PWD/snestr" -DSNES_CPU_TESTS="$PWD/ss65816" -DSNES_SPC_TESTS="$PWD/ssspc700"
           cmake --build build --parallel --target snes-test-roms snes-single-step
           ctest --test-dir build --output-on-failure -R "snes_test_roms|snes_cpu_tests|snes_spc_tests"
-      - name: Sample run with an input script
+      - name: Sample runs with an input script
         if: steps.changes.outputs.build == 'true'
         run: |
-          mkdir -p headless-out
-          ./build/plumnin-headless --test-rom --frames 120 --out-dir headless-out \
-            --do "30+30 right" --do "45 screenshot" --do "90 screenshot" --json headless-out/moves.json
-          ./build/plumnin-headless --test-rom --system gb --frames 300 --png-every 100 --out-dir headless-out \
-            --do "50-250 a" --wav headless-out/test-pattern.wav --hash-log headless-out/test-pattern-hashes.txt \
-            --json headless-out/test-pattern.json
+          mkdir -p headless-out/sega headless-out/nintendo
+          ./build/sega/plumsg-headless --pad-test-rom --frames 120 --out-dir headless-out/sega \
+            --do "30+30 start" --do "45 screenshot" --do "90 screenshot" --json headless-out/sega/pad.json
+          ./build/sega/plumsg-headless --test-rom --frames 300 --png-every 100 --out-dir headless-out/sega \
+            --wav headless-out/sega/test-rom.wav --hash-log headless-out/sega/test-rom-hashes.txt \
+            --json headless-out/sega/test-rom.json
+          ./build/nintendo/plumnin-headless --test-rom --frames 120 --out-dir headless-out/nintendo \
+            --do "30+30 right" --do "45 screenshot" --do "90 screenshot" --json headless-out/nintendo/moves.json
+          ./build/nintendo/plumnin-headless --test-rom --system gb --frames 300 --png-every 100 \
+            --out-dir headless-out/nintendo --do "50-250 a" --wav headless-out/nintendo/test-pattern.wav \
+            --hash-log headless-out/nintendo/test-pattern-hashes.txt --json headless-out/nintendo/test-pattern.json
+          cp reference-now.txt headless-out/ 2>/dev/null || true
       - uses: actions/upload-artifact@v4
-        if: steps.changes.outputs.build == 'true'
+        if: steps.changes.outputs.build == 'true' && always()
         with:
           name: headless-output
           path: headless-out

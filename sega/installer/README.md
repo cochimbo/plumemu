@@ -16,9 +16,9 @@
 
 ## Automatic build
 
-The `.github/workflows/windows-installer.yml` workflow builds the emulator with CMake +
+plumemu's `.github/workflows/windows-installer.yml` workflow builds the emulator with CMake +
 MSVC, downloads SDL2, builds the installer and uploads it as an artifact of the run
-(`plumsg-windows-installer`). When a `vX.Y.Z` tag is pushed, the installer is attached to
+(`plumsg-windows-installer`). When a `plumsg-vX.Y.Z` tag is pushed, the installer is attached to
 the release.
 
 ## Local build
