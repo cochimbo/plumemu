@@ -1,0 +1,362 @@
+// Frontend tests that need SDL's key names but no window: a game's own options and
+// controls, read from and written to its file in the profiles folder.
+#define SDL_MAIN_HANDLED
+#include <cstdio>
+#include <cstdlib>
+#include <sstream>
+#include <string>
+
+#include "frontend/crash.h"
+#include "frontend/game_options.h"
+#include "frontend/handheld.h"
+#include "frontend/light_gun.h"
+
+#ifndef _WIN32
+#include <csignal>
+#include <fstream>
+#include <stdexcept>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+
+using namespace plumsg;
+
+namespace {
+
+int failures = 0;
+
+void check(bool ok, const char* what) {
+    std::printf("%s %s\n", ok ? "ok  " : "FAIL", what);
+    if (!ok) ++failures;
+}
+
+constexpr int kA = static_cast<int>(MdButton::A);
+constexpr int kB = static_cast<int>(MdButton::B);
+constexpr int kStart = static_cast<int>(MdButton::Start);
+
+void testGameControls() {
+    const Settings general;
+    const InputConfig generalInput = InputConfig::defaults();
+
+    // [teclado] shares avance_rapido with [velocidad]: a hotkey there is not the option.
+    const GameOverrides o = parseGameOverrides(
+        "[video]\nfiltro = crt\n[teclado]\na = Z\navance_rapido = F1\n[mando]\nb = y\n", general, generalInput);
+    check(o.has(kGameControls) && o.has("filter") && o.own.size() == 2, "juego: botones propios y filtro");
+    check(!o.has("fast_forward"), "juego: un atajo de [teclado] no es la opción avance_rapido");
+    check(o.controls.keys[kA] == std::vector<SDL_Scancode>{SDL_SCANCODE_Z}, "juego: A en la tecla Z");
+    check(o.controls.pad[kB] == std::vector<SDL_GameControllerButton>{SDL_CONTROLLER_BUTTON_Y}, "juego: B en el botón Y");
+    check(o.controls.keys[kStart] == generalInput.keys[kStart], "juego: los botones que no tiene siguen a los generales");
+
+    const GameOverrides back = parseGameOverrides(formatGameOverrides(o, "juego.md"), general, generalInput);
+    check(back.own == o.own && back.controls.keys == o.controls.keys && back.controls.keys2 == o.controls.keys2 &&
+              back.controls.pad == o.controls.pad,
+          "juego: los botones propios se guardan y se leen igual");
+
+    const GameOverrides plain = parseGameOverrides("[velocidad]\navance_rapido = 6\n", general, generalInput);
+    check(plain.has("fast_forward") && !plain.has(kGameControls), "juego: sin [teclado] ni [mando] no hay botones propios");
+    check(formatGameOverrides(plain, "juego.md").find("[teclado]") == std::string::npos,
+          "juego: sin botones propios no se escribe [teclado]");
+}
+
+void testRunAheadOption() {
+    const Settings general;
+    const InputConfig generalInput = InputConfig::defaults();
+    check(general.runAhead == 0, "run-ahead: desactivado si no se dice");
+
+    // Its own value for a game, and back from its file.
+    const GameOverrides o = parseGameOverrides("[velocidad]\nrun_ahead = 1\n", general, generalInput);
+    check(o.has("run_ahead") && o.values.runAhead == 1, "run-ahead: un juego con su propio valor");
+    const GameOverrides back = parseGameOverrides(formatGameOverrides(o, "juego.md"), general, generalInput);
+    check(back.has("run_ahead") && back.values.runAhead == 1, "run-ahead: se guarda y se lee igual en el juego");
+
+    // plumsg.ini keeps it, within 0 and kMaxRunAhead.
+    Settings s;
+    std::istringstream in("[velocidad]\nrun_ahead = 9\n");
+    Settings::parse(in, s);
+    check(s.runAhead == Settings::kMaxRunAhead, "run-ahead: no pasa del máximo");
+    s.runAhead = 2;
+    std::ostringstream out;
+    s.write(out);
+    Settings again;
+    std::istringstream text(out.str());
+    Settings::parse(text, again);
+    check(again.runAhead == 2, "run-ahead: plumsg.ini lo guarda");
+}
+
+void testSpriteLimitOption() {
+    const Settings general;
+    const InputConfig generalInput = InputConfig::defaults();
+    check(!general.unlimitedSprites, "sin límite de sprites: desactivado si no se dice");
+    const GameOverrides o = parseGameOverrides("[video]\nsin_limite_sprites = si\n", general, generalInput);
+    check(o.has("no_sprite_limit") && o.values.unlimitedSprites, "sin límite de sprites: un juego con su propio valor");
+    const GameOverrides back = parseGameOverrides(formatGameOverrides(o, "juego.md"), general, generalInput);
+    check(back.has("no_sprite_limit") && back.values.unlimitedSprites,
+          "sin límite de sprites: se guarda y se lee igual en el juego");
+    Settings s;
+    s.unlimitedSprites = true;
+    std::ostringstream out;
+    s.write(out);
+    Settings again;
+    std::istringstream text(out.str());
+    Settings::parse(text, again);
+    check(again.unlimitedSprites, "sin límite de sprites: plumsg.ini lo guarda");
+}
+
+void testOverclockOption() {
+    const Settings general;
+    const InputConfig generalInput = InputConfig::defaults();
+    check(general.overclock == 100, "overclock: desactivado si no se dice");
+    const GameOverrides o = parseGameOverrides("[consola]\noverclock = 200\n", general, generalInput);
+    check(o.has("overclock") && o.values.overclock == 200, "overclock: un juego con su propio valor");
+    const GameOverrides back = parseGameOverrides(formatGameOverrides(o, "juego.md"), general, generalInput);
+    check(back.has("overclock") && back.values.overclock == 200, "overclock: se guarda y se lee igual en el juego");
+    Settings s;
+    s.overclock = 300;
+    std::ostringstream out;
+    s.write(out);
+    Settings again;
+    std::istringstream text(out.str());
+    Settings::parse(text, again);
+    check(again.overclock == 300, "overclock: plumsg.ini lo guarda");
+    std::istringstream big("[consola]\noverclock = 5000\n");
+    Settings::parse(big, again);
+    check(again.overclock == Settings::kMaxOverclock, "overclock: como mucho 400");
+}
+
+void testLightGunOption() {
+    for (PadType t : {PadType::Menacer, PadType::Justifier, PadType::None, PadType::ThreeButton}) {
+        Settings s;
+        s.padType[1] = t;
+        std::ostringstream out;
+        s.write(out);
+        Settings again;
+        std::istringstream text(out.str());
+        Settings::parse(text, again);
+        check(again.padType[1] == t, "pistola de luz: plumsg.ini guarda lo que hay en el puerto 2");
+    }
+    const Settings general;
+    const GameOverrides o = parseGameOverrides("[consola]\npad2 = justifier\n", general, InputConfig::defaults());
+    check(o.has("pads") && o.values.padType[1] == PadType::Justifier, "pistola de luz: un juego con su Justifier");
+    Settings one;
+    std::istringstream pad1("[consola]\npad1 = menacer\n");
+    Settings::parse(pad1, one);
+    check(!isLightGun(one.padType[0]), "pistola de luz: nunca en el puerto 1");
+
+    // The crosshair: the mouse puts it on the picture, the stick moves it and keeps it
+    // there, C shoots off the screen.
+    LightGunAim aim;
+    aim.setPicture(100, 50, 640, 448);
+    aim.mouseMoved(420, 274);
+    PadState pad;
+    GunState g = aim.state(0, pad, 320, 224);
+    check(g.x == 160 && g.y == 112 && !g.trigger, "mira: el ratón apunta al centro");
+    aim.mouseButtons(true, false, false);
+    check(aim.state(0, pad, 320, 224).trigger && !aim.state(1, pad, 320, 224).trigger,
+          "mira: el clic izquierdo es el gatillo de la primera pistola");
+    aim.mouseButtons(false, false, false);
+    aim.move(0, pad, 1.0f, 0.0f, 10.0f);
+    g = aim.state(0, pad, 320, 224);
+    check(g.x == 319 && g.y == 112, "mira: el stick la mueve sin salirse de la pantalla");
+    pad.c = true;
+    g = aim.state(0, pad, 320, 224);
+    check(g.trigger && !g.onScreen(320, 224), "mira: C dispara fuera de la pantalla");
+    aim.mouseMoved(10, 10);
+    check(!aim.state(0, PadState{}, 320, 224).onScreen(320, 224), "mira: el ratón fuera de la imagen no ve luz");
+
+    // The Justifier's second (pink) gun: nobody has it until the second player moves it
+    // or pulls its trigger; until then it sees no light and shows no crosshair.
+    LightGunAim two;
+    two.setPicture(0, 0, 320, 224);
+    check(two.used(0) && !two.used(1), "segunda pistola: sin usar al empezar");
+    check(!two.state(1, PadState{}, 320, 224).onScreen(320, 224), "segunda pistola: sin usar no ve luz");
+    PadState right;
+    right.right = true;
+    two.move(1, right, 0.0f, 0.0f, 0.1f);
+    check(two.used(1) && two.state(1, PadState{}, 320, 224).onScreen(320, 224),
+          "segunda pistola: al moverla aparece y apunta");
+    two.forget();
+    check(!two.used(1), "segunda pistola: otro juego la deja sin usar");
+    PadState trigger;
+    trigger.a = true;
+    two.move(1, trigger, 0.0f, 0.0f, 0.1f);
+    check(two.used(1), "segunda pistola: el gatillo también la toma");
+}
+
+void testEqualizerOption() {
+    Settings s;
+    check(s.equalizer == (std::array<int, 5>{}), "ecualizador: plano si no se dice");
+    s.equalizer = {6, -3, 0, 2, -12};
+    std::ostringstream out;
+    s.write(out);
+    Settings again;
+    std::istringstream text(out.str());
+    Settings::parse(text, again);
+    check(again.equalizer == s.equalizer, "ecualizador: plumsg.ini lo guarda");
+    std::istringstream loud("[audio]\necualizador = 40, 0, 0, 0, -40\n");
+    Settings::parse(loud, again);
+    check(again.equalizer[0] == 12 && again.equalizer[4] == -12, "ecualizador: de -12 a 12 dB");
+}
+
+void testWidescreenOption() {
+    const Settings general;
+    const InputConfig generalInput = InputConfig::defaults();
+    check(general.wideLeft == 0 && general.wideRight == 0, "pantalla ancha: desactivada si no se dice");
+    const GameOverrides o = parseGameOverrides("[video]\npantalla_ancha_izquierda = 53\npantalla_ancha_derecha = 16\n", general,
+                                               generalInput);
+    check(o.has("widescreen") && o.values.wideLeft == 53 && o.values.wideRight == 16,
+          "pantalla ancha: un juego con sus propios lados");
+    const GameOverrides back = parseGameOverrides(formatGameOverrides(o, "juego.md"), general, generalInput);
+    check(back.has("widescreen") && back.values.wideLeft == 53 && back.values.wideRight == 16,
+          "pantalla ancha: se guarda y se lee igual en el juego");
+    const GameOverrides old = parseGameOverrides("[video]\npantalla_ancha = 16:9\n", general, generalInput);
+    check(old.has("widescreen") && old.values.wideLeft == 53 && old.values.wideRight == 53,
+          "pantalla ancha: lee los 16:9 de antes");
+    Settings s;
+    s.wideLeft = 32;
+    s.wideRight = 56;
+    std::ostringstream out;
+    s.write(out);
+    Settings again;
+    std::istringstream text(out.str());
+    Settings::parse(text, again);
+    check(again.wideLeft == 32 && again.wideRight == 56, "pantalla ancha: plumsg.ini lo guarda");
+}
+
+// plumsg.ini up to 0.0.31 was Spanish: it still reads, and the next save is English.
+void testSpanishIni() {
+    std::istringstream old(
+        "[interfaz]\nidioma = fr\n[video]\nescalado = estirar\nsuavizado = si\n[audio]\nvolumen = 35\n"
+        "[consola]\nregion = europa\n[velocidad]\navance_rapido = 7\n");
+    Settings s;
+    Settings::parse(old, s);
+    check(s.language == "fr" && s.render.scale == ScaleMode::Stretch && s.render.smooth && s.volume == 35 &&
+              s.region == Region::EuropePal && s.fastForward == 7,
+          "ini: lee el plumsg.ini en español de antes");
+    std::ostringstream out;
+    s.write(out);
+    const std::string text = out.str();
+    check(text.find("[interface]") != std::string::npos && text.find("scale = stretch") != std::string::npos &&
+              text.find("fast_forward = 7") != std::string::npos && text.find("volumen") == std::string::npos,
+          "ini: lo guarda en inglés");
+}
+
+// Console mode and the interface's size are kept, and the handhelds are told apart by
+// their firmware's model names.
+void testConsoleMode() {
+    Settings s;
+    s.consoleMode = 1;
+    s.uiScale = 150;
+    std::ostringstream out;
+    s.write(out);
+    std::istringstream in(out.str());
+    Settings back;
+    Settings::parse(in, back);
+    check(back.consoleMode == 1 && back.uiScale == 150, "ini: modo consola y tamaño de la interfaz");
+    std::istringstream automatic("[interface]\nconsole_mode = auto\nsize = auto\n");
+    Settings a;
+    a.consoleMode = 2;
+    a.uiScale = 120;
+    Settings::parse(automatic, a);
+    check(a.consoleMode == 0 && a.uiScale == 0, "ini: modo consola y tamaño automáticos");
+    check(handheldFromModel("Jupiter Valve") == "Steam Deck" && handheldFromModel("Galileo Valve") == "Steam Deck" &&
+              handheldFromModel("ROG Ally RC71L_RC71L ROG Ally ASUSTeK COMPUTER INC.") == "ROG Ally" &&
+              handheldFromModel("Claw A1M Claw Micro-Star International Co., Ltd.") == "MSI Claw" &&
+              handheldFromModel("83E1 Legion Go 8APU1 LENOVO") == "Legion Go" &&
+              handheldFromModel("System Product Name To be filled by O.E.M.").empty() &&
+              handheldFromModel("ROG STRIX B550-F GAMING").empty(),
+          "modo consola: reconoce las portátiles por su modelo");
+}
+
+#ifndef _WIN32
+// A child process crashes, in each way the handler catches; the report it leaves says
+// what happened and with which game, and the next start is told about it once.
+void testCrashReport() {
+    const std::string dir = "frontend_tests_fallos/";
+    struct Case {
+        const char* name;
+        void (*crash)();
+        const char* says;
+    };
+    const Case cases[] = {
+        {"acceso a memoria", [] { *static_cast<volatile int*>(nullptr) = 1; }, "SIGSEGV"},
+        {"excepción sin capturar", [] { throw std::runtime_error("algo salió mal"); }, "algo salió mal"},
+        {"abort", [] { std::abort(); }, "SIGABRT"},
+    };
+    for (const Case& c : cases) {
+        const pid_t child = fork();
+        if (child == 0) {
+            installCrashHandler(dir);
+            setCrashContext("roms/juego.md");
+            c.crash();
+            _exit(0);
+        }
+        int status = 0;
+        waitpid(child, &status, 0);
+        check(WIFSIGNALED(status), (std::string("fallo: ") + c.name + " acaba el programa como sin el informe").c_str());
+        const std::string report = takeCrashReport(dir);
+        std::ifstream in(report);
+        std::stringstream text;
+        text << in.rdbuf();
+        check(!report.empty() && text.str().find(c.says) != std::string::npos &&
+                  text.str().find("roms/juego.md") != std::string::npos,
+              (std::string("fallo: ") + c.name + " deja un informe con lo que pasó y el juego").c_str());
+        check(takeCrashReport(dir).empty(), (std::string("fallo: ") + c.name + " se avisa una sola vez").c_str());
+    }
+}
+#endif
+
+void testHistoryAndFavorites() {
+    Settings s;
+    s.addHistory("/roms/sonic.md");
+    s.addHistory("/roms/streets.md");
+    s.addHistory("/roms/sonic.md");
+    check(s.history.size() == 2 && s.history[0] == "/roms/sonic.md", "histórico: el último juego el primero, sin repetir");
+    for (int i = 0; i < 300; ++i) s.addHistory("/roms/juego" + std::to_string(i) + ".md");
+    check(s.history.size() == Settings::kMaxHistory, "histórico: como mucho kMaxHistory juegos");
+    s.removeHistory("/roms/juego299.md");
+    check(s.history[0] == "/roms/juego298.md", "histórico: se quita un juego");
+    check(Settings::samePath("C:\\roms\\sonic.md", "C:/roms/sonic.md"), "rutas: las barras de los dos lados valen");
+
+    s.setFavorite("/roms/sonic.md", true);
+    s.setFavorite("/roms/sonic.md", true);
+    s.setFavorite("/roms/ecco.md", true);
+    check(s.favorites.size() == 2 && s.isFavorite("/roms/ecco.md"), "favoritos: se marcan una sola vez");
+    s.setFavorite("/roms/ecco.md", false);
+    check(!s.isFavorite("/roms/ecco.md") && s.isFavorite("/roms/sonic.md"), "favoritos: se quitan");
+
+    s.librarySystem = Settings::kTabFavorites;
+    std::ostringstream out;
+    s.write(out);
+    Settings again;
+    std::istringstream text(out.str());
+    Settings::parse(text, again);
+    check(again.history == s.history, "histórico: plumsg.ini lo guarda en orden");
+    check(again.favorites == s.favorites, "favoritos: plumsg.ini los guarda");
+    check(again.librarySystem == Settings::kTabFavorites, "biblioteca: plumsg.ini recuerda la pestaña de favoritos");
+    s.librarySystem = Settings::kTabHistory;
+    std::ostringstream out2;
+    s.write(out2);
+    std::istringstream text2(out2.str());
+    Settings::parse(text2, again);
+    check(again.librarySystem == Settings::kTabHistory, "biblioteca: plumsg.ini recuerda la pestaña del histórico");
+}
+
+}  // namespace
+
+int main() {
+    testGameControls();
+    testRunAheadOption();
+    testSpriteLimitOption();
+    testWidescreenOption();
+    testOverclockOption();
+    testEqualizerOption();
+    testLightGunOption();
+    testSpanishIni();
+    testConsoleMode();
+    testHistoryAndFavorites();
+#ifndef _WIN32
+    testCrashReport();
+#endif
+    std::printf(failures ? "%d fallos\n" : "todo bien\n", failures);
+    return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+}

@@ -1,0 +1,85 @@
+#pragma once
+
+#include <array>
+#include <cstdint>
+#include <cstddef>
+#include <vector>
+
+#include "loudness.h"
+
+namespace plumsg {
+
+// Texas Instruments SN76489 (the PSG inside the Mega Drive's VDP): three square-wave
+// tone channels and one noise channel. Runs off the Z80 clock and produces interleaved
+// 16-bit stereo samples at a rate the frontend chooses, so it can nudge the rate to
+// keep its queue level. The per-channel stereo switch is a Game Gear leftover; the
+// Mega Drive leaves it at both sides.
+class Psg {
+public:
+    static constexpr double kClockNtsc = 3579545.0;  // same clock as the Z80
+    static constexpr double kClockPal = 3546894.0;
+
+    Psg() { reset(); }
+
+    void reset();
+    void write(uint8_t value);                       // ports 0x40-0x7F
+    void setStereo(uint8_t value) { stereo_ = value; }  // port 0x06: bits 4-7 left, 0-3 right
+    uint8_t stereo() const { return stereo_; }
+    void setSampleRate(double hz) { sampleRate_ = hz; }
+    void setClock(double hz) { clock_ = hz; }
+    // Turns the channels in `mask` (bit 0 = tone 1 ... bit 3 = noise) down to percent
+    // of their volume: for the Roland sound and for listening to some channels alone.
+    void setMuted(uint32_t mask, int percent) {
+        muted_ = mask & 0xF;
+        mutedLevel_ = percent * 256 / 100;
+    }
+
+    // The channels in `mask` measured at their full volume into replaced(), as on the
+    // YM2612.
+    void setReplaced(uint32_t mask) { replaced_ = mask & 0xF; }
+    LoudnessMeter& replaced() { return replacedMeter_; }
+
+    // Advances by this many Z80 cycles, appending samples as they fall due.
+    void run(int cycles);
+    // Interleaved left/right samples produced since the last call to clearSamples().
+    const std::vector<int16_t>& samples() const { return samples_; }
+    void clearSamples() { samples_.clear(); }
+
+    // What each channel is set to play: tone period (for the noise channel, its
+    // control bits) and attenuation, 0 loudest .. 15 silent.
+    uint16_t period(int channel) const { return period_[static_cast<size_t>(channel & 3)]; }
+    uint8_t attenuation(int channel) const { return attenuation_[static_cast<size_t>(channel & 3)]; }
+    double clock() const { return clock_; }
+
+    template <class Ar>
+    void state(Ar& ar) {
+        ar(period_, attenuation_, counter_, output_, lfsr_, latched_, stereo_, cycleRemainder_, samplePhase_,
+           sumLeft_, sumRight_, ticksInSample_);
+    }
+
+private:
+    void tick();  // one step of the chip's internal clock (Z80 clock / 16)
+
+    std::array<uint16_t, 4> period_{};    // 10-bit tone periods; [3] is the noise control
+    std::array<uint8_t, 4> attenuation_{};  // 0 loudest .. 15 silent
+    std::array<int, 4> counter_{};
+    std::array<int, 4> output_{};          // +1 or -1
+    uint16_t lfsr_ = 0x8000;
+    int latched_ = 0;       // register selected by the last latch byte: channel * 2 + volume
+    uint8_t stereo_ = 0xFF;
+    uint32_t muted_ = 0;
+    int mutedLevel_ = 0;  // out of 256
+
+    int cycleRemainder_ = 0;
+    double sampleRate_ = 44100.0;
+    double clock_ = kClockNtsc;
+    double samplePhase_ = 0;  // chip ticks accumulated toward the next sample, scaled by sampleRate_
+    int32_t sumLeft_ = 0, sumRight_ = 0;
+    int ticksInSample_ = 0;
+    uint32_t replaced_ = 0;
+    int32_t replacedLeft_ = 0, replacedRight_ = 0;  // the replaced channels, at full volume
+    LoudnessMeter replacedMeter_;
+    std::vector<int16_t> samples_;
+};
+
+}  // namespace plumsg

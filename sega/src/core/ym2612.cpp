@@ -1,0 +1,170 @@
+#include "ym2612.h"
+
+#include <algorithm>
+
+#include "ymfm_opn.h"
+
+namespace plumsg {
+
+namespace {
+
+constexpr uint64_t kMasterPerSample = 7 * 144;  // one FM sample every 144 chip clocks
+
+// ymfm's YM2612 with a way to turn some FM channels down: the Roland sound plays their
+// notes instead, while the DAC (voices and drums) stays. The mix is ymfm's own
+// ym2612::generate, with each muted channel scaled by level/256.
+class Chip : public ymfm::ym2612 {
+public:
+    using ymfm::ym2612::ym2612;
+
+    // `replaced` gets the channels in `replacedMask` at full volume (left, right), on the
+    // same scale as the output.
+    void generateMuted(output_data* output, uint32_t muted, int32_t level, uint32_t replacedMask, int32_t* replaced) {
+        m_fm.clock(ymfm::ym2612::fm_engine::ALL_CHANNELS);
+        output->clear();
+        output_data temp;
+        int32_t fullL = 0, fullR = 0;
+        const int lastFm = m_dac_enable ? 5 : 6;
+        for (int chan = 0; chan < lastFm; ++chan) {
+            m_fm.output(temp.clear(), 5, 256, 1 << chan);
+            int32_t l = dac_discontinuity(temp.data[0]), r = dac_discontinuity(temp.data[1]);
+            if (replacedMask & (1u << chan)) {
+                fullL += l;
+                fullR += r;
+            }
+            if (muted & (1u << chan)) {
+                l = l * level / 256;
+                r = r * level / 256;
+            }
+            output->data[0] += l;
+            output->data[1] += r;
+        }
+        if (m_dac_enable) {
+            int32_t dacval = dac_discontinuity(int16_t(m_dac_data << 7) >> 7);
+            if (muted & 0x40) dacval = dacval * level / 256;
+            const int32_t silent = (muted & 0x40) ? dac_discontinuity(0) * level / 256 : dac_discontinuity(0);
+            output->data[0] += m_fm.regs().ch_output_0(0x102) ? dacval : silent;
+            output->data[1] += m_fm.regs().ch_output_1(0x102) ? dacval : silent;
+        }
+        output->data[0] = (output->data[0] * 128) * 64 / (6 * 65);
+        output->data[1] = (output->data[1] * 128) * 64 / (6 * 65);
+        replaced[0] = (fullL * 128) * 64 / (6 * 65);
+        replaced[1] = (fullR * 128) * 64 / (6 * 65);
+    }
+
+    uint8_t reg(uint16_t index) const { return const_cast<Chip*>(this)->m_fm.regs().read(index); }
+    bool dacEnabled() const { return m_dac_enable != 0; }
+};
+
+}  // namespace
+
+// ymfm talks to the outside world through this interface: timers are counted in chip
+// clocks and advanced as samples are generated.
+struct Ym2612::Impl : public ymfm::ymfm_interface {
+    Chip chip{*this};
+    std::array<int32_t, 2> timer{-1, -1};  // chip clocks left, -1 = stopped
+    int32_t busy = 0;
+    bool reloading = false;  // a timer that ran out is starting over
+
+    void ymfm_set_timer(uint32_t tnum, int32_t duration) override {
+        if (tnum >= 2) return;
+        // Started by a write, timer A first counts on the sample after the next (testpico's
+        // "timer ab sync"; ymfm already starts timer B on its every-16th-sample count).
+        if (tnum == 0 && duration >= 0 && !reloading) duration += 144;
+        timer[tnum] = duration;
+    }
+    int32_t sub = 0;  // chip clocks since the last sample, when a port is accessed
+    // Busy is counted from the last sample, so it ends between samples as it should.
+    void ymfm_set_busy_end(uint32_t clocks) override { busy = static_cast<int32_t>(clocks) + sub; }
+    bool ymfm_is_busy() override { return busy > sub; }
+
+    void advance(int32_t clocks) {
+        busy = std::max(0, busy - clocks);
+        for (uint32_t t = 0; t < 2; ++t) {
+            if (timer[t] < 0) continue;
+            timer[t] -= clocks;
+            if (timer[t] <= 0) {
+                timer[t] = -1;
+                reloading = true;
+                m_engine->engine_timer_expired(t);  // may re-arm it through ymfm_set_timer
+                reloading = false;
+            }
+        }
+    }
+};
+
+Ym2612::Ym2612() : impl_(std::make_unique<Impl>()) { reset(); }
+
+Ym2612::~Ym2612() = default;
+
+void Ym2612::reset() {
+    keys_ = {};
+    impl_->chip.reset();
+    impl_->timer = {-1, -1};
+    impl_->busy = 0;
+}
+
+void Ym2612::runUntil(uint64_t masterClocks) {
+    now_ = masterClocks;
+    if (replaced_) replacedMeter_.setRate(sampleRate());
+    while (position_ + kMasterPerSample <= masterClocks) {
+        position_ += kMasterPerSample;
+        ymfm::ym2612::output_data out;
+        if (muted_ || replaced_) {
+            int32_t full[2] = {0, 0};
+            impl_->chip.generateMuted(&out, muted_, mutedLevel_, replaced_, full);
+            if (replaced_) replacedMeter_.add(full[0], full[1]);
+        } else {
+            impl_->chip.generate(&out, 1);
+        }
+        impl_->advance(144);
+        samples_.push_back(static_cast<int16_t>(std::clamp<int32_t>(out.data[0], -32768, 32767)));
+        samples_.push_back(static_cast<int16_t>(std::clamp<int32_t>(out.data[1], -32768, 32767)));
+    }
+}
+
+void Ym2612::write(int offset, uint8_t value) {
+    const int port = (offset >> 1) & 1;
+    if (!(offset & 1)) {
+        address_[static_cast<size_t>(port)] = value;
+    } else if (port == 0 && address_[0] == 0x28 && (value & 3) != 3) {
+        keys_[static_cast<size_t>((value & 3) + ((value & 4) ? 3 : 0))] = value & 0xF0;
+    }
+    impl_->sub = subSample();
+    impl_->chip.write(static_cast<uint32_t>(offset & 3), value);
+}
+
+uint8_t Ym2612::readStatus() {
+    impl_->sub = subSample();
+    return impl_->chip.read_status();
+}
+
+int32_t Ym2612::subSample() const {
+    return now_ > position_ ? static_cast<int32_t>((now_ - position_) / 7) : 0;
+}
+
+uint8_t Ym2612::reg(int index) const { return impl_->chip.reg(static_cast<uint16_t>(index & 0x1FF)); }
+
+bool Ym2612::dacEnabled() const { return impl_->chip.dacEnabled(); }
+
+void Ym2612::saveState(std::vector<uint8_t>& out) {
+    ymfm::ymfm_saved_state st(out, true);
+    impl_->chip.save_restore(st);
+    for (auto& t : impl_->timer) st.save_restore(t);
+    st.save_restore(impl_->busy);
+}
+
+bool Ym2612::loadState(const std::vector<uint8_t>& in) {
+    std::vector<uint8_t> current;
+    saveState(current);
+    if (current.size() != in.size()) return false;  // another ymfm version or garbage
+    std::vector<uint8_t> copy = in;
+    ymfm::ymfm_saved_state st(copy, false);
+    impl_->chip.save_restore(st);
+    for (auto& t : impl_->timer) st.save_restore(t);
+    st.save_restore(impl_->busy);
+    impl_->chip.invalidate_caches();
+    return true;
+}
+
+}  // namespace plumsg
