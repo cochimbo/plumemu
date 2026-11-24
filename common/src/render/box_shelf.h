@@ -4,30 +4,27 @@
 #include <string>
 #include <vector>
 
-#include "../core/system.h"
-#include "console_models.h"
 #include "render/gl.h"
 #include "render/gltf_model.h"
 #include "render/room.h"
+#include "render/shelf_consoles.h"
 
-namespace plumnin {
+namespace plum {
 
-// The library's 3D view, as plumsg's: the games' boxes on a shelf, their spines to the
-// viewer, over a floor that reflects them. The wheel zooms out to the whole shelf and
-// dragging moves along it. A click takes a box out to the front, where dragging turns it; a
-// click on it opens the flap at one end of the cardboard box (the top of an NES or Game Boy
-// one, the right end of a Super Nintendo one lying down), slides the card holder inside out
-// a way and pulls its cartridge out, which
-// dragging turns as well; a click on the cartridge puts it into the game's console (on top
-// of a Super Nintendo, in the door of an NES and pushed down, at the back of a Game Boy),
-// whose light comes on (a Game Boy's screen too), and then the game is played
-// (takeLaunch()). With the box open, a click on the manual behind the holder (or Left)
-// brings it out in front to be read: a click on its right page (Right, A) turns to the
-// next pages, on its left one (Left) back. The wheel zooms in on the box, the cartridge
-// and the manual too. A click anywhere else goes a step back.
+// The library's 3D view: the games' boxes on a shelf, their spines to the viewer, over a
+// floor that reflects them. The wheel zooms out to the whole shelf and dragging moves
+// along it. A click takes a box out to the front, where dragging turns it; a click on it
+// opens the box and takes its game out (a cartridge, or a disc), which dragging turns as
+// well; a click on that puts it into the game's console, whose light comes on, and then
+// the game is played (takeLaunch()). With the box open, a click on the manual in it (or
+// Left) brings it out in front to be read: a click on its right page (Right, A) turns to
+// the next pages, on its left one (Left) back. The wheel zooms in on the box, the
+// cartridge and the manual too. A click anywhere else goes a step back.
 //
-// Each system's box has its size: the NES's tall, the Super Nintendo's lying on its side
-// when its cover is wider than tall (America's and Japan's), the Game Boy's small and square.
+// The shelf, the camera, the manual and the drawing are the same for every console. What
+// each console's boxes, cartridges and console look like, and how a box opens, is each
+// program's (render/shelf_consoles.h and .cpp in sega/ and nintendo/): plumsg's plastic
+// cases with a hinged lid, plumnin's cardboard boxes with a flap and a card holder.
 //
 // It draws with OpenGL 3.3 into a texture of its own, which the library shows as an
 // image; clicks on that image are passed back as points from 0 to 1.
@@ -38,8 +35,8 @@ public:
         // The Cover Project's are: the back, the spine and the front side by side.
         unsigned int texture = 0;
         int width = 0, height = 0;
-        ConsoleSystem system = ConsoleSystem::GameBoy;
-        // The cartridge's label; without one the cover's front.
+        ConsoleSystem system{};
+        // The cartridge's label (a disc's); without one the cover's front.
         unsigned int label = 0;
         int labelWidth = 0, labelHeight = 0;
         // It has a manual to read (only looked at for the chosen game).
@@ -57,8 +54,8 @@ public:
     enum class Stage { Shelf, Box, Cartridge, Manual, Console };
 
     // Where the front starts across a cover (0 to 1): 0 unless it is a whole sleeve (back,
-    // spine and front). A Super Nintendo's front may be wider than tall.
-    static float coverFront(int width, int height, ConsoleSystem system = ConsoleSystem::GameBoy);
+    // spine and front), by the shape of the system's boxes. Each program's.
+    static float coverFront(int width, int height, ConsoleSystem system = ConsoleSystem{});
 
     BoxShelf();
     ~BoxShelf();
@@ -81,9 +78,9 @@ public:
     void setCartridgeModel(ConsoleSystem system, const GltfModel& model, float turnX, float turnZ, const float labelArea[4],
                            const float pictureArea[4], int labelTurn, float pictureAspect, float pictureMiddle, float turnY = 0,
                            int labelImage = -1);
-    // Loads the consoles' and cartridges' models that plumnin knows how to place
-    // (gameboy.glb, nes.glb, snes.glb... and their cartridges), from the first of `folders`
-    // that has each. Those it cannot read keep the built-in model.
+    // Loads the consoles' and cartridges' models that the program knows how to place
+    // (megadrive.glb, nes.glb... and their cartridges), from the first of `folders` that
+    // has each. Those it cannot read keep the built-in model. Each program's.
     void loadConsoleModels(const std::vector<std::string>& folders);
     BoxShelf(const BoxShelf&) = delete;
     BoxShelf& operator=(const BoxShelf&) = delete;
@@ -170,11 +167,9 @@ private:
         bool matte = false;   // the room around: no cool rim light, darker towards the ceiling
     };
 
-    // A box's size: its system's, and on the Super Nintendo the one its cover asks for.
     struct Size {
         float w = 1.0f, h = 1.4f, d = 0.2f;
     };
-    static Size boxSize(const Item& item);
     void build(const std::vector<Item>& items, int selected);
     // The manual out of the box, on its way (read_) or open at its pages.
     void addManual(const Item& item, const Mat4& boxManual);
@@ -182,14 +177,6 @@ private:
     void manualSize(float* w, float* h) const;
     Vec3 manualSpot() const;
     int lastSpread() const;
-    // Returns where the manual lies in the box (its middle, unscaled, its cover to the front).
-    Mat4 addBox(const std::vector<Item>& items, int index, const Mat4& place, float open, bool withManual);
-    // A Super Nintendo box lying down opens at its right end, the others at the top.
-    static bool opensAtSide(ConsoleSystem s, const Size& size);
-    static Vec3 boxColour(ConsoleSystem s);
-    float trayOut() const;  // 0 in .. 1 the holder out as far as it goes
-    float tipped() const;   // 0 standing .. 1 an NES box on its side, to be opened
-    Mat4 cartridgeInBox(const Mat4& box, ConsoleSystem s, const Size& size) const;
     // A closed box standing on the shelf, its spine out.
     void addShelfBox(const Item& item, int index, const Mat4& place);
     // The lit frame around the chosen box's spine, standing at `spot`.
@@ -200,14 +187,33 @@ private:
     // Where box `index` stands on the shelf (its middle), and how big the shelf is.
     Vec3 shelfSpot(int index) const;
     void shelfSize(float* width, float* height, float* bottom) const;
-    // The box and cartridge in front, as they are now.
+    void addCartridge(const Item& item, const Mat4& place);
+    void camera(Vec3* eye, Vec3* target) const;
+
+    // Each program's (render/shelf_consoles.cpp): its boxes, games and consoles.
+    // A box's size: its system's, or the one its cover asks for.
+    static Size boxSize(const Item& item);
+    // The colour of a box with no cover on it.
+    static Vec3 boxColour(ConsoleSystem s);
+    // How far the box in front is open (0 closed), from open_.
+    float boxOpening() const;
+    // The box in front, open `open` (boxOpening()); returns where the manual lies in it
+    // (its middle, unscaled, its cover to the front).
+    Mat4 addBox(const std::vector<Item>& items, int index, const Mat4& place, float open, bool withManual);
+    // The box and cartridge in front, as they are now, and where the cartridge is in a box.
     Mat4 heldBox() const;
     Mat4 heldCartridge() const;
-    void addCartridge(const Item& item, const Mat4& place);
-    // The console of the item's game, `rise` above its place; returns where the cartridge
-    // stands once it is in.
-    Mat4 addConsole(const Item& item, float light, float rise);
-    void camera(Vec3* eye, Vec3* target) const;
+    Mat4 cartridgeInBox(const Mat4& box, ConsoleSystem s, const Size& size) const;
+    // A game that is not a cartridge (a disc), drawn at `place` from `p` (its label set):
+    // false if it is a cartridge after all.
+    bool addDisc(const Item& item, Part p, const Mat4& place);
+    // The console of the item's game, `rise` above its place, its disc tray `tray` open
+    // (0 to 1, if it has one); returns where the cartridge stands once it is in.
+    Mat4 addConsole(const Item& item, float light, float rise, float tray);
+    // The console and the game on its way into it, `t` of the way (0 to 1).
+    void addInsertion(const Item& item, float light, float rise, float t);
+    // Where the camera is and looks at the console, from the box's place.
+    static void consoleView(ConsoleSystem s, Vec3* eye, Vec3* target);
     // The part under (x, y), or nullptr.
     const Part* pick(float x, float y) const;
     void ensureTarget(int width, int height);
@@ -250,7 +256,7 @@ private:
 
     State state_ = State::Browse;
     float take_ = 0;       // 0 on the shelf .. 1 the box out in front
-    float open_ = 0;       // 0 closed .. 1 the flap open and the cartridge out
+    float open_ = 0;       // 0 closed .. 1 the box open and the cartridge out
     float eject_ = 0;      // 0 .. 1 the cartridge's way into the console
     float light_ = 0;      // seconds since it went in
     float pull_ = 0;       // the chosen box on the shelf, slid a little out
@@ -267,7 +273,7 @@ private:
     Size held_;  // the chosen box's
     // Closer to what is out in front (1: as framed), and as far as the camera has got.
     float zoom_ = 1, zoomShown_ = 1;
-    // The manual: on its way out (0 in the lid .. 1 in front), the pages shown (0 the
+    // The manual: on its way out (0 in the box .. 1 in front), the pages shown (0 the
     // cover, n pages 2n-1 and 2n), a page turning (turn_ 0 .. 1, turnDir_ +1 or -1).
     float read_ = 0, turn_ = 0;
     int spread_ = 0, turnDir_ = 0;
@@ -275,7 +281,7 @@ private:
     std::vector<Page> pages_;
     float bookShift_ = 0;          // the camera across, to frame a closed cover or a last page
     Vec3 readPan_;                 // dragged over a page close up
-    ConsoleSystem system_ = ConsoleSystem::GameBoy;  // of the chosen game
+    ConsoleSystem system_{};  // of the chosen game
     // Turned by dragging or the left stick, freely: the box out and its cartridge.
     Quat boxTurn_{1, 0, 0, 0}, cartTurn_{1, 0, 0, 0};
     // The shelf's camera: how far back it is, what it looks at and how far it was dragged.
@@ -288,4 +294,4 @@ private:
     float tanHalf_ = 0, aspect_ = 1;
 };
 
-}  // namespace plumnin
+}  // namespace plum
