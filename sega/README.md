@@ -685,7 +685,7 @@ Own code under the [MIT License](LICENSE). Libraries: SDL2 (zlib), Dear ImGui (M
 plumemu's `third_party/stb`), ymfm (BSD-3-Clause), the Anime4K network weights (MIT, by bloc97, in
 plumemu's `common/src/render/anime4k_shaders.h`, generated with plumemu's `tools/anime4k.py`), the xBR shader written
 following Hyllian's xbr-lv2 (MIT), libchdr (BSD-3-Clause, for `.chd` files), TinySoundFont
-(MIT, in `third_party/tsf`), cgltf (MIT, in `third_party/cgltf`), rcheevos (MIT, for RetroAchievements), minimp3 (CC0, in
+(MIT, in plumemu's `third_party/tsf`), cgltf (MIT, in plumemu's `third_party/cgltf`), rcheevos (MIT, for RetroAchievements), minimp3 (CC0, in
 `third_party/minimp3`), stb_vorbis (public domain or MIT, in `third_party/stb`) and PDFium
 (BSD-3-Clause and Apache 2.0, the prebuilt `pdfium.dll` of bblanchon/pdfium-binaries, which reads
 the manuals; its licenses go in `pdfium-licenses` in the installation). Export to MP3

@@ -1,4 +1,4 @@
-#include "file_dialog.h"
+#include "frontend/file_dialog.h"
 
 #include <algorithm>
 #include <cctype>
@@ -6,10 +6,10 @@
 #include <iterator>
 #include <system_error>
 
+#include "core/app_info.h"
 #include "core/i18n.h"
-#include "../core/system.h"
 #include "imgui.h"
-#include "theme.h"
+#include "frontend/theme.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -19,7 +19,7 @@
 #include <SDL_syswm.h>
 #endif
 
-namespace plumsg {
+namespace plum {
 
 namespace fs = std::filesystem;
 
@@ -71,8 +71,7 @@ DialogResult openFileDialog(SDL_Window* window, const std::string& startFolder, 
         filter += widen(name) + L'\0' + patterns + L'\0';
     };
     if (pick == Pick::Game)
-        addFilter(std::string(tr("Juegos")) + " (*.md, *.gen, *.smd, *.bin, *.32x, *.sms, *.gg, *.zip, *.cue, *.chd, *.iso)",
-                  L"*.md;*.gen;*.smd;*.bin;*.32x;*.sms;*.gg;*.zip;*.cue;*.chd;*.iso");
+        addFilter(std::string(tr("Juegos")) + " " + appInfo().gameFilterName, widen(appInfo().gamePatterns).c_str());
     if (pick == Pick::Image) addFilter(std::string(tr("Imágenes")) + " (*.png, *.jpg, *.jpeg)", L"*.png;*.jpg;*.jpeg");
     addFilter(tr("Todos los archivos"), L"*.*");
     filter += L'\0';
@@ -121,7 +120,7 @@ void FileBrowser::list(const std::string& folder) {
     for (fs::directory_iterator it(fs::u8path(folder), fs::directory_options::skip_permission_denied, ec), end;
          !ec && it != end; it.increment(ec)) {
         const bool dir = it->is_directory(ec);
-        const bool wanted = pick_ == Pick::AnyFile || (pick_ == Pick::Game && isGameFile(it->path().u8string())) ||
+        const bool wanted = pick_ == Pick::AnyFile || (pick_ == Pick::Game && appInfo().isGameFile(it->path().u8string())) ||
                             (pick_ == Pick::Image && isImageFile(it->path()));
         if (dir || wanted) entries_.push_back({it->path().filename().u8string(), dir});
     }
@@ -275,4 +274,4 @@ bool FileBrowser::draw(std::string* chosen) {
     return picked;
 }
 
-}  // namespace plumsg
+}  // namespace plum

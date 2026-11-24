@@ -1,4 +1,4 @@
-#include "gltf_model.h"
+#include "render/gltf_model.h"
 
 #include <algorithm>
 #include <cmath>
@@ -10,7 +10,7 @@
 #include "cgltf.h"
 #include "stb_image.h"
 
-namespace plumsg {
+namespace plum {
 
 namespace {
 
@@ -100,6 +100,7 @@ bool loadGltf(const std::string& path, GltfModel& out, std::string* error) {
             batch.first = static_cast<int>(out.vertices.size() / 12);
             batch.image = tex;
             batch.normals = normals;
+            batch.mask = prim.material && prim.material->alpha_mode == cgltf_alpha_mode_mask;
             for (cgltf_size i = 0; i < count; ++i) {
                 const cgltf_size v = prim.indices ? cgltf_accessor_read_index(prim.indices, i) : i;
                 float p[3] = {0, 0, 0}, n[3] = {0, 1, 0}, t[2] = {0, 0}, c[4] = {1, 1, 1, 1}, wp[3], wn[3];
@@ -145,4 +146,4 @@ bool loadGltf(const std::string& path, GltfModel& out, std::string* error) {
     return true;
 }
 
-}  // namespace plumsg
+}  // namespace plum

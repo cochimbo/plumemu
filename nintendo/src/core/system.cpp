@@ -1,5 +1,7 @@
 #include "system.h"
 
+#include "core/systems.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -146,3 +148,26 @@ bool readRomFile(const std::string& path, std::vector<uint8_t>& rom, std::string
 }
 
 }  // namespace plumnin
+
+namespace plum {
+
+// The consoles as the code both programs share sees them (core/systems.h), in the
+// order of ConsoleSystem.
+namespace {
+const SystemInfo kSystems[] = {
+    {"Game Boy", "GameBoy", 9, "Nintendo - Game Boy", "Nintendo - Game Boy"},
+    {"Game Boy Color", "GameBoyColor", 10, "Nintendo - Game Boy Color", "Nintendo - Game Boy Color"},
+    {"NES", "NES", 3, "Nintendo - Nintendo Entertainment System", "Nintendo - Nintendo Entertainment System"},
+    {"Super Nintendo", "SNES", 4, "Nintendo - Super Nintendo Entertainment System",
+     "Nintendo - Super Nintendo Entertainment System"},
+};
+static_assert(std::size(kSystems) == plumnin::kSystemCount);
+}  // namespace
+
+int systemCount() { return plumnin::kSystemCount; }
+
+const SystemInfo* systemInfo(int system) {
+    return system >= 0 && system < plumnin::kSystemCount ? &kSystems[system] : nullptr;
+}
+
+}  // namespace plum

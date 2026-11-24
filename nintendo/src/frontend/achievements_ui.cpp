@@ -6,7 +6,7 @@
 #include <thread>
 
 #include "imgui.h"
-#include "theme.h"
+#include "frontend/theme.h"
 #include "core/i18n.h"
 #include "frontend/http.h"
 #include "render/gl.h"

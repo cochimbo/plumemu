@@ -146,7 +146,7 @@ add_library(plumnin_core STATIC
   src/render/profile3d.cpp
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
-target_include_directories(plumnin_core PUBLIC src src/core PRIVATE ${PLUM_ROOT}/third_party/stb third_party/tsf)
+target_include_directories(plumnin_core PUBLIC src src/core PRIVATE ${PLUM_ROOT}/third_party/stb ${PLUM_ROOT}/third_party/tsf)
 target_link_libraries(plumnin_core PUBLIC plum_common plum_miniz plumnin_shine Threads::Threads)
 # While plumnin's own code is in namespace plumnin, it sees the common code's names (common/src/plum.h).
 target_compile_definitions(plumnin_core PUBLIC PLUM_APP_NAMESPACE=plumnin)
@@ -214,12 +214,12 @@ add_executable(plumnin WIN32
   ${PLUM_COMMON_DIR}/src/frontend/audio.cpp
   src/frontend/settings.cpp
   src/frontend/game_options.cpp
-  src/frontend/file_dialog.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/file_dialog.cpp
   src/frontend/ui.cpp
   src/frontend/instrument_editor.cpp
   ${PLUM_COMMON_DIR}/src/frontend/handheld.cpp
-  src/frontend/osk.cpp
-  src/frontend/theme.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/osk.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/theme.cpp
   src/frontend/library.cpp
   src/frontend/manual.cpp
   ${PLUM_COMMON_DIR}/src/frontend/texture_cache.cpp
@@ -228,7 +228,7 @@ add_executable(plumnin WIN32
   ${PLUM_COMMON_DIR}/src/frontend/game_info_data.cpp
   ${PLUM_COMMON_DIR}/src/frontend/http.cpp
   src/frontend/screenscraper.cpp
-  src/frontend/screenscraper_data.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/screenscraper_data.cpp
   src/frontend/ui_media.cpp
   src/frontend/cheat_database.cpp
   ${PLUM_COMMON_DIR}/src/frontend/languages.cpp
@@ -239,7 +239,7 @@ add_executable(plumnin WIN32
   src/render/box_shelf.cpp
   ${PLUM_COMMON_DIR}/src/render/room.cpp
   src/render/console_models.cpp
-  src/render/gltf_model.cpp
+  ${PLUM_COMMON_DIR}/src/render/gltf_model.cpp
 )
 # The plum icon of plumnin.exe (Explorer, taskbar, shortcuts).
 if(WIN32)
@@ -247,7 +247,7 @@ if(WIN32)
 endif()
 # stb_image (public domain / MIT, vendored) decodes the library's PNG and JPEG covers, and
 # cgltf (MIT, vendored) reads the 3D view's console models.
-target_include_directories(plumnin PRIVATE ${PLUM_ROOT}/third_party/stb third_party/cgltf)
+target_include_directories(plumnin PRIVATE ${PLUM_ROOT}/third_party/stb ${PLUM_ROOT}/third_party/cgltf)
 
 # The PLUMNIN logo, the plum icon and the interface's fonts, built into the executable as
 # byte arrays (logo_png.h, chakra_petch_regular_ttf.h...).
@@ -319,7 +319,7 @@ endif()  # PLUMNIN_BUILD_FRONTEND
 
 if(PLUMNIN_BUILD_TESTS)
   enable_testing()
-  add_executable(plumnin_core_tests tests/core_tests.cpp src/frontend/screenscraper_data.cpp
+  add_executable(plumnin_core_tests tests/core_tests.cpp ${PLUM_COMMON_DIR}/src/frontend/screenscraper_data.cpp
                  ${PLUM_COMMON_DIR}/src/frontend/library_names.cpp ${PLUM_COMMON_DIR}/src/frontend/game_info_data.cpp
                  ${PLUM_COMMON_DIR}/src/frontend/texture_cache.cpp)
   target_include_directories(plumnin_core_tests PRIVATE tests)

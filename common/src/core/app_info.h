@@ -2,6 +2,8 @@
 
 #include "plum.h"
 
+#include <string>
+
 namespace plum {
 
 // What makes the common code one program or the other: its name, version and where its
@@ -14,6 +16,12 @@ struct AppInfo {
     const char* dataApp;    //   ~/.local/share/plumsg/plumsg (never changes: users' data is there)
     const char* iniName;    // "plumsg.ini", in that folder or beside the executable (portable)
     const char* repoUrl;    // where the code, the issues and the releases are
+    // The games it opens, as the Windows file dialog's filter: what it shows after
+    // "Juegos" ("(*.md, *.gen...)") and the patterns it matches ("*.md;*.gen...").
+    const char* gameFilterName;
+    const char* gamePatterns;
+    // Whether it opens that file as a game (by its name), for the file browser.
+    bool (*isGameFile)(const std::string& path);
 };
 
 const AppInfo& appInfo();

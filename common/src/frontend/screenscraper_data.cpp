@@ -1,4 +1,4 @@
-#include "screenscraper_data.h"
+#include "frontend/screenscraper_data.h"
 
 #include <algorithm>
 #include <cctype>
@@ -8,9 +8,10 @@
 #include <iterator>
 
 #include "core/i18n.h"
+#include "core/systems.h"
 #include "frontend/library_names.h"
 
-namespace plumnin {
+namespace plum {
 
 namespace {
 
@@ -217,15 +218,15 @@ std::string jsonQuote(const std::string& s) {
 }
 
 std::string ssGameFolder(const std::string& root, int system, const std::string& stem) {
-    static const char* const kFolders[] = {"GameBoy", "GameBoyColor", "NES", "SNES"};
     namespace fs = std::filesystem;
-    if (root.empty() || system < 0 || system >= static_cast<int>(std::size(kFolders))) return {};
-    return (fs::u8path(root) / kFolders[system] / fs::u8path(stem)).u8string() + static_cast<char>(fs::path::preferred_separator);
+    const SystemInfo* info = systemInfo(system);
+    if (root.empty() || !info) return {};
+    return (fs::u8path(root) / info->key / fs::u8path(stem)).u8string() + static_cast<char>(fs::path::preferred_separator);
 }
 
 int screenScraperSystem(int system) {
-    static const int ids[] = {9, 10, 3, 4};
-    return system >= 0 && system < 4 ? ids[system] : 0;
+    const SystemInfo* info = systemInfo(system);
+    return info ? info->screenScraperId : 0;
 }
 
 std::string SsGame::name(const std::vector<std::string>& regions) const { return best(names, regions); }
@@ -465,4 +466,4 @@ std::string ssRomParams(int system, const std::string& fileName, unsigned long l
     return p;
 }
 
-}  // namespace plumnin
+}  // namespace plum

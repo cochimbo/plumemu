@@ -1,5 +1,7 @@
 #include "system.h"
 
+#include "core/systems.h"
+
 #include "core/i18n.h"
 
 #include <algorithm>
@@ -277,3 +279,26 @@ std::array<std::string, 3> findCdBios(const std::vector<std::string>& folders) {
 }
 
 }  // namespace plumsg
+
+namespace plum {
+
+// The consoles as the code both programs share sees them (core/systems.h), in the
+// order of ConsoleSystem.
+namespace {
+const SystemInfo kSystems[] = {
+    {"Mega Drive", "MegaDrive", 1, "Sega - Mega Drive - Genesis", "Sega - Mega Drive - Genesis"},
+    {"32X", "32X", 19, "Sega - 32X", "Sega - 32X"},
+    {"Mega CD", "MegaCD", 20, nullptr, "Sega - Mega-CD - Sega CD"},
+    {"Master System", "MasterSystem", 2, "Sega - Master System - Mark III", "Sega - Master System - Mark III"},
+    {"Game Gear", "GameGear", 21, "Sega - Game Gear", "Sega - Game Gear"},
+};
+static_assert(std::size(kSystems) == plumsg::kSystemCount);
+}  // namespace
+
+int systemCount() { return plumsg::kSystemCount; }
+
+const SystemInfo* systemInfo(int system) {
+    return system >= 0 && system < plumsg::kSystemCount ? &kSystems[system] : nullptr;
+}
+
+}  // namespace plum

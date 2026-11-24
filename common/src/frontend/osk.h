@@ -3,9 +3,11 @@
 // or any PC without a keyboard at hand. It types into whatever ImGui text box is active.
 #pragma once
 
+#include "plum.h"
+
 #include <SDL.h>
 
-namespace plumnin {
+namespace plum {
 
 class OnScreenKeyboard {
 public:
@@ -36,4 +38,4 @@ private:
     Uint32 repeatAt_ = 0;
 };
 
-}  // namespace plumnin
+}  // namespace plum

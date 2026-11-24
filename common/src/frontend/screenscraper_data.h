@@ -1,10 +1,12 @@
 #pragma once
 
+#include "plum.h"
+
 #include <string>
 #include <utility>
 #include <vector>
 
-namespace plumsg {
+namespace plum {
 
 // What ScreenScraper (screenscraper.fr) answers and how to ask it, without SDL or a
 // network, so the tests can use it. The API (v2) is asked for JSON:
@@ -32,8 +34,8 @@ bool parseJson(const std::string& text, JsonValue& out);
 // `s` as a JSON string, with quotes.
 std::string jsonQuote(const std::string& s);
 
-// ScreenScraper's id of a console: 1 Mega Drive, 19 32X, 20 Mega CD, 2 Master System,
-// 21 Game Gear. `system` is a ConsoleSystem.
+// ScreenScraper's id of a console (1 Mega Drive, 9 Game Boy...: systemInfo()'s), 0 if
+// it has none. `system` is a ConsoleSystem.
 int screenScraperSystem(int system);
 
 struct SsMedia {
@@ -81,11 +83,11 @@ struct SsAnswer {
 };
 SsAnswer parseSsAnswer(int httpStatus, const std::string& body);
 
-// The answer for a single game, as plumsg keeps it next to its media (the same shape
+// The answer for a single game, as the program keeps it next to its media (the same shape
 // as jeuInfos', so parseSsAnswer reads it back).
 std::string ssGameJson(const SsGame& game);
 
-// The kinds of media plumsg asks for, in the order the media window shows them. `types`
+// The kinds of media the program asks for, in the order the media window shows them. `types`
 // are ScreenScraper's names, the best first.
 struct SsKind {
     const char* id;     // the file's name in the game's folder ("portada.png")
@@ -127,4 +129,4 @@ std::string ssWithCredentials(const std::string& url, const SsCredentials& c);
 // The query of jeuInfos for a ROM: by its CRC32 (0: not known, a disc), file name and size.
 std::string ssRomParams(int system, const std::string& fileName, unsigned long long size, unsigned crc, bool disc);
 
-}  // namespace plumsg
+}  // namespace plum

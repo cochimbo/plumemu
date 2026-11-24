@@ -1,11 +1,13 @@
 #pragma once
 
+#include "plum.h"
+
 #include <SDL.h>
 
 #include <string>
 #include <vector>
 
-namespace plumsg {
+namespace plum {
 
 enum class DialogResult { Chosen, Cancelled, Unavailable };
 // What is being picked: a game (cartridge or disc), a folder, any file (a BIOS) or an
@@ -55,4 +57,4 @@ private:
     bool activate_ = false;  // A / Enter pressed on the selection
 };
 
-}  // namespace plumsg
+}  // namespace plum

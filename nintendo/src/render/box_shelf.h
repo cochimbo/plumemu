@@ -7,7 +7,7 @@
 #include "../core/system.h"
 #include "console_models.h"
 #include "render/gl.h"
-#include "gltf_model.h"
+#include "render/gltf_model.h"
 #include "render/room.h"
 
 namespace plumnin {

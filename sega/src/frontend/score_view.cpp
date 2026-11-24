@@ -8,7 +8,7 @@
 #include <string>
 
 #include "imgui.h"
-#include "theme.h"
+#include "frontend/theme.h"
 #include "core/i18n.h"
 
 namespace plumsg {

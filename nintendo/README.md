@@ -262,7 +262,7 @@ with `tools/linux/make-appimage.sh <build dir> <version>`.
 ## License
 
 MIT (see [LICENSE](LICENSE)). plumnin does not include any game or BIOS. The
-synthesizer uses TinySoundFont (MIT, `third_party/tsf`), Export to MP3 the shine encoder
+synthesizer uses TinySoundFont (MIT, plumemu's `third_party/tsf`), Export to MP3 the shine encoder
 (LGPL 2, [toots/shine](https://github.com/toots/shine), built from its source as a
 library of its own, its license in `shine-LICENSE.txt` in the installation), and the SoundFont that comes
 with it is GeneralUser GS by S. Christian Collins, with its own free license
@@ -277,5 +277,5 @@ by RadioactiveAG and ["Super nintendo"](https://sketchfab.com/3d-models/super-ni
 by quick_loop, with the ["Super Nintendo Cartridge"](https://sketchfab.com/3d-models/super-nintendo-cartridge-b2076d8a65d648ff99bf51ca9d5fca2a)
 by SomeKevin (CC BY 4.0), with the television "Television 01" by Gabriel Radić from Poly
 Haven (CC0); what was changed in each is in `assets/models/CREDITS.txt`. The 3D models are
-read with cgltf (MIT, `third_party/cgltf`). See
+read with cgltf (MIT, plumemu's `third_party/cgltf`). See
 [PRIVACY.md](PRIVACY.md) for what it connects to.

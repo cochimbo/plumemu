@@ -11,7 +11,7 @@
 #include "frontend/http.h"
 #include "library.h"
 #include "frontend/library_names.h"
-#include "screenscraper_data.h"
+#include "frontend/screenscraper_data.h"
 
 namespace plumnin {
 

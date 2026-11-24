@@ -18,7 +18,7 @@
 #include "game_options.h"
 #include "frontend/languages.h"
 #include "frontend/library_names.h"
-#include "theme.h"
+#include "frontend/theme.h"
 #include "icon_png.h"
 #include "logo_png.h"
 #include "core/app_info.h"
