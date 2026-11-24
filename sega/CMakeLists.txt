@@ -256,6 +256,10 @@ add_executable(plumsg WIN32
   src/frontend/screenscraper.cpp
   ${PLUM_COMMON_DIR}/src/frontend/screenscraper_data.cpp
   ${PLUM_COMMON_DIR}/src/frontend/ui_media.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/ui_base.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/ui_states.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/ui_controls.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/ui_library_list.cpp
   ${PLUM_COMMON_DIR}/src/frontend/manual.cpp
   ${PLUM_COMMON_DIR}/src/frontend/cheat_database.cpp
   ${PLUM_COMMON_DIR}/src/frontend/languages.cpp
