@@ -1,5 +1,6 @@
 #include "system.h"
 
+#include "core/pad_state.h"
 #include "core/systems.h"
 
 #include <algorithm>
@@ -165,6 +166,13 @@ static_assert(std::size(kSystems) == plumnin::kSystemCount);
 }  // namespace
 
 int systemCount() { return plumnin::kSystemCount; }
+
+const PadButtons& padButtons() {
+    static const PadButtons kButtons = {&PadState::up, &PadState::down, &PadState::left, &PadState::right,
+                                        &PadState::a, &PadState::b, &PadState::x, &PadState::y,
+                                        &PadState::l, &PadState::r, &PadState::select, &PadState::start};
+    return kButtons;
+}
 
 const SystemInfo* systemInfo(int system) {
     return system >= 0 && system < plumnin::kSystemCount ? &kSystems[system] : nullptr;

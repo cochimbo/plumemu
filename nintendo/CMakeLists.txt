@@ -142,7 +142,7 @@ add_library(plumnin_core STATIC
   src/core/songs_snes.cpp
   src/core/song_export.cpp
   src/core/cheats.cpp
-  src/core/netplay.cpp
+  ${PLUM_COMMON_DIR}/src/core/netplay.cpp
   ${PLUM_COMMON_DIR}/src/render/profile3d.cpp
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
@@ -152,7 +152,7 @@ target_link_libraries(plumnin_core PUBLIC plum_common plum_miniz plumnin_shine T
 target_compile_definitions(plumnin_core PUBLIC PLUM_APP_NAMESPACE=plumnin)
 
 # UDP sockets for netplay (the session itself is in the core).
-add_library(plumnin_net STATIC src/net/udp.cpp)
+add_library(plumnin_net STATIC ${PLUM_COMMON_DIR}/src/net/udp.cpp)
 target_link_libraries(plumnin_net PUBLIC plumnin_core)
 if(WIN32)
   target_link_libraries(plumnin_net PUBLIC ws2_32)

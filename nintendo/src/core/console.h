@@ -70,7 +70,7 @@ public:
     void setPad(int port, const PadState& s) {
         if (port >= 0 && port < 2) pads_[static_cast<size_t>(port)] = s;
     }
-    void setPads(const PadState& one, const PadState& two) { pads_ = {one, two}; }
+    void setPads(const PadState& one, const PadState& two) override { pads_ = {one, two}; }
     void setPadType(int port, PadType t) {
         if (port >= 0 && port < 2) padTypes_[static_cast<size_t>(port)] = t;
     }
@@ -87,6 +87,7 @@ public:
 
     // The sound made by the last frames, at setSampleRate()'s rate.
     AudioOut& audio() { return audio_; }
+    void clearAudio() override { audio_.clearSamples(); }
     const AudioOut& audio() const { return audio_; }
 
     // The synthesizer (not owned; null for the chip's own sound): it plays the music as
@@ -124,8 +125,8 @@ public:
     virtual std::vector<MemoryRegion> memoryMap() { return {}; }
     // RetroAchievements' number for the console (RC_CONSOLE_*), 0 if it has none.
     virtual uint32_t achievementsConsole() const { return 0; }
-    // What both sides of a netplay game compare to see they still run the same game.
-    virtual uint32_t checksum();
+    // The memory the achievements read (checksum, for netplay).
+    uint32_t checksum() override;
 
     // Savestates (saveState, loadState: plum::ConsoleBase). The picture saved inside a
     // state file, 0xFFRRGGBB.

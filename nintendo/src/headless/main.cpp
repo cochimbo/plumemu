@@ -29,7 +29,7 @@
 #include "song_export.h"
 #include "miniz.h"
 #include "net/udp.h"
-#include "netplay.h"
+#include "core/netplay.h"
 #include "core/recording.h"
 #include "system.h"
 #include "test_console.h"
@@ -805,10 +805,10 @@ int main(int argc, char** argv) {
         // last run of each, which is final once both sides have its pads.
         std::vector<std::vector<int16_t>> frameSamples(static_cast<size_t>(frames));
         std::vector<uint32_t> framePictures(static_cast<size_t>(frames));
-        session.onFrame = [&](uint32_t f, Console& m) {
+        session.onFrame = [&](uint32_t f, ConsoleBase&) {
             if (f >= static_cast<uint32_t>(frames)) return;
-            frameSamples[f] = m.audio().samples();
-            framePictures[f] = frameHash(m.frame());
+            frameSamples[f] = md.audio().samples();
+            framePictures[f] = frameHash(md.frame());
         };
         const int port = netHost ? 0 : 1;
         const auto clockStart = std::chrono::steady_clock::now();

@@ -25,7 +25,7 @@
 #include "core/app_info.h"
 #include "core/i18n.h"
 #include "../core/system.h"
-#include "../net/udp.h"
+#include "net/udp.h"
 #include "../render/box_shelf.h"
 #include "render/gl.h"
 

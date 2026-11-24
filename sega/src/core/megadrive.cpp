@@ -724,6 +724,13 @@ void MegaDrive::lightGunLine(int line) {
     vdp_.lightGunHit(x / 2 + (known ? gunGame_.xOffset : menacer ? 82 : 24));
 }
 
+uint32_t MegaDrive::checksum() {
+    // FNV-1a of the 68000's work RAM, where games keep everything that matters.
+    uint32_t h = 2166136261u;
+    for (uint8_t b : ram_) h = (h ^ b) * 16777619u;
+    return h;
+}
+
 void MegaDrive::beginRunAhead() {
     // The frames to come are run again for real, heard and recorded then.
     aheadRoland_ = roland_;

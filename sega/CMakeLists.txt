@@ -198,7 +198,7 @@ add_library(plumsg_core STATIC
   src/core/music_track.cpp
   src/core/cd_image.cpp
   src/core/megacd.cpp
-  src/core/netplay.cpp
+  ${PLUM_COMMON_DIR}/src/core/netplay.cpp
   ${PLUM_COMMON_DIR}/src/render/profile3d.cpp
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
@@ -208,7 +208,7 @@ target_link_libraries(plumsg_core PUBLIC plum_common plum_miniz Threads::Threads
 target_compile_definitions(plumsg_core PUBLIC PLUM_APP_NAMESPACE=plumsg)
 
 # UDP sockets for netplay (the session itself is in the core).
-add_library(plumsg_net STATIC src/net/udp.cpp)
+add_library(plumsg_net STATIC ${PLUM_COMMON_DIR}/src/net/udp.cpp)
 target_link_libraries(plumsg_net PUBLIC plumsg_core)
 if(WIN32)
   target_link_libraries(plumsg_net PUBLIC ws2_32)

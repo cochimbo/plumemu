@@ -1,5 +1,6 @@
-#include "udp.h"
+#include "net/udp.h"
 
+#include "core/app_info.h"
 #include "core/i18n.h"
 
 #include <cstdlib>
@@ -26,7 +27,7 @@ using SockLen = socklen_t;
 #define PLUMNIN_BAD_SOCKET (-1)
 #endif
 
-namespace plumnin {
+namespace plum {
 
 namespace {
 
@@ -79,7 +80,7 @@ bool UdpTransport::open(int port) {
     addr.sin_port = htons(static_cast<uint16_t>(port));
     if (::bind(s, reinterpret_cast<sockaddr*>(&addr), sizeof addr) != 0) {
         closeSocket(s);
-        error_ = trf("El puerto %d está ocupado (¿hay otro plumnin alojando?).", port);
+        error_ = trf("El puerto %d está ocupado (¿hay otro %s alojando?).", port, appInfo().name);
         return false;
     }
     if (!makeNonBlocking(s)) {
@@ -202,4 +203,4 @@ std::vector<std::string> UdpTransport::localAddresses() {
     return out;
 }
 
-}  // namespace plumnin
+}  // namespace plum

@@ -84,7 +84,7 @@ public:
     void setRegion(Region r);
     Region region() const { return effectiveRegion_; }
     bool pal() const { return effectiveRegion_ == Region::EuropePal; }
-    void setPads(const PadState& p1, const PadState& p2) {
+    void setPads(const PadState& p1, const PadState& p2) override {
         io_.setPad(0, p1);
         io_.setPad(1, p2);
         if (sms_) sms_->setPads(p1, p2);
@@ -159,6 +159,9 @@ public:
 
     const VideoFrame& frame() const override { return vdp_.frame(); }
     AudioMixer& audio() { return mixer_; }
+    void clearAudio() override { mixer_.clearSamples(); }
+    // The 68000's work RAM (checksum, for netplay).
+    uint32_t checksum() override;
     // Sample rate for audio().samples(); the frontend nudges it to keep its queue level.
     void setSampleRate(double hz) override;
     double refreshRate() const override { return pal() ? 49.701459 : 59.922743; }

@@ -3,14 +3,12 @@
 #include <array>
 #include <cstdint>
 
+#include "core/pad_state.h"
+
 namespace plumsg {
 
-// Buttons of one Mega Drive pad, true while held.
-struct PadState {
-    bool up = false, down = false, left = false, right = false;
-    bool a = false, b = false, c = false, start = false;
-    bool x = false, y = false, z = false, mode = false;
-};
+// PadState (core/pad_state.h): the Mega Drive's pad reads the cross, A, B, C, X, Y, Z,
+// Start and Mode.
 
 // None: nothing plugged in. Some games look: ESPN Sunday Night NFL makes player 2 the
 // computer when the second port is empty, and waits for pad 2 at the coin toss if not.

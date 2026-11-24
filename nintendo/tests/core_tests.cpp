@@ -23,7 +23,7 @@
 #include "snes/snes_apu.h"
 #include "snes/snes_necdsp.h"
 #include "miniz.h"
-#include "netplay.h"
+#include "core/netplay.h"
 #include "render/planes.h"
 #include "render/profile3d.h"
 #include "core/rewind.h"
@@ -1158,8 +1158,8 @@ void testNetplay() {
     for (int i = 0; i < 30; ++i) a->runFrame();
     b->setPadType(1, PadType::None);  // the host's pad types win
     std::vector<uint32_t> hashA(kFrames), hashB(kFrames);
-    host.onFrame = [&](uint32_t f, Console& c) { if (f < kFrames) hashA[f] = frameHash(c.frame()); };
-    guest.onFrame = [&](uint32_t f, Console& c) { if (f < kFrames) hashB[f] = frameHash(c.frame()); };
+    host.onFrame = [&](uint32_t f, ConsoleBase& c) { if (f < kFrames) hashA[f] = frameHash(c.frame()); };
+    guest.onFrame = [&](uint32_t f, ConsoleBase& c) { if (f < kFrames) hashB[f] = frameHash(c.frame()); };
     int rollbacks = 0, stalls = 0;
     for (int step = 0; step < 40000; ++step) {
         link.now = static_cast<uint32_t>(step);  // one millisecond per step

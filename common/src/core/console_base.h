@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "core/pad_state.h"
 #include "core/state_io.h"
 #include "core/video_frame.h"
 
@@ -36,6 +37,16 @@ public:
     virtual double refreshRate() const = 0;
     // The sound of the frames to come, at `hz` samples a second.
     virtual void setSampleRate(double hz) = 0;
+    // Forgets the sound made and not yet taken (netplay, which runs some frames again).
+    virtual void clearAudio() = 0;
+
+    // The two pads, as they are from now on.
+    virtual void setPads(const PadState& one, const PadState& two) = 0;
+    // The CRC-32 of the game being run, which savestates and netplay are tied to.
+    uint32_t gameCrc() const { return stateCrc(); }
+    // What both sides of a netplay game compare to see they still run the same game: a
+    // hash of the memory where games keep what matters.
+    virtual uint32_t checksum() = 0;
 
     // Savestates: only between frames. A file is a 12-byte header (magic, version, size
     // of the body) and the body deflated; the body is the game's CRC-32, a few bytes of
