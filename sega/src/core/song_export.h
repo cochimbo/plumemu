@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "core/mp3_encode.h"
+
 #include "roland.h"
 
 namespace plumsg {
@@ -31,12 +33,6 @@ bool renderSong(const VgmFile& file, RolandSound* roland, const RolandSound::Ass
                 const RolandSound::Assignments* song, const SongRender& how,
                 std::vector<int16_t>* out, std::atomic<float>* progress = nullptr, const std::atomic<bool>* cancel = nullptr);
 
-struct Mp3Tag {
-    std::string title, album, artist;
-    int track = 0;  // 0 for none
-};
-// Interleaved stereo at `rate` (44100, 48000 or 32000) to an MP3 at `kbps`, with an
-// ID3 tag. Empty if the rate or the bit rate is not one MP3 has.
-std::vector<uint8_t> encodeMp3(const std::vector<int16_t>& stereo, int rate, int kbps, const Mp3Tag& tag);
+// (encodeMp3 and Mp3Tag: core/mp3_encode.h, in plum.)
 
 }  // namespace plumsg

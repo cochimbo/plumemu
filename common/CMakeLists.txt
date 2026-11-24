@@ -23,6 +23,41 @@ else()
 endif()
 
 find_package(Threads REQUIRED)
+include(FetchContent)
+
+# shine (LGPL 2, fixed point): the MP3 encoder of the instrument editor's Exportar a MP3.
+# Pinned; built as a library of its own, so it can be swapped (its source is shine's).
+FetchContent_Declare(shine
+  GIT_REPOSITORY https://github.com/toots/shine.git
+  GIT_TAG ab5e3526b64af1a2eaa43aa6f441a7312e013519)
+FetchContent_GetProperties(shine)
+if(NOT shine_POPULATED)
+  FetchContent_Populate(shine)
+endif()
+add_library(plum_shine STATIC
+  ${shine_SOURCE_DIR}/src/lib/bitstream.c
+  ${shine_SOURCE_DIR}/src/lib/huffman.c
+  ${shine_SOURCE_DIR}/src/lib/l3bitstream.c
+  ${shine_SOURCE_DIR}/src/lib/l3loop.c
+  ${shine_SOURCE_DIR}/src/lib/l3mdct.c
+  ${shine_SOURCE_DIR}/src/lib/l3subband.c
+  ${shine_SOURCE_DIR}/src/lib/layer3.c
+  ${shine_SOURCE_DIR}/src/lib/reservoir.c
+  ${shine_SOURCE_DIR}/src/lib/tables.c)
+target_include_directories(plum_shine SYSTEM PUBLIC ${shine_SOURCE_DIR}/src/lib)
+if(MSVC)
+  target_compile_options(plum_shine PRIVATE /W0)
+  # (GCC's __attribute__((unused)) on two variables.)
+  target_compile_options(plum_shine PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/tools/shine/msvc_compat.h)
+else()
+  target_compile_options(plum_shine PRIVATE -w)
+endif()
+if(NOT MSVC)
+  find_library(PLUM_LIBM m)
+  if(PLUM_LIBM)
+    target_link_libraries(plum_shine PUBLIC ${PLUM_LIBM})
+  endif()
+endif()
 
 # miniz (vendored, MIT): zip files, savestate compression and PNG screenshots.
 add_library(plum_miniz STATIC ../third_party/miniz/miniz.c)
@@ -39,6 +74,7 @@ add_library(plum_common STATIC
   src/core/console_base.cpp
   src/core/vgm_format.cpp
   src/core/gm_sound.cpp
+  src/core/mp3_encode.cpp
   src/core/i18n.cpp
   src/core/recording.cpp
   src/core/rewind.cpp
@@ -49,4 +85,4 @@ target_include_directories(plum_common PUBLIC src)
 target_include_directories(plum_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/tsf)
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
 target_include_directories(plum_common PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/stb)
-target_link_libraries(plum_common PUBLIC plum_miniz Threads::Threads)
+target_link_libraries(plum_common PUBLIC plum_miniz Threads::Threads PRIVATE plum_shine)

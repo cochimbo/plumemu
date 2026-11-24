@@ -55,40 +55,6 @@ else()
   target_compile_options(plumnin_rcheevos PRIVATE -w)
 endif()
 
-# shine (LGPL 2, fixed point): the MP3 encoder of the instrument editor's Exportar a MP3.
-# Pinned; built as a library of its own, so it can be swapped (its source is shine's).
-FetchContent_Declare(shine
-  GIT_REPOSITORY https://github.com/toots/shine.git
-  GIT_TAG ab5e3526b64af1a2eaa43aa6f441a7312e013519)
-FetchContent_GetProperties(shine)
-if(NOT shine_POPULATED)
-  FetchContent_Populate(shine)
-endif()
-add_library(plumnin_shine STATIC
-  ${shine_SOURCE_DIR}/src/lib/bitstream.c
-  ${shine_SOURCE_DIR}/src/lib/huffman.c
-  ${shine_SOURCE_DIR}/src/lib/l3bitstream.c
-  ${shine_SOURCE_DIR}/src/lib/l3loop.c
-  ${shine_SOURCE_DIR}/src/lib/l3mdct.c
-  ${shine_SOURCE_DIR}/src/lib/l3subband.c
-  ${shine_SOURCE_DIR}/src/lib/layer3.c
-  ${shine_SOURCE_DIR}/src/lib/reservoir.c
-  ${shine_SOURCE_DIR}/src/lib/tables.c)
-target_include_directories(plumnin_shine SYSTEM PUBLIC ${shine_SOURCE_DIR}/src/lib)
-if(MSVC)
-  target_compile_options(plumnin_shine PRIVATE /W0)
-  # (GCC's __attribute__((unused)) on two variables.)
-  target_compile_options(plumnin_shine PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/tools/shine/msvc_compat.h)
-else()
-  target_compile_options(plumnin_shine PRIVATE -w)
-endif()
-if(NOT MSVC)
-  find_library(PLUMNIN_LIBM m)
-  if(PLUMNIN_LIBM)
-    target_link_libraries(plumnin_shine PUBLIC ${PLUMNIN_LIBM})
-  endif()
-endif()
-
 # The version About and the crash reports show: -DPLUMNIN_VERSION=... (the release workflow
 # passes the release's), else the tag and commit it was built from.
 set(PLUMNIN_VERSION "" CACHE STRING "Version shown in About and in crash reports (empty: git describe)")
@@ -147,7 +113,7 @@ add_library(plumnin_core STATIC
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
 target_include_directories(plumnin_core PUBLIC src src/core PRIVATE ${PLUM_ROOT}/third_party/stb ${PLUM_ROOT}/third_party/tsf)
-target_link_libraries(plumnin_core PUBLIC plum_common plum_miniz plumnin_shine Threads::Threads)
+target_link_libraries(plumnin_core PUBLIC plum_common plum_miniz Threads::Threads)
 # While plumnin's own code is in namespace plumnin, it sees the common code's names (common/src/plum.h).
 target_compile_definitions(plumnin_core PUBLIC PLUM_APP_NAMESPACE=plumnin)
 
