@@ -6,6 +6,7 @@ cmake_minimum_required(VERSION 3.16)
 # of one build folder:
 #   build/sega/plumsg, build/sega/plumsg-headless, build/sega/core_tests...
 #   build/nintendo/plumnin, build/nintendo/plumnin-headless, build/nintendo/core_tests...
+#   build/tests/common/common_tests (the shared code's)
 project(plumemu LANGUAGES C CXX)
 
 option(PLUM_BUILD_SEGA "Build plumsg (Mega Drive, 32X, Mega CD, Master System, Game Gear)" ON)
@@ -34,4 +35,9 @@ if(PLUM_BUILD_SEGA)
 endif()
 if(PLUM_BUILD_NINTENDO)
   add_subdirectory(nintendo)
+endif()
+# The tests of the shared code (each program's own are in sega/tests and nintendo/tests).
+if(PLUM_BUILD_TESTS)
+  set(PLUM_COMMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/common)
+  add_subdirectory(tests/common)
 endif()
