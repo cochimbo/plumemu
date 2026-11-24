@@ -1,7 +1,18 @@
 # Changelog
 
 What each version brings, newest first. Installers are on the
-[releases](https://github.com/cochimbo/plumsg/releases) page.
+[releases](https://github.com/cochimbo/plumemu/releases) page (up to 1.2.0, on
+[plumsg's](https://github.com/cochimbo/plumsg/releases)).
+
+## Next
+
+- **plumsg now lives in [plumemu](https://github.com/cochimbo/plumemu)**, in the folder
+  `sega/`, next to plumnin (`nintendo/`): the code both share (the window and its loop,
+  the library, the 3D view, the settings, netplay, the achievements, the translations...)
+  is written once, in `common/`. Nothing changes for the player: the same program, the
+  same installer, and the settings, profiles, savestates, covers and sounds in the same
+  folder (`%APPDATA%\plumsg\plumsg`, `~/.local/share/plumsg/plumsg`). Releases and
+  bug reports go to plumemu now.
 
 ## 1.2.0
 

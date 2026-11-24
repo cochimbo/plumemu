@@ -5,7 +5,7 @@
 A **Game Boy**, **Game Boy Color**, **NES** and **Super Nintendo** emulator for Windows
 and Linux with a **pseudo-3D** effect that pulls the console's layers apart and puts them
 at different depths. It is the Nintendo sibling of
-[plumsg](https://github.com/cochimbo/plumsg), the Mega Drive emulator, and inherits its
+[plumsg](../sega/README.md), the Mega Drive emulator, and inherits its
 frontend, its 3D view, its library, netplay and the tools around them.
 
 ## Status

@@ -6,7 +6,7 @@ Just enough to be playing in five minutes. Everything else is in the
 ## 1. Install
 
 Download `plumsg-<version>-setup.exe` from the latest
-[release](https://github.com/cochimbo/plumsg/releases) and run it. It does not need
+[release](https://github.com/cochimbo/plumemu/releases) and run it. It does not need
 administrator rights. Windows may warn that it is an unrecognized app: click **More info >
 Run anyway** (see [why](faq.md#windows-says-plumsg-is-an-unrecognized-app)).
 
@@ -63,4 +63,4 @@ The keys you will use most:
 - Check the [FAQ](faq.md).
 - If a game does not work, see whether it is on the [compatibility list](compatibility.md).
 - If plumsg closes suddenly, it leaves a report and tells you where it is the next time
-  you open it. Attach it when you [report the bug](https://github.com/cochimbo/plumsg/issues/new/choose).
+  you open it. Attach it when you [report the bug](https://github.com/cochimbo/plumemu/issues/new/choose).

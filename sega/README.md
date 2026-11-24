@@ -17,7 +17,7 @@ The screenshots are of the project's own test ROM, running on Linux with Mesa.
 **Getting started**: the [quick start](docs/quick-start.md). Questions: the
 [FAQ](docs/faq.md). Which games work: the [compatibility list](docs/compatibility.md).
 What each version brings: the [changelog](CHANGELOG.md). Something fails:
-[report it here](https://github.com/cochimbo/plumsg/issues/new/choose).
+[report it here](https://github.com/cochimbo/plumemu/issues/new/choose).
 
 ## Status
 

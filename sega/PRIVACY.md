@@ -50,9 +50,9 @@ plumsg does not knowingly collect information from anyone, including children.
 ## Changes
 
 Changes to this policy are published in this file in the
-[plumsg repository](https://github.com/cochimbo/plumsg), where its history is public.
+[plumemu repository](https://github.com/cochimbo/plumemu) (folder `sega/`), where its history is public.
 
 ## Contact
 
 Questions about privacy can be raised as an issue at
-<https://github.com/cochimbo/plumsg/issues>.
+<https://github.com/cochimbo/plumemu/issues>.
