@@ -10,11 +10,12 @@
 
 #include "imgui.h"
 #include "frontend/theme.h"
-#include "ui.h"
+#include "frontend/ui.h"
+#include "core/app_info.h"
 #include "core/i18n.h"
-#include "../core/system.h"
+#include "core/system.h"
 
-namespace plumsg {
+namespace PLUM_APP_NAMESPACE {
 
 namespace {
 
@@ -41,7 +42,7 @@ void copy(char* to, size_t size, const std::string& from) { std::snprintf(to, si
 
 void Ui::applyScraperSettings() {
     SsCredentials c = ScreenScraper::builtIn();
-    // One in plumsg.ini (typed in by an older version) only for a build without it.
+    // One in the .ini (typed in by an older version) only for a build without it.
     if (!c.usable() && !settings_.ssDevId.empty()) {
         c.devId = settings_.ssDevId;
         c.devPassword = settings_.ssDevPassword;
@@ -179,7 +180,7 @@ void Ui::drawMedia(UiActions& out) {
         }
         if (!usable) {
             ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.4f, 1.0f), "%s",
-                               tr("Esta compilación de plumsg no trae la cuenta de desarrollador de ScreenScraper."));
+                               trf("Esta compilación de %s no trae la cuenta de desarrollador de ScreenScraper.", appInfo().name).c_str());
         } else if (sheet.busy) {
             ImGui::TextDisabled("%s", sheet.progress.empty() ? tr("Trabajando...") : sheet.progress.c_str());
         } else if (!sheet.status.empty()) {
@@ -461,9 +462,11 @@ void Ui::drawMediaKinds(UiActions& out) {
 void Ui::drawMediaAccount(UiActions& out) {
     // The user's own account: optional, for more requests a day.
     ImGui::SeparatorText(tr("Tu cuenta de screenscraper.fr"));
-    ImGui::TextWrapped("%s", tr("Si ya tienes cuenta, escribe aquí tu usuario y tu contraseña de screenscraper.fr: con ella "
-                                "se pueden hacer más peticiones al día, y ScreenScraper sigue respondiendo aunque esté lleno. "
-                                "Se guarda en plumsg.ini."));
+    ImGui::TextWrapped("%s", trf("Si ya tienes cuenta, escribe aquí tu usuario y tu contraseña de screenscraper.fr: con ella "
+                                 "se pueden hacer más peticiones al día, y ScreenScraper sigue respondiendo aunque esté lleno. "
+                                 "Se guarda en %s.ini.",
+                                 appInfo().name)
+                                 .c_str());
     ImGui::Spacing();
     const float labelW = std::max(ImGui::CalcTextSize(tr("Usuario")).x, ImGui::CalcTextSize(tr("Contraseña")).x) +
                          ImGui::GetStyle().ItemSpacing.x * 2;
@@ -516,8 +519,10 @@ void Ui::drawMediaAccount(UiActions& out) {
     if (!ScreenScraper::builtIn().usable() && settings_.ssDevId.empty()) {
         ImGui::Spacing();
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.4f, 1.0f));
-        ImGui::TextWrapped("%s", tr("Esta compilación de plumsg no trae la cuenta de desarrollador de ScreenScraper, así que no "
-                                    "puede descargar nada. Los instaladores publicados sí la traen."));
+        ImGui::TextWrapped("%s", trf("Esta compilación de %s no trae la cuenta de desarrollador de ScreenScraper, así que no "
+                                     "puede descargar nada. Los instaladores publicados sí la traen.",
+                                     appInfo().name)
+                                     .c_str());
         ImGui::PopStyleColor();
     }
     if (!changed) return;
@@ -528,4 +533,4 @@ void Ui::drawMediaAccount(UiActions& out) {
     scraper_.check();  // says right away whether ScreenScraper takes it
 }
 
-}  // namespace plumsg
+}  // namespace PLUM_APP_NAMESPACE

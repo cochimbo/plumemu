@@ -2,7 +2,9 @@
 // common/src/frontend/settings_ini.cpp.
 #include "settings.h"
 
+#include "core/i18n.h"
 #include "core/ini_names.h"
+#include "frontend/game_options.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -65,5 +67,15 @@ void Settings::writeConsole(std::ostream& out) const {
 }
 
 void Settings::writeAfterLibrary(std::ostream&) const {}
+
+std::vector<GameOption> soundGameOptions() { return {}; }
+
+std::vector<GameOption> consoleGameOptions() {
+    return {
+        {"region", N_("Región"), N_("Consola"), [](const Settings& f, Settings& t) { t.region = f.region; }},
+        {"pads", N_("Mando 2"), N_("Consola"), [](const Settings& f, Settings& t) { t.padType = f.padType; }},
+        {"overclock", N_("Overclock"), N_("Consola"), [](const Settings& f, Settings& t) { t.overclock = f.overclock; }},
+    };
+}
 
 }  // namespace plumnin

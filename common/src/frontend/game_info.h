@@ -10,10 +10,10 @@
 #include <thread>
 #include <vector>
 
-#include "../core/system.h"
+#include "core/system.h"
 #include "frontend/game_info_data.h"
 
-namespace plumsg {
+namespace PLUM_APP_NAMESPACE {
 
 // What the library's detail panel shows of a game besides its cover: developer,
 // publisher, genre, year and players from libretro-database's metadat files (one set
@@ -44,7 +44,7 @@ public:
     void setMediaFolder(const std::string& folder) { mediaFolder_ = folder; }
 
     // libretro-database's data of the console's games: loaded (or downloaded) the first
-    // time it is asked for, so null until then and for the Mega CD, which has none.
+    // time it is asked for, so null until then and for a console with none (the Mega CD).
     const GameDetails* details(ConsoleSystem s, const std::string& fileStem);
     // Changes each time a console's data arrives, to sort the list again.
     unsigned detailsVersion() const { return detailsVersion_; }
@@ -66,13 +66,13 @@ private:
     struct Task {
         enum Kind { LoadDetails, LoadSheet } kind = LoadSheet;
         unsigned serial = 0;
-        ConsoleSystem system = ConsoleSystem::MegaDrive;
+        ConsoleSystem system{};  // the first console
         std::string path, stem, title;
     };
     struct Reply {
         Task::Kind kind = Task::LoadSheet;
         unsigned serial = 0;
-        ConsoleSystem system = ConsoleSystem::MegaDrive;
+        ConsoleSystem system{};  // the first console
         std::shared_ptr<DetailsTable> table;
         std::string description, status;
         bool known = false;
@@ -108,4 +108,4 @@ private:
     std::thread worker_;
 };
 
-}  // namespace plumsg
+}  // namespace PLUM_APP_NAMESPACE

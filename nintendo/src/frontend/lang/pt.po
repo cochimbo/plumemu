@@ -1163,11 +1163,11 @@ msgstr "Esperando o outro jogador na porta %d. Enquanto isso, você pode continu
 msgid "Esta canción (%s)"
 msgstr "Esta música (%s)"
 
-msgid "Esta compilación de plumnin no trae la cuenta de desarrollador de ScreenScraper, así que no puede descargar nada. Los instaladores publicados sí la traen."
-msgstr "Esta compilação do plumnin não traz a conta de desenvolvedor do ScreenScraper, então não pode baixar nada. Os instaladores publicados a trazem."
+msgid "Esta compilación de %s no trae la cuenta de desarrollador de ScreenScraper, así que no puede descargar nada. Los instaladores publicados sí la traen."
+msgstr "Esta compilação do %s não traz a conta de desenvolvedor do ScreenScraper, então não pode baixar nada. Os instaladores publicados a trazem."
 
-msgid "Esta compilación de plumnin no trae la cuenta de desarrollador de ScreenScraper."
-msgstr "Esta compilação do plumnin não traz a conta de desenvolvedor do ScreenScraper."
+msgid "Esta compilación de %s no trae la cuenta de desarrollador de ScreenScraper."
+msgstr "Esta compilação do %s não traz a conta de desenvolvedor do ScreenScraper."
 
 msgid "Esta consola todavía no tiene trucos."
 msgstr "Esta consola ainda não tem truques."
@@ -1259,8 +1259,8 @@ msgstr "Fagote"
 msgid "Falta la función %s"
 msgstr "Falta a função %s"
 
-msgid "Falta pdfium.dll junto a plumnin: sin ella no se pueden leer los manuales."
-msgstr "Falta o pdfium.dll junto ao plumnin: sem ele não se podem ler os manuais."
+msgid "Falta pdfium.dll junto a %s: sin ella no se pueden leer los manuales."
+msgstr "Falta o pdfium.dll junto ao %s: sem ele não se podem ler os manuais."
 
 msgid "Favoritos"
 msgstr "Favoritos"
@@ -1669,8 +1669,8 @@ msgstr ""
 "não afeta jogos em rede, conquistas nem estados. Se um jogo continuar a cintilar, é ele\n"
 "próprio que o faz."
 
-msgid "La contraseña no se guarda: plumnin guarda la sesión que te da el servidor."
-msgstr "A senha não é salva: o plumnin guarda a sessão que o servidor lhe dá."
+msgid "La contraseña no se guarda: %s guarda la sesión que te da el servidor."
+msgstr "A senha não é salva: o %s guarda a sessão que o servidor lhe dá."
 
 msgid ""
 "La cámara se balancea unos grados siguiendo la acción,\n"
@@ -2655,8 +2655,8 @@ msgstr "Shanai"
 msgid "Si"
 msgstr "Si"
 
-msgid "Si ya tienes cuenta, escribe aquí tu usuario y tu contraseña de screenscraper.fr: con ella se pueden hacer más peticiones al día, y ScreenScraper sigue respondiendo aunque esté lleno. Se guarda en plumnin.ini."
-msgstr "Se você já tem conta, digite aqui seu usuário e sua senha do screenscraper.fr: com ela dá para fazer mais pedidos por dia, e o ScreenScraper continua respondendo mesmo quando está lotado. Fica salvo em plumnin.ini."
+msgid "Si ya tienes cuenta, escribe aquí tu usuario y tu contraseña de screenscraper.fr: con ella se pueden hacer más peticiones al día, y ScreenScraper sigue respondiendo aunque esté lleno. Se guarda en %s.ini."
+msgstr "Se você já tem conta, digite aqui seu usuário e sua senha do screenscraper.fr: com ela dá para fazer mais pedidos por dia, e o ScreenScraper continua respondendo mesmo quando está lotado. Fica salvo em %s.ini."
 
 msgid "Silbato corto"
 msgstr "Apito curto"

@@ -9,9 +9,9 @@
 #include <vector>
 
 #include "frontend/achievements.h"
-#include "settings.h"
+#include "frontend/settings.h"
 
-namespace plumnin {
+namespace PLUM_APP_NAMESPACE {
 
 // The RetroAchievements part of the interface: the Logros menu, the account window, the
 // list of the game's achievements and what is drawn over the game (the achievement just
@@ -63,4 +63,4 @@ private:
     std::deque<Popup> popups_;
 };
 
-}  // namespace plumnin
+}  // namespace PLUM_APP_NAMESPACE

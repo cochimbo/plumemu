@@ -1,4 +1,4 @@
-#include "game_info.h"
+#include "frontend/game_info.h"
 
 #include <filesystem>
 #include <fstream>
@@ -7,32 +7,23 @@
 #include <system_error>
 
 #include "core/i18n.h"
+#include "core/systems.h"
 #include "render/gl.h"
 #include "frontend/http.h"
-#include "library.h"
+#include "frontend/library.h"
 #include "frontend/library_names.h"
 #include "frontend/screenscraper_data.h"
 
-namespace plumsg {
+namespace PLUM_APP_NAMESPACE {
 
 namespace fs = std::filesystem;
 
 namespace {
 
-// Each console's folder for what is downloaded, and its name in libretro-database
-// (the Mega CD has no metadat files there).
-struct InfoSet {
-    const char* folder;
-    const char* database;
-};
-constexpr InfoSet kInfoSets[] = {
-    {"MegaDrive", "Sega - Mega Drive - Genesis"},
-    {"32X", "Sega - 32X"},
-    {"MegaCD", nullptr},
-    {"MasterSystem", "Sega - Master System - Mark III"},
-    {"GameGear", "Sega - Game Gear"},
-};
-static_assert(std::size(kInfoSets) == kSystemCount, "one set per console");
+// Each console's folder for what is downloaded (SystemInfo::key), and its name in
+// libretro-database (SystemInfo::libretroName: the Mega CD has no metadat files there).
+const char* infoFolder(ConsoleSystem s) { return systemInfo(static_cast<int>(s))->key; }
+const char* infoDatabase(int s) { return systemInfo(s)->libretroName; }
 
 const char* const kFields[] = {"developer", "publisher", "genre", "releaseyear", "maxusers"};
 const char* const kMetadat = "https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/";
@@ -78,7 +69,7 @@ GameInfo::~GameInfo() {
 }
 
 std::string GameInfo::consoleFolder(ConsoleSystem s) const {
-    return (fs::u8path(folder_) / kInfoSets[static_cast<int>(s)].folder).u8string() +
+    return (fs::u8path(folder_) / infoFolder(s)).u8string() +
            static_cast<char>(fs::path::preferred_separator);
 }
 
@@ -95,7 +86,7 @@ void GameInfo::ask(Task task) {
 
 const GameDetails* GameInfo::details(ConsoleSystem s, const std::string& fileStem) {
     const int i = static_cast<int>(s);
-    if (!kInfoSets[i].database || folder_.empty()) return nullptr;
+    if (!infoDatabase(i) || folder_.empty()) return nullptr;
     if (!tables_[i]) {
         const auto now = std::chrono::steady_clock::now();
         if (!asked_[i] && now >= retryAt_[i]) {
@@ -192,7 +183,7 @@ void GameInfo::clearTextures() {
 
 // The console's metadat files, from the folder or downloaded into it.
 std::shared_ptr<DetailsTable> GameInfo::loadDetails(ConsoleSystem s) {
-    const char* database = kInfoSets[static_cast<int>(s)].database;
+    const char* database = infoDatabase(static_cast<int>(s));
     const fs::path dir = fs::u8path(consoleFolder(s));
     auto table = std::make_shared<DetailsTable>();
     for (const char* field : kFields) {
@@ -254,4 +245,4 @@ void GameInfo::work() {
     }
 }
 
-}  // namespace plumsg
+}  // namespace PLUM_APP_NAMESPACE

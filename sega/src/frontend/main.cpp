@@ -26,7 +26,7 @@
 #include "frontend/audio.h"
 #include "frontend/crash.h"
 #include "frontend/fps_counter.h"
-#include "game_options.h"
+#include "frontend/game_options.h"
 #include "frontend/handheld.h"
 #include "frontend/http.h"
 #include "frontend/languages.h"

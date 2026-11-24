@@ -11,6 +11,7 @@
 
 #include "../core/system.h"
 #include "miniz.h"
+#include "core/app_info.h"
 #include "core/i18n.h"
 #include "render/gl.h"
 #include "frontend/game_info_data.h"
@@ -487,7 +488,7 @@ SsAnswer ScreenScraper::ask(const std::string& endpoint, const std::string& para
 bool ScreenScraper::fetchGame(const Task& task, std::string* error, bool batch) {
     const Rom& rom = task.rom;
     if (!credentials().usable()) {
-        *error = tr("Esta compilación de plumnin no trae la cuenta de desarrollador de ScreenScraper.");
+        *error = trf("Esta compilación de %s no trae la cuenta de desarrollador de ScreenScraper.", appInfo().name);
         return false;
     }
     const int system = static_cast<int>(rom.system);
@@ -652,7 +653,7 @@ void ScreenScraper::work() {
                 const SsAnswer a = ask("jeuRecherche.php", "systemeid=" + std::to_string(screenScraperSystem(static_cast<int>(task.system))) +
                                                                "&recherche=" + urlEncode(task.text));
                 if (!credentials().usable())
-                    r.status = tr("Esta compilación de plumnin no trae la cuenta de desarrollador de ScreenScraper.");
+                    r.status = trf("Esta compilación de %s no trae la cuenta de desarrollador de ScreenScraper.", appInfo().name);
                 else if (a.result == SsAnswer::NotFound) r.status = tr("Ningún juego se llama así en ScreenScraper.");
                 else r.status = answerError(a);
                 r.results = a.games;
@@ -661,7 +662,7 @@ void ScreenScraper::work() {
             case Task::Check: {
                 const SsCredentials c = credentials();
                 if (!c.usable()) {
-                    r.status = tr("Esta compilación de plumnin no trae la cuenta de desarrollador de ScreenScraper.");
+                    r.status = trf("Esta compilación de %s no trae la cuenta de desarrollador de ScreenScraper.", appInfo().name);
                     break;
                 }
                 // With the user's account, its own data; without, the servers' (only the program's account).

@@ -1,4 +1,4 @@
-#include "achievements_ui.h"
+#include "frontend/achievements_ui.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -7,6 +7,7 @@
 
 #include "imgui.h"
 #include "frontend/theme.h"
+#include "core/app_info.h"
 #include "core/i18n.h"
 #include "frontend/http.h"
 #include "render/gl.h"
@@ -14,7 +15,7 @@
 #define STBI_NO_STDIO
 #include "stb_image.h"
 
-namespace plumnin {
+namespace PLUM_APP_NAMESPACE {
 
 namespace {
 
@@ -181,7 +182,7 @@ void AchievementsUi::drawAccount(bool& changed) {
         }
         ImGui::EndDisabled();
         if (!ra_.loginError().empty()) ImGui::TextColored(kWarning, "%s", ra_.loginError().c_str());
-        ImGui::TextDisabled("%s", tr("La contraseña no se guarda: plumnin guarda la sesión que te da el servidor."));
+        ImGui::TextDisabled("%s", trf("La contraseña no se guarda: %s guarda la sesión que te da el servidor.", appInfo().name).c_str());
         if (ImGui::SmallButton(tr("Crear una cuenta en retroachievements.org")))
             SDL_OpenURL("https://retroachievements.org/createaccount.php");
     }
@@ -326,4 +327,4 @@ void AchievementsUi::drawOverlay(float top, bool gameHidden) {
     }
 }
 
-}  // namespace plumnin
+}  // namespace PLUM_APP_NAMESPACE

@@ -2,7 +2,9 @@
 // rest is common/src/frontend/settings_ini.cpp.
 #include "settings.h"
 
+#include "core/i18n.h"
 #include "core/ini_names.h"
+#include "frontend/game_options.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -113,6 +115,26 @@ void Settings::writeAfterLibrary(std::ostream& out) const {
     out << "\n[bios]\n"
         << "# The Mega CD BIOS for each region (they do not come with plumsg).\n";
     for (int i = 0; i < 3; ++i) out << kBiosKeys[i] << " = " << cdBios[static_cast<size_t>(i)] << "\n";
+}
+
+std::vector<GameOption> soundGameOptions() {
+    return {
+        {"mode", N_("Sintetizador"), N_("Sonido"), [](const Settings& f, Settings& t) { t.roland = f.roland; }},
+        {"soundfont", N_("SoundFont"), N_("Sonido"), [](const Settings& f, Settings& t) { t.soundfont = f.soundfont; }},
+        {"chip_mix", N_("Sonido original mezclado"), N_("Sonido"), [](const Settings& f, Settings& t) { t.chipMix = f.chipMix; }},
+        {"reverb", N_("Reverb"), N_("Sonido"), [](const Settings& f, Settings& t) { t.reverb = f.reverb; }},
+        {"chorus", N_("Chorus"), N_("Sonido"), [](const Settings& f, Settings& t) { t.chorus = f.chorus; }},
+        {"effects", N_("Efectos de sonido originales"), N_("Sonido"),
+         [](const Settings& f, Settings& t) { t.effectsOriginal = f.effectsOriginal; }},
+    };
+}
+
+std::vector<GameOption> consoleGameOptions() {
+    return {
+        {"region", N_("Región"), N_("Consola"), [](const Settings& f, Settings& t) { t.region = f.region; }},
+        {"pads", N_("Tipo de mando"), N_("Consola"), [](const Settings& f, Settings& t) { t.padType = f.padType; }},
+        {"overclock", N_("Overclock"), N_("Consola"), [](const Settings& f, Settings& t) { t.overclock = f.overclock; }},
+    };
 }
 
 }  // namespace plumsg

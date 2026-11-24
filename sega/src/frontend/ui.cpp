@@ -15,7 +15,7 @@
 #include "imgui_internal.h"  // ImGui::TableSetColumnSortDirection
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_opengl3.h"
-#include "game_options.h"
+#include "frontend/game_options.h"
 #include "frontend/languages.h"
 #include "frontend/library_names.h"
 #include "frontend/theme.h"

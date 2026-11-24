@@ -9,10 +9,10 @@
 #include <thread>
 #include <vector>
 
-namespace plumnin {
+namespace PLUM_APP_NAMESPACE {
 
 // A game's manual (the PDF ScreenScraper has of it), read a page at a time for the 3D
-// view. The pages are drawn by PDFium (pdfium.dll next to plumnin, loaded the first time a
+// view. The pages are drawn by PDFium (pdfium.dll next to the program, loaded the first time a
 // manual is opened) on a thread of its own, and handed to OpenGL on the main thread in
 // update(); only the pages around the ones asked for are kept.
 class ManualReader {
@@ -73,4 +73,4 @@ private:
     std::thread worker_;
 };
 
-}  // namespace plumnin
+}  // namespace PLUM_APP_NAMESPACE

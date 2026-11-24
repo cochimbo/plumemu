@@ -181,7 +181,7 @@ add_executable(plumnin WIN32
   ${PLUM_COMMON_DIR}/src/frontend/audio.cpp
   src/frontend/settings.cpp
   ${PLUM_COMMON_DIR}/src/frontend/settings_ini.cpp
-  src/frontend/game_options.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/game_options.cpp
   ${PLUM_COMMON_DIR}/src/frontend/file_dialog.cpp
   src/frontend/ui.cpp
   src/frontend/instrument_editor.cpp
@@ -189,18 +189,18 @@ add_executable(plumnin WIN32
   ${PLUM_COMMON_DIR}/src/frontend/osk.cpp
   ${PLUM_COMMON_DIR}/src/frontend/theme.cpp
   src/frontend/library.cpp
-  src/frontend/manual.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/manual.cpp
   ${PLUM_COMMON_DIR}/src/frontend/texture_cache.cpp
   ${PLUM_COMMON_DIR}/src/frontend/library_names.cpp
-  src/frontend/game_info.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/game_info.cpp
   ${PLUM_COMMON_DIR}/src/frontend/game_info_data.cpp
   ${PLUM_COMMON_DIR}/src/frontend/http.cpp
   src/frontend/screenscraper.cpp
   ${PLUM_COMMON_DIR}/src/frontend/screenscraper_data.cpp
-  src/frontend/ui_media.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/ui_media.cpp
   ${PLUM_COMMON_DIR}/src/frontend/cheat_database.cpp
   ${PLUM_COMMON_DIR}/src/frontend/languages.cpp
-  src/frontend/achievements_ui.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/achievements_ui.cpp
   ${PLUM_COMMON_DIR}/src/render/gl.cpp
   ${PLUM_COMMON_DIR}/src/render/gl_renderers.cpp
   ${PLUM_COMMON_DIR}/src/render/upscale.cpp
@@ -354,7 +354,7 @@ if(PLUMNIN_BUILD_TESTS)
 
   # The frontend's files (a game's own options and controls); needs SDL2 for the key names.
   if(PLUMNIN_BUILD_FRONTEND)
-    add_executable(plumnin_frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp ${PLUM_COMMON_DIR}/src/frontend/input.cpp src/frontend/buttons.cpp
+    add_executable(plumnin_frontend_tests tests/frontend_tests.cpp ${PLUM_COMMON_DIR}/src/frontend/game_options.cpp ${PLUM_COMMON_DIR}/src/frontend/input.cpp src/frontend/buttons.cpp
                    src/frontend/settings.cpp ${PLUM_COMMON_DIR}/src/frontend/settings_ini.cpp ${PLUM_COMMON_DIR}/src/frontend/crash.cpp ${PLUM_COMMON_DIR}/src/frontend/handheld.cpp)
     set_target_properties(plumnin_frontend_tests PROPERTIES OUTPUT_NAME frontend_tests)
     target_link_libraries(plumnin_frontend_tests PRIVATE plumnin_core ${PLUMNIN_SDL2_TARGET})
