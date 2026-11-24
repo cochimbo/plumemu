@@ -1296,6 +1296,9 @@ msgstr "Esta compilação do plumsg não traz a conta de desenvolvedor do Screen
 msgid "Esta compilación de plumsg no trae la cuenta de desarrollador de ScreenScraper."
 msgstr "Esta compilação do plumsg não traz a conta de desenvolvedor do ScreenScraper."
 
+msgid "Esta consola todavía no tiene trucos."
+msgstr "Esta consola ainda não tem truques."
+
 msgid "Estado"
 msgstr "Estado"
 

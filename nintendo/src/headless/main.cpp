@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#include "cheats.h"
+#include "core/cheat_list.h"
 #include "console.h"
 #include "songs.h"
 #include "song_export.h"

@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "cheats.h"
+#include "core/cheat_list.h"
 #include "core/console_base.h"
 #include "pad.h"
 #include "core/state_io.h"

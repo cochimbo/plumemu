@@ -3326,7 +3326,7 @@ void Ui::drawCheatDatabase(const UiState& state, UiActions& out) {
     ImGui::SeparatorText(tr("Trucos de internet"));
     if (cheatDb_.view().game != state.cheatsPath) {
         cheatFilter_[0] = '\0';
-        cheatDb_.search(state.cheatsPath);
+        cheatDb_.search(state.cheatsPath, static_cast<int>(detectSystem(state.cheatsPath)));
     }
     const bool wasBusy = cheatDb_.view().busy;
     cheatDb_.update();
@@ -3352,7 +3352,7 @@ void Ui::drawCheatDatabase(const UiState& state, UiActions& out) {
         ImGui::TextDisabled(tr("Buscando en la base de trucos de libretro%s"), dots[(SDL_GetTicks() / 300) % 4]);
     }
     if (!db.status.empty()) ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.35f, 1.0f), "%s", db.status.c_str());
-    if (!db.busy && !db.status.empty() && ImGui::Button(tr("Reintentar"))) cheatDb_.search(state.cheatsPath);
+    if (!db.busy && !db.status.empty() && ImGui::Button(tr("Reintentar"))) cheatDb_.search(state.cheatsPath, static_cast<int>(detectSystem(state.cheatsPath)));
 
     if (!db.cheats.empty()) {
         ImGui::SetNextItemWidth(-1);

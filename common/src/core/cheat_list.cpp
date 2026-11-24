@@ -1,5 +1,6 @@
-#include "cheats.h"
+#include "core/cheat_list.h"
 
+#include "core/app_info.h"
 #include "core/i18n.h"
 
 #include <algorithm>
@@ -7,7 +8,7 @@
 #include <cstring>
 #include <sstream>
 
-namespace plumnin {
+namespace plum {
 
 namespace {
 
@@ -54,8 +55,8 @@ bool decodeCheatCodes(const std::string& code, const CheatDecoder& decode, std::
 
 std::string formatCheats(const std::vector<Cheat>& cheats) {
     std::ostringstream out;
-    out << "# Trucos de plumnin para este juego. Una línea por código: si o no (activado),\n"
-           "# el código (Game Genie o Pro Action Replay) y un nombre.\n";
+    out << "# Trucos de " << appInfo().name << " para este juego. Una línea por código: si o no (activado),\n"
+           "# el código (" << appInfo().cheatCodes << ") y un nombre.\n";
     for (const Cheat& c : cheats) out << (c.enabled ? "si " : "no ") << c.code << (c.name.empty() ? "" : " ") << c.name << "\n";
     return out.str();
 }
@@ -123,4 +124,4 @@ std::vector<Cheat> parseChtFile(const std::string& text) {
     return out;
 }
 
-}  // namespace plumnin
+}  // namespace plum

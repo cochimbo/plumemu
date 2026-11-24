@@ -6,10 +6,10 @@
 #include <thread>
 #include <vector>
 
-#include "../core/cheats.h"
-#include "../core/system.h"
+#include "core/cheat_list.h"
+#include "plum.h"
 
-namespace plumsg {
+namespace plum {
 
 // The ready-made cheat lists of libretro-database (the cht folder of each console, the
 // lists RetroArch offers), downloaded when the Trucos window asks for a game's: the
@@ -31,8 +31,9 @@ public:
     CheatDatabase(const CheatDatabase&) = delete;
     CheatDatabase& operator=(const CheatDatabase&) = delete;
 
-    // Looks for the lists of the game at `path` and downloads the best one.
-    void search(const std::string& path);
+    // Looks for the lists of the game at `path`, a game of console `system` (the
+    // program's number for it, see core/systems.h), and downloads the best one.
+    void search(const std::string& path, int system);
     // Downloads another of the lists found.
     void load(const std::string& file);
     // Main thread, once a frame while the window is open.
@@ -44,7 +45,7 @@ private:
     struct Task {
         bool search = false;  // list and load the best; else load `file`
         unsigned serial = 0;
-        ConsoleSystem system = ConsoleSystem::MegaDrive;
+        int system = 0;
         std::string path, file;
     };
     struct Reply {
@@ -58,11 +59,11 @@ private:
 
     void ask(Task task);
     void work();
-    bool loadIndex(ConsoleSystem s, std::string* error);
-    bool download(ConsoleSystem s, const std::string& file, std::vector<Cheat>* out, int* status);
+    bool loadIndex(int s, std::string* error);
+    bool download(int s, const std::string& file, std::vector<Cheat>* out, int* status);
 
     View view_;  // main thread only
-    ConsoleSystem system_ = ConsoleSystem::MegaDrive;
+    int system_ = 0;
     unsigned serial_ = 0;
 
     std::mutex mutex_;
@@ -70,8 +71,8 @@ private:
     bool stop_ = false, hasTask_ = false, hasReply_ = false;
     Task task_;
     Reply reply_;
-    std::vector<std::string> index_[kSystemCount];  // worker only
+    std::vector<std::vector<std::string>> index_;  // worker only, one per console
     std::thread worker_;
 };
 
-}  // namespace plumsg
+}  // namespace plum

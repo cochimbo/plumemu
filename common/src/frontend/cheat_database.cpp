@@ -1,34 +1,28 @@
-#include "cheat_database.h"
+#include "frontend/cheat_database.h"
+
+#include "core/systems.h"
 
 #include "frontend/http.h"
 #include "core/i18n.h"
 #include "frontend/library_names.h"
 
-#include <iterator>
-
-namespace plumnin {
+namespace plum {
 
 namespace {
 
-// libretro-database's cheat lists of each console: the files on GitHub and GitHub's
-// tree of the folder for their names.
-struct CheatSet {
-    const char* files;
-    const char* list;
-};
-constexpr CheatSet kCheatSets[] = {
-    {"https://raw.githubusercontent.com/libretro/libretro-database/master/cht/Nintendo%20-%20Game%20Boy/",
-     "https://api.github.com/repos/libretro/libretro-database/git/trees/master:cht/Nintendo%20-%20Game%20Boy"},
-    {"https://raw.githubusercontent.com/libretro/libretro-database/master/cht/Nintendo%20-%20Game%20Boy%20Color/",
-     "https://api.github.com/repos/libretro/libretro-database/git/trees/master:cht/Nintendo%20-%20Game%20Boy%20Color"},
-    {"https://raw.githubusercontent.com/libretro/libretro-database/master/cht/Nintendo%20-%20Nintendo%20Entertainment%20System/",
-     "https://api.github.com/repos/libretro/libretro-database/git/trees/master:cht/Nintendo%20-%20Nintendo%20Entertainment%20System"},
-    {"https://raw.githubusercontent.com/libretro/libretro-database/master/cht/Nintendo%20-%20Super%20Nintendo%20Entertainment%20System/",
-     "https://api.github.com/repos/libretro/libretro-database/git/trees/master:cht/Nintendo%20-%20Super%20Nintendo%20Entertainment%20System"},
-};
-static_assert(std::size(kCheatSets) == kSystemCount, "one set per console");
+// libretro-database's cheat lists of a console: the files on GitHub, and GitHub's tree
+// of the folder for their names. Empty for a console that has none.
+std::string cheatFiles(int s) {
+    const SystemInfo* info = systemInfo(s);
+    if (!info || !info->libretroCheats) return std::string();
+    return "https://raw.githubusercontent.com/libretro/libretro-database/master/cht/" + urlEncode(info->libretroCheats) + "/";
+}
 
-const CheatSet& cheatSet(ConsoleSystem s) { return kCheatSets[static_cast<int>(s)]; }
+std::string cheatList(int s) {
+    const SystemInfo* info = systemInfo(s);
+    if (!info || !info->libretroCheats) return std::string();
+    return "https://api.github.com/repos/libretro/libretro-database/git/trees/master:cht/" + urlEncode(info->libretroCheats);
+}
 
 std::string fileStem(const std::string& path) {
     const size_t slash = path.find_last_of("/\\");
@@ -42,7 +36,7 @@ const char* const kOffline = N_("No se pudo conectar con la base de trucos de li
 
 }  // namespace
 
-CheatDatabase::CheatDatabase() : worker_(&CheatDatabase::work, this) {}
+CheatDatabase::CheatDatabase() : index_(static_cast<size_t>(systemCount())), worker_(&CheatDatabase::work, this) {}
 
 CheatDatabase::~CheatDatabase() {
     {
@@ -65,10 +59,10 @@ void CheatDatabase::ask(Task task) {
     wake_.notify_one();
 }
 
-void CheatDatabase::search(const std::string& path) {
+void CheatDatabase::search(const std::string& path, int system) {
     view_ = View();
     view_.game = path;
-    system_ = detectSystem(path);
+    system_ = system;
     Task t;
     t.search = true;
     t.system = system_;
@@ -108,20 +102,28 @@ void CheatDatabase::update() {
 }
 
 // The names in the console's cht folder. Kept for the rest of the session.
-bool CheatDatabase::loadIndex(ConsoleSystem s, std::string* error) {
-    std::vector<std::string>& index = index_[static_cast<int>(s)];
+bool CheatDatabase::loadIndex(int s, std::string* error) {
+    if (cheatList(s).empty()) {
+        *error = tr("Esta consola todavía no tiene trucos.");
+        return false;
+    }
+    std::vector<std::string>& index = index_[static_cast<size_t>(s)];
     if (!index.empty()) return true;
     std::vector<uint8_t> body;
-    const int status = httpGet(cheatSet(s).list, body);
+    const int status = httpGet(cheatList(s), body);
     if (status == 200) index = parseFileList(std::string(body.begin(), body.end()), ".cht");
     if (!index.empty()) return true;
     *error = status == 0 ? std::string(tr(kOffline)) : trf("No se pudo leer la lista de trucos de libretro (error %d).", status);
     return false;
 }
 
-bool CheatDatabase::download(ConsoleSystem s, const std::string& file, std::vector<Cheat>* out, int* status) {
+bool CheatDatabase::download(int s, const std::string& file, std::vector<Cheat>* out, int* status) {
+    if (cheatFiles(s).empty()) {
+        *status = 404;
+        return false;
+    }
     std::vector<uint8_t> body;
-    *status = httpGet(cheatSet(s).files + urlEncode(file) + ".cht", body);
+    *status = httpGet(cheatFiles(s) + urlEncode(file) + ".cht", body);
     if (*status != 200) return false;
     *out = parseChtFile(std::string(body.begin(), body.end()));
     return true;
@@ -145,7 +147,7 @@ void CheatDatabase::work() {
             const std::string stem = fileStem(task.path);
             std::string indexError;
             if (loadIndex(task.system, &indexError)) {
-                r.files = cheatFileNames(index_[static_cast<int>(task.system)], stem, 20);
+                r.files = cheatFileNames(index_[static_cast<size_t>(task.system)], stem, 20);
                 if (r.files.empty()) r.status = tr("La base de trucos de libretro no tiene listas para este juego.");
                 else if (!download(task.system, r.files.front(), &r.cheats, &status))
                     r.status = status == 0 ? tr(kOffline) : tr("No se pudo descargar la lista de trucos. ¿Hay conexión a internet?");
@@ -181,4 +183,4 @@ void CheatDatabase::work() {
     }
 }
 
-}  // namespace plumnin
+}  // namespace plum

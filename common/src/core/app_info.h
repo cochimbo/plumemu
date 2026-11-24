@@ -22,6 +22,8 @@ struct AppInfo {
     const char* gamePatterns;
     // Whether it opens that file as a game (by its name), for the file browser.
     bool (*isGameFile)(const std::string& path);
+    // The cheat codes it takes, as the cheat file's first lines name them.
+    const char* cheatCodes;
 };
 
 const AppInfo& appInfo();
