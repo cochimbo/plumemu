@@ -8,8 +8,8 @@
 #include <fstream>
 #include <iterator>
 
-#include "../core/i18n.h"
-#include "../render/gl.h"
+#include "core/i18n.h"
+#include "render/gl.h"
 #include "library.h"
 
 namespace plumsg {

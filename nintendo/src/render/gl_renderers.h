@@ -3,7 +3,7 @@
 #include <array>
 #include <vector>
 
-#include "gl.h"
+#include "render/gl.h"
 #include "planes.h"
 #include "renderer.h"
 #include "upscale.h"

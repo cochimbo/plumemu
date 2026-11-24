@@ -6,9 +6,9 @@
 
 #include "../core/system.h"
 #include "console_models.h"
-#include "gl.h"
+#include "render/gl.h"
 #include "gltf_model.h"
-#include "room.h"
+#include "render/room.h"
 
 namespace plumsg {
 

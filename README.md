@@ -10,7 +10,11 @@ los dos emuladores que antes vivían aparte, con toda su historia:
 
 Por ahora siguen siendo dos programas, cada uno con su instalador, sus ajustes y sus
 carpetas de datos de siempre (`plumsg/plumsg` y `plumnin/plumnin`). El código que
-comparten irá pasando poco a poco a una librería común.
+comparten va pasando a [`common/`](common/CMakeLists.txt) (namespace `plum`): textos y
+traducciones, rebobinado, grabaciones, audio, informes de fallo, la vista 3D de la
+habitación, OpenGL... Lo que cada programa pone de suyo (nombre, versión, carpeta de
+datos) lo dice su `AppInfo` (`sega/src/app_info.cpp`, `nintendo/src/app_info.cpp`).
+Las bibliotecas de terceros que usan los dos están en `third_party/`.
 
 ## Compilar
 

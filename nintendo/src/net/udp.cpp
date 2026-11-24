@@ -1,6 +1,6 @@
 #include "udp.h"
 
-#include "../core/i18n.h"
+#include "core/i18n.h"
 
 #include <cstdlib>
 #include <cstring>

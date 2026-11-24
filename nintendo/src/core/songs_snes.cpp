@@ -24,7 +24,7 @@
 #include <tuple>
 #include <vector>
 
-#include "i18n.h"
+#include "core/i18n.h"
 #include "snes/snes.h"
 #include "songs.h"
 #include "synth_music.h"

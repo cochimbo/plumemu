@@ -27,7 +27,7 @@
 #include "miniz.h"
 #include "render/planes.h"
 #include "render/profile3d.h"
-#include "rewind.h"
+#include "core/rewind.h"
 #include "test_rom.h"
 #include "frontend/achievements.h"
 #include "frontend/game_info_data.h"

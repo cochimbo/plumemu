@@ -7,9 +7,9 @@
 
 #include "imgui.h"
 #include "theme.h"
-#include "../core/i18n.h"
-#include "http.h"
-#include "../render/gl.h"
+#include "core/i18n.h"
+#include "frontend/http.h"
+#include "render/gl.h"
 
 #define STBI_NO_STDIO
 #include "stb_image.h"

@@ -11,7 +11,7 @@
 #include "imgui.h"
 #include "theme.h"
 #include "ui.h"
-#include "../core/i18n.h"
+#include "core/i18n.h"
 #include "../core/system.h"
 
 namespace plumsg {

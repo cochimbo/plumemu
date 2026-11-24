@@ -26,7 +26,7 @@
 #include "netplay.h"
 #include "render/planes.h"
 #include "render/profile3d.h"
-#include "rewind.h"
+#include "core/rewind.h"
 #include "system.h"
 #include "test_console.h"
 #include "vgm.h"

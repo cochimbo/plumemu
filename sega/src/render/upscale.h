@@ -3,7 +3,7 @@
 #include <array>
 #include <vector>
 
-#include "gl.h"
+#include "render/gl.h"
 #include "renderer.h"
 
 namespace plumsg {

@@ -15,7 +15,7 @@
 #include "file_dialog.h"
 #include "miniz.h"
 #include "../core/console.h"
-#include "../core/i18n.h"
+#include "core/i18n.h"
 #include "../core/song_export.h"
 
 namespace plumnin {

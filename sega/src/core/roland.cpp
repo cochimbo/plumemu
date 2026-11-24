@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "i18n.h"
+#include "core/i18n.h"
 #include "psg.h"
 #include "timbre.h"
 #include "ym2413.h"

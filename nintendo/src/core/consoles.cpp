@@ -2,7 +2,7 @@
 #include "gb/gb.h"
 #include "nes/nes.h"
 #include "snes/snes.h"
-#include "i18n.h"
+#include "core/i18n.h"
 
 namespace plumnin {
 

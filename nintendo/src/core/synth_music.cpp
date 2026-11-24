@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "i18n.h"
+#include "core/i18n.h"
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic push

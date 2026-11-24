@@ -28,7 +28,7 @@
 #include "miniz.h"
 #include "net/udp.h"
 #include "netplay.h"
-#include "recording.h"
+#include "core/recording.h"
 #include "pad_test_rom.h"
 #include "sms_test_rom.h"
 #include "song_export.h"

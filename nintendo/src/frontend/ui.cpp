@@ -1,6 +1,6 @@
 #include "ui.h"
 
-#include "handheld.h"
+#include "frontend/handheld.h"
 
 #include <algorithm>
 #include <cctype>
@@ -16,24 +16,21 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_opengl3.h"
 #include "game_options.h"
-#include "languages.h"
-#include "library_names.h"
+#include "frontend/languages.h"
+#include "frontend/library_names.h"
 #include "theme.h"
 #include "icon_png.h"
 #include "logo_png.h"
 #include "../core/console.h"
-#include "../core/i18n.h"
+#include "core/app_info.h"
+#include "core/i18n.h"
 #include "../core/system.h"
 #include "../net/udp.h"
 #include "../render/box_shelf.h"
-#include "../render/gl.h"
+#include "render/gl.h"
 
 #define STBI_NO_STDIO
 #include "stb_image.h"
-
-#ifndef PLUMNIN_VERSION
-#define PLUMNIN_VERSION "dev"
-#endif
 
 namespace plumnin {
 
@@ -1860,7 +1857,7 @@ void Ui::drawAbout() {
         ImGui::Image(static_cast<ImTextureID>(logoTexture_), ImVec2(w, w * logoHeight_ / logoWidth_));
     }
     ImGui::TextUnformatted(tr("plumnin, emulador de Game Boy, Game Boy Color, NES y Super Nintendo con efecto pseudo-3D."));
-    ImGui::TextDisabled("%s", trf("Versión %s", PLUMNIN_VERSION).c_str());
+    ImGui::TextDisabled("%s", trf("Versión %s", appInfo().version).c_str());
     ImGui::Spacing();
     ImGui::TextUnformatted(tr("Arrastra una ROM a la ventana o usa Archivo > Abrir ROM."));
     ImGui::SeparatorText(tr("Atajos"));

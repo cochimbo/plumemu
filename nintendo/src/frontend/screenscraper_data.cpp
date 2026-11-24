@@ -7,8 +7,8 @@
 #include <filesystem>
 #include <iterator>
 
-#include "../core/i18n.h"
-#include "library_names.h"
+#include "core/i18n.h"
+#include "frontend/library_names.h"
 
 namespace plumnin {
 

@@ -16,7 +16,8 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SOURCES = [os.path.join(ROOT, "src")]
+# Its own code and the code it shares with the other program (plumemu's common/).
+SOURCES = [os.path.join(ROOT, "src"), os.path.join(ROOT, "..", "common", "src")]
 LANG_DIR = os.path.join(ROOT, "src", "frontend", "lang")
 LANGUAGES = {"en": "English", "fr": "French", "pt": "Portuguese"}
 CALLS = {"tr", "trf", "N_"}

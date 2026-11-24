@@ -11,12 +11,12 @@
 
 #include "../core/system.h"
 #include "miniz.h"
-#include "../core/i18n.h"
-#include "../render/gl.h"
-#include "game_info_data.h"
-#include "http.h"
+#include "core/i18n.h"
+#include "render/gl.h"
+#include "frontend/game_info_data.h"
+#include "frontend/http.h"
 #include "library.h"
-#include "library_names.h"
+#include "frontend/library_names.h"
 
 // The developer account plumnin is built with: ScreenScraper gives one to each program
 // that asks for it, and the installer's build passes it in (a secret of the repository).

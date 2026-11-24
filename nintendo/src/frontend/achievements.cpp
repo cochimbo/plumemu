@@ -5,7 +5,7 @@
 #include <thread>
 #include <utility>
 
-#include "../core/i18n.h"
+#include "core/i18n.h"
 #include "../core/console.h"
 #include "md5.h"
 #include "rc_client.h"

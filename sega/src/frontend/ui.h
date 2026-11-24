@@ -13,7 +13,7 @@
 #include "achievements_ui.h"
 #include "cheat_database.h"
 #include "file_dialog.h"
-#include "fps_counter.h"
+#include "frontend/fps_counter.h"
 #include "game_info.h"
 #include "imgui.h"
 #include "input.h"

@@ -6,11 +6,11 @@
 #include <sstream>
 #include <system_error>
 
-#include "../core/i18n.h"
-#include "../render/gl.h"
-#include "http.h"
+#include "core/i18n.h"
+#include "render/gl.h"
+#include "frontend/http.h"
 #include "library.h"
-#include "library_names.h"
+#include "frontend/library_names.h"
 #include "screenscraper_data.h"
 
 namespace plumsg {

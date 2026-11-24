@@ -9,7 +9,7 @@
 
 #include "imgui.h"
 #include "theme.h"
-#include "../core/i18n.h"
+#include "core/i18n.h"
 
 namespace plumsg {
 

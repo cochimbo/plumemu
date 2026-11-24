@@ -6,7 +6,7 @@
 #include <iterator>
 #include <system_error>
 
-#include "../core/i18n.h"
+#include "core/i18n.h"
 #include "../core/system.h"
 #include "imgui.h"
 #include "theme.h"

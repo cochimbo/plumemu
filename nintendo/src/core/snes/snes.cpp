@@ -4,7 +4,7 @@
 #include <cctype>
 #include <cstring>
 
-#include "../i18n.h"
+#include "core/i18n.h"
 #include "snes_necdsp.h"
 #include "snes_cx4.h"
 #include "snes_obc1.h"

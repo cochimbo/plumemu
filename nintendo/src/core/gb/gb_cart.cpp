@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <ctime>
 
-#include "../i18n.h"
+#include "core/i18n.h"
 
 namespace plumnin::gb {
 
