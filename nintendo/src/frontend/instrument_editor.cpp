@@ -12,7 +12,7 @@
 #include <system_error>
 
 #include "imgui.h"
-#include "file_dialog.h"
+#include "frontend/file_dialog.h"
 #include "miniz.h"
 #include "../core/console.h"
 #include "core/i18n.h"

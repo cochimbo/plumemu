@@ -1,10 +1,12 @@
 #pragma once
 
+#include "plum.h"
+
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace plumsg {
+namespace plum {
 
 // A 3D model read from a glTF 2.0 file (.glb, or .gltf with its files beside it), for the
 // library's 3D boxes: its triangles in the shelf's vertex layout (kConsoleVertexFloats
@@ -16,6 +18,7 @@ struct GltfModel {
     struct Batch {
         int first = 0, count = 0;
         int image = -1, normals = -1;
+        bool mask = false;  // its texture's see-through parts are holes (alphaMode MASK)
     };
     std::vector<Batch> batches;
     struct Image {
@@ -33,4 +36,4 @@ constexpr int kGltfFace = 6;
 // *error, if it cannot.
 bool loadGltf(const std::string& path, GltfModel& out, std::string* error);
 
-}  // namespace plumsg
+}  // namespace plum

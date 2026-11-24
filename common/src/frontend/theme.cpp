@@ -1,4 +1,4 @@
-#include "theme.h"
+#include "frontend/theme.h"
 
 #include <algorithm>
 #include <cmath>
@@ -251,6 +251,10 @@ void boxGrid(ImVec2 min, ImVec2 max) {
         if (x >= min.x) d->AddRectFilled(ImVec2(x, min.y), ImVec2(x + 1, max.y), line);
     for (float y = y0; y < max.y; y += cell)
         if (y >= min.y) d->AddRectFilled(ImVec2(min.x, y), ImVec2(max.x, y + 1), line);
+}
+
+void libraryBackground(ImVec2 min, ImVec2 max) {
+    ImGui::GetCurrentWindow()->DrawList->AddRectFilled(min, max, IM_COL32(0x05, 0x05, 0x06, 0xFF));
 }
 
 void hint(const char* text) {

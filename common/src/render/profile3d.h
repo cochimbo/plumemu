@@ -1,14 +1,16 @@
 #pragma once
 
+#include "plum.h"
+
 #include <ostream>
 #include <string>
 
 #include "render/renderer.h"
 
-namespace plumsg {
+namespace plum {
 
 // The pseudo-3D options: on or off, style, depth, camera, thickness, extrusion and the
-// plane B tweaks. They live in [video] of plumsg.ini and, for a game with its own
+// plane B tweaks. They live in [video] of the program's .ini and, for a game with its own
 // profile, in a small .ini of that game that takes their place while it is loaded.
 
 // Copies only the pseudo-3D options from `from` into `to`.
@@ -26,4 +28,4 @@ std::string formatProfile(const RenderOptions& r, const std::string& game);
 // Applies the profile's keys onto `r`; false if `text` has no [profile_3d] section.
 bool parseProfile(const std::string& text, RenderOptions& r);
 
-}  // namespace plumsg
+}  // namespace plum

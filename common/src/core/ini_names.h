@@ -1,14 +1,16 @@
 #pragma once
 
+#include "plum.h"
+
 #include <string>
 #include <unordered_map>
 
-namespace plumsg {
+namespace plum {
 
-// The .ini files (plumsg.ini, the per-game ones in profiles/) use English section,
-// key and value names since 0.0.32. Up to 0.0.31 they were Spanish: readers pass every
-// name through iniName() so those files keep working, and the next save writes them in
-// English. Names already in English, and anything not listed, come back unchanged.
+// The .ini files (plumsg.ini or plumnin.ini, the per-game ones in profiles/) use English
+// section, key and value names; plumsg's up to its 0.0.31 were Spanish (plumnin only ever
+// wrote English ones): readers pass every name through iniName() so those files keep
+// working, and the next save writes them in English. Names already in English, and anything not listed, come back unchanged.
 inline const std::string& iniName(const std::string& name) {
     static const std::unordered_map<std::string, std::string> kSpanish = {
         // sections
@@ -52,4 +54,4 @@ inline const std::string& iniName(const std::string& name) {
     return it == kSpanish.end() ? name : it->second;
 }
 
-}  // namespace plumsg
+}  // namespace plum

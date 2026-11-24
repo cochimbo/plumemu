@@ -11,7 +11,7 @@
 #include "core/i18n.h"
 #include "render/gl.h"
 #include "frontend/library_names.h"
-#include "screenscraper_data.h"
+#include "frontend/screenscraper_data.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_PNG

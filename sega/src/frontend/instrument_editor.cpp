@@ -15,8 +15,8 @@
 #include <SDL.h>
 
 #include "imgui.h"
-#include "file_dialog.h"
-#include "theme.h"
+#include "frontend/file_dialog.h"
+#include "frontend/theme.h"
 #include "core/i18n.h"
 #include "../core/system.h"
 #include "miniz.h"

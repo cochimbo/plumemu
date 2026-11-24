@@ -1,6 +1,6 @@
-// plumsg's look: the Mega Drive as an object. Black ribbed plastic, the red of the
-// "16-BIT" on the console's top, chrome italic lettering and the round A B C buttons of
-// the pad, on top of Dear ImGui's widgets.
+// The programs' look: a console as an object (the Mega Drive first). Black ribbed
+// plastic, the red of the "16-BIT" on its top, chrome italic lettering and round pad
+// buttons, on top of Dear ImGui's widgets.
 #pragma once
 
 #include "imgui.h"
@@ -41,6 +41,9 @@ bool switchButton(const char* id, bool* on, const char* onLabel, const char* off
 // The white grid on black of the Master System's boxes, over `min`-`max` of the current
 // window, moving with its scroll. Before the items drawn on it.
 void boxGrid(ImVec2 min, ImVec2 max);
+// The library's background over `min`-`max` of the current window: a plain dark colour.
+// Before the items drawn on it.
+void libraryBackground(ImVec2 min, ImVec2 max);
 
 // A line of controls help ("A / Intro: jugar   B / Esc: cerrar"), dim, with the pad's
 // buttons drawn as buttons. Several lines with '\n'.

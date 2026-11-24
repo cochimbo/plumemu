@@ -1,7 +1,7 @@
 #include "input.h"
 
 #include "core/i18n.h"
-#include "../core/ini_names.h"
+#include "core/ini_names.h"
 
 #include <algorithm>
 #include <cctype>

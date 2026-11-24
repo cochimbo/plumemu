@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "../core/system.h"
-#include "screenscraper_data.h"
+#include "frontend/screenscraper_data.h"
 
 namespace plumnin {
 

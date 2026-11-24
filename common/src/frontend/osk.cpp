@@ -1,4 +1,4 @@
-#include "osk.h"
+#include "frontend/osk.h"
 
 #include <algorithm>
 #include <cstring>
@@ -6,10 +6,10 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"  // BringWindowToDisplayFront
-#include "theme.h"
+#include "frontend/theme.h"
 #include "core/i18n.h"
 
-namespace plumsg {
+namespace plum {
 
 namespace {
 
@@ -155,4 +155,4 @@ void OnScreenKeyboard::draw() {
     ImGui::End();
 }
 
-}  // namespace plumsg
+}  // namespace plum
