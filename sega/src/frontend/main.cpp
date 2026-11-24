@@ -838,9 +838,9 @@ int main(int argc, char** argv) {
         int width, height;
         if (recordsConsole()) {
             // As wide as H40 (H32 is stretched to it, as on a TV); a video three times that.
-            const VideoFrameMd& f = app->console.frame();
+            const VideoFrame& f = app->console.frame();
             const int scale = gif ? 1 : 3;
-            width = VideoFrameMd::kMaxWidth * scale;
+            width = kMdMaxWidth * scale;
             height = (f.interlaced ? f.height / 2 : f.height) * scale;
         } else {
             // The screen, made smaller by a whole number: a GIF to about 480x360, a video
@@ -1385,7 +1385,7 @@ int main(int argc, char** argv) {
             SDL_GetWindowSize(window, &ww, &wh);
             SDL_GL_GetDrawableSize(window, &dw, &dh);
             const float scale = dw > 0 ? static_cast<float>(ww) / static_cast<float>(dw) : 1.0f;
-            const VideoFrameMd& f = app->console.frame();
+            const VideoFrame& f = app->console.frame();
             const Viewport pic = pictureArea(f, Viewport{0, 0, dw, std::max(1, dh - ui->menuHeight())}, settings.render);
             const float colW = static_cast<float>(pic.width) / static_cast<float>(f.width);
             gunAim.setPicture((static_cast<float>(pic.x) + colW * static_cast<float>(f.wideLeft)) * scale,
@@ -1641,7 +1641,7 @@ int main(int argc, char** argv) {
                     }
                     app->console.setPads(input->poll(0, keyboard), input->poll(1, keyboard));
                     if (gunPlugged()) {
-                        const VideoFrameMd& f = app->console.frame();
+                        const VideoFrame& f = app->console.frame();
                         const int lines = f.interlaced ? f.height / 2 : f.height;
                         for (int g = 0; g < 2; ++g) {
                             const PadState pad = input->poll(g, keyboard);
@@ -1705,8 +1705,8 @@ int main(int argc, char** argv) {
         // A recording takes the game's picture before the menus are drawn over it.
         if (video.active() && app->romLoaded) {
             if (recordsConsole()) {
-                const VideoFrameMd& f = app->console.frame();
-                video.addFrame(f.rgba.data(), f.width, f.height, VideoFrameMd::kMaxWidth);
+                const VideoFrame& f = app->console.frame();
+                video.addFrame(f.rgba.data(), f.width, f.height, VideoFrame::kMaxWidth);
             } else {
                 screen.resize(static_cast<size_t>(gameArea.width) * gameArea.height);
                 gl::ReadPixels(0, 0, gameArea.width, gameArea.height, gl::BGRA, gl::UNSIGNED_INT_8_8_8_8_REV,

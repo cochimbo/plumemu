@@ -159,7 +159,7 @@ public:
     double masterClock() const { return pal() ? kMasterPal : kMasterNtsc; }
     uint64_t masterClocks() const { return now_; }
 
-    const VideoFrameMd& frame() const { return vdp_.frame(); }
+    const VideoFrame& frame() const { return vdp_.frame(); }
     AudioMixer& audio() { return mixer_; }
     // Sample rate for audio().samples(); the frontend nudges it to keep its queue level.
     void setSampleRate(double hz);

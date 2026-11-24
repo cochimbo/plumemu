@@ -6,7 +6,7 @@
 
 #include "cartridge.h"
 #include "sh2.h"
-#include "video_frame_md.h"
+#include "core/video_frame.h"
 
 namespace plumsg {
 
@@ -61,7 +61,7 @@ public:
     void startLine(int line, int activeLines);
     void startHblank(int line, int activeLines);
     // Draws the 32X layer of one line over what the VDP drew there.
-    void renderLine(int line, VideoFrameMd& frame);
+    void renderLine(int line, VideoFrame& frame);
 
     // Stereo PWM samples at the output rate produced since the last call.
     void setSampleRate(double hz, double masterClock);

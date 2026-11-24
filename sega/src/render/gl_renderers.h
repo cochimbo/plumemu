@@ -18,11 +18,11 @@ public:
     ~GlTextureRenderer() override;
     GlTextureRenderer(const GlTextureRenderer&) = delete;
     GlTextureRenderer& operator=(const GlTextureRenderer&) = delete;
-    void draw(const VideoFrameMd& frame, const Viewport& area) override;
+    void draw(const VideoFrame& frame, const Viewport& area) override;
 
 protected:
     // Fills `out` (frame.width x frame.height, 0xAARRGGBB) from the frame.
-    virtual void compose(const VideoFrameMd& frame, uint32_t* out) = 0;
+    virtual void compose(const VideoFrame& frame, uint32_t* out) = 0;
     bool filterable_ = false;  // draws through the scanlines / CRT filter or the upscaler when one is chosen
 
 private:
@@ -42,7 +42,7 @@ public:
     const char* name() const override { return "2D"; }
 
 protected:
-    void compose(const VideoFrameMd& frame, uint32_t* out) override;
+    void compose(const VideoFrame& frame, uint32_t* out) override;
 };
 
 // Debug view that tints each pixel by the layer it came from, which is the
@@ -52,7 +52,7 @@ public:
     const char* name() const override { return "capas (depuración)"; }
 
 protected:
-    void compose(const VideoFrameMd& frame, uint32_t* out) override;
+    void compose(const VideoFrame& frame, uint32_t* out) override;
 };
 
 // Pulls the picture apart into planes and stands them up like a diorama seen from a
@@ -69,7 +69,7 @@ public:
     Pseudo3DRenderer(const Pseudo3DRenderer&) = delete;
     Pseudo3DRenderer& operator=(const Pseudo3DRenderer&) = delete;
     const char* name() const override { return "3D"; }
-    void draw(const VideoFrameMd& frame, const Viewport& area) override;
+    void draw(const VideoFrame& frame, const Viewport& area) override;
 
 private:
     gl::GLuint program_ = 0;

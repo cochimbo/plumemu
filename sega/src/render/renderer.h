@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-#include "../core/video_frame_md.h"
+#include "core/video_frame.h"
 
 namespace plumsg {
 
@@ -52,7 +52,7 @@ struct RenderOptions {
 // whatever the horizontal resolution (PAL's 240 lines just take more of the screen);
 // the widescreen columns are as wide as the console's own. The Game Gear's screen
 // shows its 144 lines at 4:3.
-inline float pixelAspect(const VideoFrameMd& frame, bool squarePixels) {
+inline float pixelAspect(const VideoFrame& frame, bool squarePixels) {
     return squarePixels ? 1.0f
                         : static_cast<float>(frame.aspectLines) * 4.0f / 3.0f / static_cast<float>(frame.consoleWidth());
 }
@@ -64,7 +64,7 @@ struct Viewport {
 
 // Where the 2D views draw the picture inside `area`: as large as the scale mode allows,
 // centred, the lines kept sharp with the integer scale.
-inline Viewport pictureArea(const VideoFrameMd& frame, const Viewport& area, const RenderOptions& options) {
+inline Viewport pictureArea(const VideoFrame& frame, const Viewport& area, const RenderOptions& options) {
     // Size of the picture in "screen pixels": lines are one unit high (two interlaced
     // lines share one), and pixels are as wide as the TV makes them.
     const float lines = frame.interlaced ? frame.height / 2.0f : static_cast<float>(frame.height);
@@ -84,7 +84,7 @@ inline Viewport pictureArea(const VideoFrameMd& frame, const Viewport& area, con
     return Viewport{area.x + (area.width - w) / 2, area.y + (area.height - h) / 2, w, h};
 }
 
-// A renderer turns a VideoFrameMd into pixels on screen. The emulator core never calls
+// A renderer turns a VideoFrame into pixels on screen. The emulator core never calls
 // into a renderer; the frontend hands it each finished frame. A pseudo-3D renderer
 // is just another implementation of this interface. Renderers draw with OpenGL 3.3 into
 // the current context.
@@ -92,7 +92,7 @@ class Renderer {
 public:
     virtual ~Renderer() = default;
     virtual const char* name() const = 0;
-    virtual void draw(const VideoFrameMd& frame, const Viewport& area) = 0;
+    virtual void draw(const VideoFrame& frame, const Viewport& area) = 0;
     void setOptions(const RenderOptions& options) { options_ = options; }
 
 protected:

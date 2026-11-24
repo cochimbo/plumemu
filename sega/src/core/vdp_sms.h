@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "video_frame_md.h"
+#include "core/video_frame.h"
 
 namespace plumsg {
 
@@ -23,13 +23,13 @@ namespace plumsg {
 // byte at a time, and only the middle 160x144 of the picture is seen: that is what
 // goes into the frame.
 //
-// It draws into a VideoFrameMd, the same frame the Mega Drive VDP fills, so the
+// It draws into a VideoFrame, the same frame the Mega Drive VDP fills, so the
 // renderers, screenshots and recordings work unchanged: the background goes to plane B,
 // its tiles with priority (where they are not colour 0) also to plane A, and the sprites
 // to the sprite layer. Colours are 0..31 (background palette 0..15, sprite palette 16..31).
 class VdpSms {
 public:
-    explicit VdpSms(VideoFrameMd& frame) : frame_(frame) { reset(); }
+    explicit VdpSms(VideoFrame& frame) : frame_(frame) { reset(); }
 
     void reset();
     void setPal(bool pal) { pal_ = pal; }
@@ -165,7 +165,7 @@ private:
     bool unlimitedSprites_ = false;
 
     std::array<uint32_t, 32> colors_{};
-    VideoFrameMd& frame_;
+    VideoFrame& frame_;
 };
 
 }  // namespace plumsg

@@ -2,7 +2,7 @@
 
 #include "../core/ini_names.h"
 #include "../core/system.h"
-#include "../core/video_frame_md.h"
+#include "core/video_frame.h"
 #include "../render/profile3d.h"
 
 #include <algorithm>
@@ -154,8 +154,8 @@ void Settings::parse(std::istream& in, Settings& s) {
                 s.wideLeft = s.wideRight = 0;
                 for (const Widescreen& w : kWidescreens)
                     if (iniName(lower(value)) == w.name) s.wideLeft = s.wideRight = w.columns;
-            } else if (key == "widescreen_left") s.wideLeft = std::clamp(std::atoi(value.c_str()), 0, VideoFrameMd::kMaxWideSide);
-            else if (key == "widescreen_right") s.wideRight = std::clamp(std::atoi(value.c_str()), 0, VideoFrameMd::kMaxWideSide);
+            } else if (key == "widescreen_left") s.wideLeft = std::clamp(std::atoi(value.c_str()), 0, VideoFrame::kMaxWideSide);
+            else if (key == "widescreen_right") s.wideRight = std::clamp(std::atoi(value.c_str()), 0, VideoFrame::kMaxWideSide);
             else if (key == "window_scale") s.windowScale = std::clamp(std::atoi(value.c_str()), 1, 8);
             else if (key == "fullscreen") s.fullscreen = yes(value);
             else if (key == "menu_bar") s.showMenu = yes(value);

@@ -58,7 +58,7 @@ void check(bool ok, const char* what) {
     if (!ok) ++failures;
 }
 
-uint32_t frameHash(const VideoFrameMd& f) {
+uint32_t frameHash(const VideoFrame& f) {
     uint32_t h = 2166136261u;
     for (int y = 0; y < f.height; ++y)
         for (int x = 0; x < f.width; ++x) {
@@ -621,7 +621,7 @@ void testVdpSpriteLimit() {
         const uint16_t status = vdp->readStatus(0);
         return std::make_pair(std::move(vdp), status);
     };
-    auto sprite = [](const VdpMd& v, int x) { return v.frame().info[10 * VideoFrameMd::kMaxWidth + x].layer == MdLayer::Sprite; };
+    auto sprite = [](const VdpMd& v, int x) { return v.frame().info[10 * VideoFrame::kMaxWidth + x].layer == Layer::Sprite; };
 
     // 30 one-cell sprites, the last ten on top of each other: past the 20 per line.
     auto [limited, s1] = run(false, 1, 8, 30, 20);
@@ -673,7 +673,7 @@ void testVdpSpriteMaskAfterDotOverflow() {
         vdp->renderLine(17);
         vdp->renderLine(18);
         const auto& f = vdp->frame();
-        return f.sprites[18 * VideoFrameMd::kMaxWidth + 100] != 0;
+        return f.sprites[18 * VideoFrame::kMaxWidth + 100] != 0;
     };
     check(!run(true) && run(false), "VDP: a sprite at x = 0 masks from the start after a line out of sprite pixels");
 }
@@ -930,25 +930,25 @@ void testVdpWidescreen() {
           "VDP widescreen: off by default");
     check(VdpMd::wideColumnsFor(16, 9) == 53 && VdpMd::wideColumnsFor(16, 10) == 32, "VDP widescreen: 16:9 and 16:10");
     auto wide = render(53, 53, true);
-    const VideoFrameMd& f = wide->frame();
+    const VideoFrame& f = wide->frame();
     check(f.width == 426 && f.wideLeft == 53 && f.wideRight == 53, "VDP widescreen: 16:9 in H40 is 426 pixels, 53 on each side");
     // Plane x 504..511 is screen x -8..-1: only the widescreen columns show it.
-    check(layer(*off, 0) == MdLayer::Backdrop && layer(*wide, 53 - 8) == MdLayer::PlaneA &&
-              layer(*wide, 53 - 1) == MdLayer::PlaneA && layer(*wide, 53) == MdLayer::Backdrop,
+    check(layer(*off, 0) == Layer::Backdrop && layer(*wide, 53 - 8) == Layer::Front &&
+              layer(*wide, 53 - 1) == Layer::Front && layer(*wide, 53) == Layer::Backdrop,
           "VDP widescreen: the plane past the left edge");
-    check(layer(*wide, 53 + 336) == MdLayer::Sprite && layer(*wide, 53 + 335) == MdLayer::Backdrop,
+    check(layer(*wide, 53 + 336) == Layer::Sprite && layer(*wide, 53 + 335) == Layer::Backdrop,
           "VDP widescreen: a sprite past the right edge");
     bool same = true;
     for (int x = 0; x < 320; ++x) same &= off->frame().rgba[x] == f.rgba[53 + x];
     check(same, "VDP widescreen: the console's own picture is the same");
 
     auto narrow = render(53, 53, false);
-    check(narrow->frame().width == 340 && narrow->frame().wideLeft == 42 && layer(*narrow, 42 + 272) == MdLayer::Sprite,
+    check(narrow->frame().width == 340 && narrow->frame().wideLeft == 42 && layer(*narrow, 42 + 272) == Layer::Sprite,
           "VDP widescreen: 16:9 in H32 is 340 pixels");
     // Only the left side: the plane past the left edge shows, the sprite past the right does not.
     auto leftOnly = render(50, 0, true);
-    const VideoFrameMd& g = leftOnly->frame();
-    check(g.width == 370 && g.wideLeft == 50 && g.wideRight == 0 && layer(*leftOnly, 50 - 8) == MdLayer::PlaneA &&
+    const VideoFrame& g = leftOnly->frame();
+    check(g.width == 370 && g.wideLeft == 50 && g.wideRight == 0 && layer(*leftOnly, 50 - 8) == Layer::Front &&
               g.consoleWidth() == 320,
           "VDP widescreen: only the left side");
     bool sameLeft = true;
@@ -966,17 +966,17 @@ void testTestRom() {
         sound.insert(sound.end(), md.audio().samples().begin(), md.audio().samples().end());
         md.audio().clearSamples();
     }
-    const VideoFrameMd& f = md.frame();
+    const VideoFrame& f = md.frame();
     check(f.width == 320 && f.height == 224, "test ROM: H40, 224 lines");
     // A block of the "P" (plane A, high priority), the floor, a ball and plane B.
-    const MdPixel& block = f.info[44 * VideoFrameMd::kMaxWidth + 20];
-    check(block.layer == MdLayer::PlaneA && block.priority, "test ROM: plane A tile with priority");
-    check(f.info[200 * VideoFrameMd::kMaxWidth + 100].layer == MdLayer::PlaneA, "test ROM: the floor");
-    check(f.info[(84 + 8) * VideoFrameMd::kMaxWidth + 60 + 8].layer == MdLayer::Sprite, "test ROM: a sprite");
-    check(f.info[150 * VideoFrameMd::kMaxWidth + 10].layer == MdLayer::PlaneB, "test ROM: plane B");
+    const Pixel& block = f.info[44 * VideoFrame::kMaxWidth + 20];
+    check(block.layer == Layer::Front && block.priority, "test ROM: plane A tile with priority");
+    check(f.info[200 * VideoFrame::kMaxWidth + 100].layer == Layer::Front, "test ROM: the floor");
+    check(f.info[(84 + 8) * VideoFrame::kMaxWidth + 60 + 8].layer == Layer::Sprite, "test ROM: a sprite");
+    check(f.info[150 * VideoFrame::kMaxWidth + 10].layer == Layer::Back, "test ROM: plane B");
     // Ball 0 has no priority and sits on the "P": hidden in 2D, still in the sprite layer.
-    const int i0 = (60 + 8) * VideoFrameMd::kMaxWidth + 24 + 8;
-    check(f.info[i0].layer == MdLayer::PlaneA && (f.sprites[i0] >> 24), "test ROM: low sprite behind a high tile");
+    const int i0 = (60 + 8) * VideoFrame::kMaxWidth + 24 + 8;
+    check(f.info[i0].layer == Layer::Front && (f.sprites[i0] >> 24), "test ROM: low sprite behind a high tile");
     // Plane B scrolls one pixel a frame from the VBlank interrupt.
     check(f.lines[100].hscrollB != 0, "test ROM: VBlank interrupt scrolls plane B");
     double sumSq = 0;
@@ -1060,7 +1060,7 @@ void testPlanes() {
     MegaDrive md;
     md.loadRomData(testrom::build());
     for (int i = 0; i < 20; ++i) md.runFrame();
-    const VideoFrameMd& f = md.frame();
+    const VideoFrame& f = md.frame();
     for (const bool highB : {false, true}) {
         Planes planes;
         splitPlanes(f, SplitOptions{highB, false}, planes);
@@ -1310,13 +1310,13 @@ void testMars() {
     const auto& comm = md.mars()->comm();
     check(comm[0] == 0x4D5F && comm[1] == 0x4F4B && comm[2] == 0x535F && comm[3] == 0x4F4B,
           "32X: las dos SH-2 arrancan sin BIOS y dicen M_OK y S_OK");
-    const VideoFrameMd& f = md.frame();
+    const VideoFrame& f = md.frame();
     bool drawn = true;
     for (int x : {0, 1, 31, 32, 200, f.width - 1}) {  // the VDP was left in H32: 256 pixels
-        const int i = 100 * VideoFrameMd::kMaxWidth + x;
+        const int i = 100 * VideoFrame::kMaxWidth + x;
         auto expand = [](uint32_t v) { return (v << 3) | (v >> 2); };
         const uint32_t want = 0xFF000000u | expand(x & 31) << 16 | expand((x >> 5) & 31) << 8 | expand((x >> 10) & 31);
-        if (f.info[i].layer != MdLayer::Mars || f.rgba[i] != want || f.mars[i] != want) drawn = false;
+        if (f.info[i].layer != Layer::Mars || f.rgba[i] != want || f.mars[i] != want) drawn = false;
     }
     check(drawn, "32X: la SH-2 dibuja en el frame buffer y se ve sobre el fondo de la Mega Drive");
 
@@ -1429,13 +1429,13 @@ void testMarsProgram() {
 
     md.runFrame();
     md.runFrame();
-    const VideoFrameMd& f = md.frame();
+    const VideoFrame& f = md.frame();
     bool packed = true;
     for (int x : {0, 7, 8, 100, f.width - 1}) {
-        const uint32_t i = static_cast<uint32_t>(50 * VideoFrameMd::kMaxWidth + x);
+        const uint32_t i = static_cast<uint32_t>(50 * VideoFrame::kMaxWidth + x);
         const uint32_t level = static_cast<uint32_t>(x) >> 3;
         const uint32_t c = (level << 3) | (level >> 2);
-        if (f.info[i].layer != MdLayer::Mars || f.rgba[i] != (0xFF000000u | c << 16 | c << 8 | c)) packed = false;
+        if (f.info[i].layer != Layer::Mars || f.rgba[i] != (0xFF000000u | c << 16 | c << 8 | c)) packed = false;
     }
     check(packed, "32X: píxeles empaquetados a través de la paleta");
 
@@ -2135,7 +2135,7 @@ void testProfiles() {
 }
 
 void testLiveCamera() {
-    auto frame = std::make_unique<VideoFrameMd>();
+    auto frame = std::make_unique<VideoFrame>();
     Planes planes;
     planes.width = 320;
     planes.height = 224;
@@ -3278,7 +3278,7 @@ void testMasterSystem() {
         sound.insert(sound.end(), md.audio().samples().begin(), md.audio().samples().end());
         md.audio().clearSamples();
     }
-    const VideoFrameMd& f = md.frame();
+    const VideoFrame& f = md.frame();
     check(f.width == 256 && f.height == 192 && f.wideLeft == 0 && f.wideRight == 0, "Master System: 256x192");
     const int frames = md.z80Ram()[0];
     check(frames >= 55 && frames <= 60, "Master System: one frame interrupt a frame");
@@ -3290,18 +3290,18 @@ void testMasterSystem() {
     for (int x = 8; x < 256; ++x) halves &= f.pixel(x, 20) == (((x - h) & 7) < 4 ? st::kRed : st::kBlue);
     check(halves, "Master System: background tiles, palette and scroll");
     check(f.pixel(0, 20) == st::kYellow && f.pixel(7, 100) == st::kYellow &&
-              f.info[20 * VideoFrameMd::kMaxWidth + 3].layer == MdLayer::Backdrop,
+              f.info[20 * VideoFrame::kMaxWidth + 3].layer == Layer::Backdrop,
           "Master System: left column masked with the backdrop");
     const int sx = st::kSpriteLeft + 2;
     check(f.pixel(sx, st::kSpriteTop + 7) == st::kMagenta &&
-              f.info[(st::kSpriteTop + 7) * VideoFrameMd::kMaxWidth + sx].layer == MdLayer::Sprite,
+              f.info[(st::kSpriteTop + 7) * VideoFrame::kMaxWidth + sx].layer == Layer::Sprite,
           "Master System: a sprite");
-    const int under = (st::kSpriteTop + 2) * VideoFrameMd::kMaxWidth + sx;
-    check(f.pixel(sx, st::kSpriteTop + 2) == st::kGreen && f.info[under].layer == MdLayer::PlaneA &&
+    const int under = (st::kSpriteTop + 2) * VideoFrame::kMaxWidth + sx;
+    check(f.pixel(sx, st::kSpriteTop + 2) == st::kGreen && f.info[under].layer == Layer::Front &&
               (f.sprites[under] >> 24) != 0,
           "Master System: a tile with priority in front of the sprite, the sprite still in its layer");
-    check(f.info[(st::kSpriteTop - 2) * VideoFrameMd::kMaxWidth + sx].layer != MdLayer::Sprite &&
-              f.info[(st::kSpriteTop + 8) * VideoFrameMd::kMaxWidth + sx].layer != MdLayer::Sprite,
+    check(f.info[(st::kSpriteTop - 2) * VideoFrame::kMaxWidth + sx].layer != Layer::Sprite &&
+              f.info[(st::kSpriteTop + 8) * VideoFrame::kMaxWidth + sx].layer != Layer::Sprite,
           "Master System: the sprite is only on its lines");
     double sumSq = 0;
     for (int16_t s : sound) sumSq += static_cast<double>(s) * s;
@@ -3362,7 +3362,7 @@ void testSmsMapper() {
     Cartridge cart;
     cart.loadData(rom);
     std::array<uint8_t, 0x2000> ram{};
-    auto frame = std::make_unique<VideoFrameMd>();
+    auto frame = std::make_unique<VideoFrame>();
     MasterSystem sms(cart, ram, *frame);
     sms.powerOn();
     check(sms.read(0x0000) == 0 && sms.read(0x4000) == 1 && sms.read(0x8000) == 2, "SMS mapper: banks 0, 1, 2 at power on");
@@ -3413,7 +3413,7 @@ void testSmsControllers() {
     Cartridge cart;
     cart.loadData(rom);
     std::array<uint8_t, 0x2000> ram{};
-    auto frame = std::make_unique<VideoFrameMd>();
+    auto frame = std::make_unique<VideoFrame>();
     MasterSystem sms(cart, ram, *frame);
     sms.powerOn();
     check(sms.controller(0) == PadType::SixButton && sms.controller(1) == PadType::SixButton,
@@ -3518,7 +3518,7 @@ void testSmsPhase2() {
     Cartridge cart;
     cart.loadData(rom);
     std::array<uint8_t, 0x2000> ram{};
-    auto frame = std::make_unique<VideoFrameMd>();
+    auto frame = std::make_unique<VideoFrame>();
     MasterSystem sms(cart, ram, *frame);
     sms.powerOn();
     check(sms.codemasters() && sms.read(0x0000) == 0 && sms.read(0x4000) == 1 && sms.read(0x8000) == 0,
@@ -3587,7 +3587,7 @@ void testSmsPhase2() {
     for (int line = 0; line < 3; ++line) tms.vdp().startLine(line, true);
     const uint32_t green = 0xFF00AA00, white = 0xFFFFFFFF, lightRed = 0xFFFF0000;
     check(frame->pixel(0, 0) == green && frame->pixel(4, 0) == white && frame->pixel(8, 1) == white &&
-              frame->pixel(16, 1) == lightRed && frame->info[VideoFrameMd::kMaxWidth + 16].layer == MdLayer::Sprite &&
+              frame->pixel(16, 1) == lightRed && frame->info[VideoFrame::kMaxWidth + 16].layer == Layer::Sprite &&
               frame->pixel(16, 0) != lightRed,
           "SMS VDP: TMS9918 Graphics I with a sprite");
 }
@@ -3606,7 +3606,7 @@ void testGameGear() {
         sound.insert(sound.end(), md.audio().samples().begin(), md.audio().samples().end());
         md.audio().clearSamples();
     }
-    const VideoFrameMd& f = md.frame();
+    const VideoFrame& f = md.frame();
     check(f.width == 160 && f.height == 144 && f.aspectLines == 144, "Game Gear: a 160x144 screen");
     const int h = f.lines[0].hscrollB;
     bool halves = true;
@@ -3614,7 +3614,7 @@ void testGameGear() {
     check(halves, "Game Gear: the middle of the picture, in its 12-bit colours");
     const int sx = st::kSpriteLeft + 2 - st::kGgLeft, sy = st::kSpriteTop + 7 - st::kGgTop;
     check(f.pixel(sx, sy) == st::kMagenta && f.pixel(sx, sy - 5) == st::kGreen &&
-              f.info[sy * VideoFrameMd::kMaxWidth + sx].layer == MdLayer::Sprite,
+              f.info[sy * VideoFrame::kMaxWidth + sx].layer == Layer::Sprite,
           "Game Gear: the sprite and the row in front of it");
     double left = 0, right = 0;
     for (size_t i = 0; i + 1 < sound.size(); i += 2) {
@@ -3655,7 +3655,7 @@ void testGameGear() {
 void testGameGearCartridges() {
     namespace st = smstestrom;
     std::array<uint8_t, 0x2000> ram{};
-    auto frame = std::make_unique<VideoFrameMd>();
+    auto frame = std::make_unique<VideoFrame>();
     Cartridge cart;
     cart.loadData(st::build(true));
     MasterSystem gg(cart, ram, *frame, true);
@@ -3736,9 +3736,9 @@ void testGameGearCartridges() {
     reg(1, 0x42, VdpSms::kCyclesPerLine - 4);
     vdp.vdp().startLine(17, true);
     vdp.vdp().startLine(18, true);
-    check(frame->info[16 * VideoFrameMd::kMaxWidth + 42].layer == MdLayer::Sprite &&
-              frame->info[17 * VideoFrameMd::kMaxWidth + 42].layer != MdLayer::Sprite &&
-              frame->info[18 * VideoFrameMd::kMaxWidth + 42].layer == MdLayer::Sprite,
+    check(frame->info[16 * VideoFrame::kMaxWidth + 42].layer == Layer::Sprite &&
+              frame->info[17 * VideoFrame::kMaxWidth + 42].layer != Layer::Sprite &&
+              frame->info[18 * VideoFrame::kMaxWidth + 42].layer == Layer::Sprite,
           "SMS VDP: a sprite size changed late in a line is for the line after the next");
 
     // Against its H counter the Game Gear's line starts later (VDPTEST "GG 2 ASIC", issue

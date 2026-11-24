@@ -1,5 +1,7 @@
 #include "mars.h"
 
+#include "core/md_width.h"
+
 #include <algorithm>
 #include <cmath>
 #include <iterator>
@@ -555,29 +557,29 @@ void Mars::startHblank(int, int) {
     updateIrls();
 }
 
-void Mars::renderLine(int line, VideoFrameMd& frame) {
-    uint32_t* layer = &frame.mars[static_cast<size_t>(line) * VideoFrameMd::kMaxWidth];
-    std::fill(layer, layer + VideoFrameMd::kMaxWidth, 0u);
+void Mars::renderLine(int line, VideoFrame& frame) {
+    uint32_t* layer = &frame.mars[static_cast<size_t>(line) * VideoFrame::kMaxWidth];
+    std::fill(layer, layer + kMdMaxWidth, 0u);
     if (vdp_.latchMode == 0 || line >= (vdp_.latchLines ? 240 : 224)) return;
     const uint16_t* fb = frontBuffer();
     uint16_t addr = fb[line];
-    const int width = std::min(frame.width, VideoFrameMd::kMaxWidth);
+    const int width = std::min(frame.width, VideoFrame::kMaxWidth);
     // With widescreen the Mega Drive's picture starts `wideLeft` columns in; the 32X's is
     // only as wide as the console's.
     layer += frame.wideLeft;
-    const size_t row = static_cast<size_t>(frame.interlaced ? line * 2 : line) * VideoFrameMd::kMaxWidth + frame.wideLeft;
+    const size_t row = static_cast<size_t>(frame.interlaced ? line * 2 : line) * VideoFrame::kMaxWidth + frame.wideLeft;
     auto plot = [&](int x, uint16_t color) {
         if (x + frame.wideLeft >= width) return;
         const uint32_t rgba = colorOf(color);
         layer[x] = rgba;
-        MdPixel& info = frame.info[row + static_cast<size_t>(x)];
+        Pixel& info = frame.info[row + static_cast<size_t>(x)];
         const bool through = color & 0x8000;
-        const bool backdrop = info.layer == MdLayer::Backdrop;
+        const bool backdrop = info.layer == Layer::Backdrop;
         const bool shown = vdp_.latchPriority ? (!through || backdrop) : (through || backdrop);
         if (!shown) return;
         frame.rgba[row + static_cast<size_t>(x)] = rgba;
-        info = MdPixel{};
-        info.layer = MdLayer::Mars;
+        info = Pixel{};
+        info.layer = Layer::Mars;
     };
     switch (vdp_.latchMode) {
         case 1:  // packed pixels: one byte per pixel, through the palette

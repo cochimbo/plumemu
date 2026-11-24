@@ -52,7 +52,7 @@ PadType masterSystemControllerFor(uint32_t romCrc);
 
 class MasterSystem {
 public:
-    MasterSystem(Cartridge& cart, std::array<uint8_t, 0x2000>& ram, VideoFrameMd& frame, bool gameGear = false);
+    MasterSystem(Cartridge& cart, std::array<uint8_t, 0x2000>& ram, VideoFrame& frame, bool gameGear = false);
     bool gameGear() const { return gameGear_; }
 
     void powerOn();  // clears the VDP and the mapper

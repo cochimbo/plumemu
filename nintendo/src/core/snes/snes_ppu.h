@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include "core/state_io.h"
-#include "../video_frame.h"
+#include "core/video_frame.h"
 
 namespace plumnin::snes {
 

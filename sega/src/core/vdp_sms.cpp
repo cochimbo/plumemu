@@ -1,5 +1,7 @@
 #include "vdp_sms.h"
 
+#include "core/md_width.h"
+
 #include <algorithm>
 
 namespace plumsg {
@@ -233,8 +235,8 @@ void VdpSms::endFrame() {
 }
 
 void VdpSms::renderLine(int line) {
-    VideoFrameMd& f = frame_;
-    const int o = line * VideoFrameMd::kMaxWidth;
+    VideoFrame& f = frame_;
+    const int o = line * VideoFrame::kMaxWidth;
     const bool display = (regs_[1] & 0x40) != 0;
     const int backdropIndex = 16 + (regs_[7] & 0x0F);
     const uint32_t backdrop = colors_[static_cast<size_t>(backdropIndex)];
@@ -243,11 +245,11 @@ void VdpSms::renderLine(int line) {
     if (!display) {
         spriteLine(line, nullptr, nullptr);
         f.backdrop[line] = backdrop;
-        for (int x = 0; x < VideoFrameMd::kMaxWidth; ++x) {
+        for (int x = 0; x < kMdMaxWidth; ++x) {
             f.rgba[o + x] = x < 256 ? backdrop : 0;
-            f.info[o + x] = MdPixel{static_cast<uint8_t>(backdropIndex), MdLayer::Backdrop, false, MdShade::Normal, 0};
+            f.info[o + x] = Pixel{static_cast<uint8_t>(backdropIndex), Layer::Backdrop, false, Shade::Normal, 0};
             f.planeA[o + x] = f.planeB[o + x] = f.sprites[o + x] = 0;
-            f.planeAInfo[o + x] = f.planeBInfo[o + x] = f.spriteInfo[o + x] = MdPixel{};
+            f.planeAInfo[o + x] = f.planeBInfo[o + x] = f.spriteInfo[o + x] = Pixel{};
         }
         return;
     }
@@ -268,9 +270,9 @@ void VdpSms::renderLine(int line) {
         const int i = o + x;
         if (maskLeft && x < 8) {
             f.rgba[i] = backdrop;
-            f.info[i] = MdPixel{static_cast<uint8_t>(backdropIndex), MdLayer::Backdrop, false, MdShade::Normal, 0};
+            f.info[i] = Pixel{static_cast<uint8_t>(backdropIndex), Layer::Backdrop, false, Shade::Normal, 0};
             f.planeA[i] = f.planeB[i] = f.sprites[i] = 0;
-            f.planeAInfo[i] = f.planeBInfo[i] = f.spriteInfo[i] = MdPixel{};
+            f.planeAInfo[i] = f.planeBInfo[i] = f.spriteInfo[i] = Pixel{};
             continue;
         }
         const int vscroll = ((regs_[0] & 0x80) && x >= 192) ? 0 : vscrollLatch_;
@@ -291,25 +293,25 @@ void VdpSms::renderLine(int line) {
         const bool front = priority && index != 0;  // in front of the sprites
         const uint8_t s = spriteColor[static_cast<size_t>(x)];
 
-        const MdLayer bgLayer = index == 0 ? MdLayer::Backdrop : front ? MdLayer::PlaneA : MdLayer::PlaneB;
-        const MdPixel bgPixel{bgColor, bgLayer, priority, MdShade::Normal, tile};
+        const Layer bgLayer = index == 0 ? Layer::Backdrop : front ? Layer::Front : Layer::Back;
+        const Pixel bgPixel{bgColor, bgLayer, priority, Shade::Normal, tile};
         if (s && !front) {
             f.rgba[i] = colors_[s];
-            f.info[i] = MdPixel{s, MdLayer::Sprite, false, MdShade::Normal, spriteNumber[static_cast<size_t>(x)]};
+            f.info[i] = Pixel{s, Layer::Sprite, false, Shade::Normal, spriteNumber[static_cast<size_t>(x)]};
         } else {
             f.rgba[i] = colors_[bgColor];
             f.info[i] = bgPixel;
         }
         f.planeB[i] = (index != 0 && !front) ? colors_[bgColor] : 0;
-        f.planeBInfo[i] = MdPixel{bgColor, MdLayer::PlaneB, priority, MdShade::Normal, tile};
+        f.planeBInfo[i] = Pixel{bgColor, Layer::Back, priority, Shade::Normal, tile};
         f.planeA[i] = front ? colors_[bgColor] : 0;
-        f.planeAInfo[i] = front ? bgPixel : MdPixel{};
+        f.planeAInfo[i] = front ? bgPixel : Pixel{};
         f.sprites[i] = s ? colors_[s] : 0;
-        f.spriteInfo[i] = MdPixel{s, MdLayer::Sprite, false, MdShade::Normal, spriteNumber[static_cast<size_t>(x)]};
+        f.spriteInfo[i] = Pixel{s, Layer::Sprite, false, Shade::Normal, spriteNumber[static_cast<size_t>(x)]};
     }
-    for (int x = 256; x < VideoFrameMd::kMaxWidth; ++x) {
+    for (int x = 256; x < kMdMaxWidth; ++x) {
         f.rgba[o + x] = f.planeA[o + x] = f.planeB[o + x] = f.sprites[o + x] = 0;
-        f.info[o + x] = f.planeAInfo[o + x] = f.planeBInfo[o + x] = f.spriteInfo[o + x] = MdPixel{};
+        f.info[o + x] = f.planeAInfo[o + x] = f.planeBInfo[o + x] = f.spriteInfo[o + x] = Pixel{};
     }
 }
 
@@ -377,19 +379,19 @@ void VdpSms::spriteLine(int line, uint8_t* color, uint8_t* number) {
 }
 
 void VdpSms::renderLineTms(int line) {
-    VideoFrameMd& f = frame_;
-    const int o = line * VideoFrameMd::kMaxWidth;
+    VideoFrame& f = frame_;
+    const int o = line * VideoFrame::kMaxWidth;
     const bool display = (regs_[1] & 0x40) != 0;
     const int backdropIndex = regs_[7] & 0x0F;
     const uint32_t backdrop = backdropIndex ? tmsRgb(backdropIndex) : tmsRgb(1);
     f.lines[line].displayEnabled = display;
     f.lines[line].hscrollA = f.lines[line].hscrollB = 0;
     f.backdrop[line] = backdrop;
-    for (int x = 0; x < VideoFrameMd::kMaxWidth; ++x) {
+    for (int x = 0; x < kMdMaxWidth; ++x) {
         f.rgba[o + x] = x < 256 ? backdrop : 0;
-        f.info[o + x] = MdPixel{static_cast<uint8_t>(backdropIndex), MdLayer::Backdrop, false, MdShade::Normal, 0};
+        f.info[o + x] = Pixel{static_cast<uint8_t>(backdropIndex), Layer::Backdrop, false, Shade::Normal, 0};
         f.planeA[o + x] = f.planeB[o + x] = f.sprites[o + x] = 0;
-        f.planeAInfo[o + x] = f.planeBInfo[o + x] = f.spriteInfo[o + x] = MdPixel{};
+        f.planeAInfo[o + x] = f.planeBInfo[o + x] = f.spriteInfo[o + x] = Pixel{};
     }
     if (!display) return;
 
@@ -399,7 +401,7 @@ void VdpSms::renderLineTms(int line) {
         if (color == 0 || x < 0 || x >= 256) return;
         const int i = o + x;
         f.rgba[i] = f.planeB[i] = tmsRgb(color);
-        f.info[i] = f.planeBInfo[i] = MdPixel{static_cast<uint8_t>(color), MdLayer::PlaneB, false, MdShade::Normal, source};
+        f.info[i] = f.planeBInfo[i] = Pixel{static_cast<uint8_t>(color), Layer::Back, false, Shade::Normal, source};
     };
     if (m1 && !m2 && !m3) {
         // Text: 40 columns of 6 pixels after an 8-pixel border, in the colours of register 7.
@@ -470,7 +472,7 @@ void VdpSms::renderLineTms(int line) {
                 const int i = o + sx;
                 f.rgba[i] = f.sprites[i] = tmsRgb(color);
                 f.info[i] = f.spriteInfo[i] =
-                    MdPixel{static_cast<uint8_t>(color), MdLayer::Sprite, false, MdShade::Normal, static_cast<uint16_t>(n)};
+                    Pixel{static_cast<uint8_t>(color), Layer::Sprite, false, Shade::Normal, static_cast<uint16_t>(n)};
             }
         }
     }
@@ -479,18 +481,18 @@ void VdpSms::renderLineTms(int line) {
 // The Game Gear shows the middle of the picture: line `line` moves up to its place on
 // the 160x144 screen (lines above it have already moved, so nothing is lost).
 void VdpSms::cropGameGear(int line) {
-    VideoFrameMd& f = frame_;
+    VideoFrame& f = frame_;
     const int top = (activeLines() - kGgHeight) / 2;
     const int row = line - top;
     if (row < 0 || row >= kGgHeight) return;
-    const int from = line * VideoFrameMd::kMaxWidth + kGgLeft, to = row * VideoFrameMd::kMaxWidth;
+    const int from = line * VideoFrame::kMaxWidth + kGgLeft, to = row * VideoFrame::kMaxWidth;
     for (auto* layer : {&f.rgba, &f.planeA, &f.planeB, &f.sprites}) {
         std::copy_n(layer->begin() + from, kGgWidth, layer->begin() + to);
-        std::fill_n(layer->begin() + to + kGgWidth, VideoFrameMd::kMaxWidth - kGgWidth, 0u);
+        std::fill_n(layer->begin() + to + kGgWidth, kMdMaxWidth - kGgWidth, 0u);
     }
     for (auto* layer : {&f.info, &f.planeAInfo, &f.planeBInfo, &f.spriteInfo}) {
         std::copy_n(layer->begin() + from, kGgWidth, layer->begin() + to);
-        std::fill_n(layer->begin() + to + kGgWidth, VideoFrameMd::kMaxWidth - kGgWidth, MdPixel{});
+        std::fill_n(layer->begin() + to + kGgWidth, kMdMaxWidth - kGgWidth, Pixel{});
     }
     f.backdrop[static_cast<size_t>(row)] = f.backdrop[static_cast<size_t>(line)];
     f.lines[static_cast<size_t>(row)] = f.lines[static_cast<size_t>(line)];

@@ -1,18 +1,22 @@
 #pragma once
 
+#include "plum.h"
+
 #include <array>
 #include <cstdint>
 
-namespace plumnin {
+namespace plum {
 
 // Which hardware layer produced a pixel. The pseudo-3D renderer pushes each one to a
 // different depth instead of flattening them. Every console maps its own layers onto
-// these: the back plane is the Game Boy's and the NES's background (the SNES's lowest
-// background in use), the front plane what sits over it (the Game Boy's window, the
-// SNES's higher backgrounds), then the sprites.
-enum class Layer : uint8_t { Backdrop = 0, Back = 1, Front = 2, Window = 3, Sprite = 4 };
+// these: the back plane is the Mega Drive's plane B, the Game Boy's and the NES's
+// background (the SNES's lowest background in use), the front plane what sits over it
+// (the Mega Drive's plane A, the Game Boy's window, the SNES's higher backgrounds), then
+// the sprites. Mars is the 32X's bitmap.
+enum class Layer : uint8_t { Backdrop = 0, Back = 1, Front = 2, Window = 3, Sprite = 4, Mars = 5 };
 
-// Colour math state of a pixel (the SNES darkens or brightens some pixels by halves).
+// Shadow/highlight state of a pixel (the Mega Drive's VDP register 12 bit 3; the SNES's
+// colour math darkens or brightens some pixels by halves).
 enum class Shade : uint8_t { Normal = 0, Shadow = 1, Highlight = 2 };
 
 // Trivial on purpose (no member initializers): Pixel{} is all zeros, the backdrop, and
@@ -35,18 +39,21 @@ struct Pixel {
 // The two planes are called B (the back one) and A (the front one), as the renderer
 // stands them apart.
 struct VideoFrame {
-    // Most columns the widescreen option adds on one side: a little past 16:9.
+    // Most columns the widescreen option adds on one side: a little past 16:9. Much
+    // larger frames make MSVC run out of heap space compiling this struct.
     static constexpr int kMaxWideSide = 56;
     // 512 (the SNES's high resolution) plus what the widescreen option adds on both sides.
+    // The Mega Drive's pictures are narrower (kMdMaxWidth in plumsg), the row stride the same.
     static constexpr int kMaxWidth = 512 + 2 * kMaxWideSide;
-    static constexpr int kMaxHeight = 480;  // 239 lines, doubled in the SNES's interlace
+    // 239 lines doubled in the SNES's interlace, 240 in the Mega Drive's interlace mode 2.
+    static constexpr int kMaxHeight = 480;
     static constexpr int kPixels = kMaxWidth * kMaxHeight;
 
-    int width = 256;
+    int width = 256;  // the Mega Drive's 256 (H32) or 320 (H40), plus the widescreen columns
     // Columns the widescreen option adds on the left and on the right: picture the console
     // never shows, drawn from the planes and sprites past its edges. 0 without the option.
     int wideLeft = 0, wideRight = 0;
-    int height = 224;
+    int height = 224;  // the Mega Drive's 224 or 240; 448 or 480 in interlace mode 2
     bool interlaced = false;
     // How many lines make the height of a 4:3 picture: a TV's 224 for the consoles on
     // one, 144 for the Game Boy's screen, which shows all of its picture.
@@ -70,6 +77,10 @@ struct VideoFrame {
     std::array<Pixel, kPixels> planeAInfo{};
     std::array<Pixel, kPixels> spriteInfo{};
     std::array<uint32_t, kMaxHeight> backdrop{};  // backdrop colour of each line
+    // The 32X's picture of each line (alpha 0 where it draws nothing), whether or not
+    // it is in front of the Mega Drive's. Indexed by line, not by interlaced row. Only
+    // plumsg fills it.
+    std::array<uint32_t, kPixels> mars{};
 
     struct Line {
         int16_t hscrollA = 0, hscrollB = 0;
@@ -85,7 +96,7 @@ struct VideoFrame {
     uint32_t pixel(int x, int y) const { return rgba[y * kMaxWidth + x]; }
 };
 
-// The columns to add on each side of a 256-pixel 4:3 picture to make it w:h wide
+// The columns to add on each side of a 256-pixel 4:3 picture (plumnin's consoles) to make it w:h wide
 // (16:9 is 43, 16:10 26), within kMaxWideSide.
 inline int wideColumnsFor(int w, int h) {
     if (w <= 0 || h <= 0) return 0;
@@ -94,4 +105,4 @@ inline int wideColumnsFor(int w, int h) {
     return side < 0 ? 0 : side > VideoFrame::kMaxWideSide ? VideoFrame::kMaxWideSide : side;
 }
 
-}  // namespace plumnin
+}  // namespace plum

@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-#include "../core/video_frame.h"
+#include "core/video_frame.h"
 
 namespace plumnin {
 

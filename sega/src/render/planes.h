@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "../core/video_frame_md.h"
+#include "core/video_frame.h"
 
 namespace plumsg {
 
@@ -37,7 +37,7 @@ struct SplitOptions {
 // console actually shows gets its final colour, and the planes in front of it lose
 // that pixel; the planes behind keep theirs, so tilting the camera shows what is
 // hidden. With the camera straight on, the 3D view is exactly the 2D picture.
-void splitPlanes(const VideoFrameMd& frame, const SplitOptions& options, Planes& planes);
+void splitPlanes(const VideoFrame& frame, const SplitOptions& options, Planes& planes);
 
 // Writes into the alpha of every solid pixel how far it is from the plane's edge, in
 // pixels (city-block distance to the nearest empty pixel or the picture border), capped
@@ -51,7 +51,7 @@ void markEdgeDistance(std::vector<uint32_t>& plane, int width, int height);
 // tiles: tile patterns of which at most a quarter of the pixels on screen are
 // transparent. Ground, walls and platforms are usually solid; foliage, clouds and
 // outlines are not. The voxel view extrudes solid tiles far back, like 3DNES does.
-void markSolidTiles(const VideoFrameMd& frame, const Planes& planes, std::vector<uint32_t>& solid);
+void markSolidTiles(const VideoFrame& frame, const Planes& planes, std::vector<uint32_t>& solid);
 
 // Clears plane B wherever plane A has a solid tile. Extruded solid tiles reach back past
 // plane B, so whatever plane B has there would sit inside the block; and since every
@@ -70,7 +70,7 @@ class LiveCamera {
 public:
     static constexpr float kSwayYaw = 4.0f, kSwayTilt = 3.0f;
     // Feed it every frame drawn; a frame already seen (pause, slow motion) only eases.
-    void update(const VideoFrameMd& frame, const Planes& planes);
+    void update(const VideoFrame& frame, const Planes& planes);
     void reset() { *this = LiveCamera(); }
     float yaw() const { return yaw_; }    // degrees to add to the camera's turn
     float tilt() const { return tilt_; }  // degrees to add to its tilt

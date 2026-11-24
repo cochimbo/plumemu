@@ -339,7 +339,7 @@ GlTextureRenderer::~GlTextureRenderer() {
     gl::DeleteProgram(crtProgram_);
 }
 
-void GlTextureRenderer::draw(const VideoFrameMd& frame, const Viewport& area) {
+void GlTextureRenderer::draw(const VideoFrame& frame, const Viewport& area) {
     const int fw = frame.width, fh = frame.height;
     if (fw != texWidth_ || fh != texHeight_) {
         texWidth_ = fw;
@@ -371,31 +371,31 @@ void GlTextureRenderer::draw(const VideoFrameMd& frame, const Viewport& area) {
     gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);
 }
 
-void FlatRenderer::compose(const VideoFrameMd& frame, uint32_t* out) {
+void FlatRenderer::compose(const VideoFrame& frame, uint32_t* out) {
     for (int y = 0; y < frame.height; ++y) {
-        const uint32_t* src = &frame.rgba[y * VideoFrameMd::kMaxWidth];
+        const uint32_t* src = &frame.rgba[y * VideoFrame::kMaxWidth];
         std::copy(src, src + frame.width, out + y * frame.width);
     }
 }
 
-void LayerRenderer::compose(const VideoFrameMd& frame, uint32_t* out) {
+void LayerRenderer::compose(const VideoFrame& frame, uint32_t* out) {
     for (int y = 0; y < frame.height; ++y) {
         for (int x = 0; x < frame.width; ++x) {
-            const int i = y * VideoFrameMd::kMaxWidth + x;
+            const int i = y * VideoFrame::kMaxWidth + x;
             const uint32_t c = frame.rgba[i];
             const uint32_t luma = (((c >> 16) & 0xFF) + ((c >> 8) & 0xFF) + (c & 0xFF)) / 3 / 2 + 64;
-            const MdPixel& px = frame.info[i];
+            const Pixel& px = frame.info[i];
             uint32_t r = 0, g = 0, b = 0;
             switch (px.layer) {
-                case MdLayer::Backdrop: r = g = b = luma / 3; break;
-                case MdLayer::PlaneB: b = luma; g = luma / 2; break;
-                case MdLayer::PlaneA: g = luma; b = luma / 3; break;
-                case MdLayer::Window: g = luma; r = luma / 2; b = luma; break;
-                case MdLayer::Sprite: r = luma; g = luma / 3; break;
-                case MdLayer::Mars: r = luma; b = luma; break;
+                case Layer::Backdrop: r = g = b = luma / 3; break;
+                case Layer::Back: b = luma; g = luma / 2; break;
+                case Layer::Front: g = luma; b = luma / 3; break;
+                case Layer::Window: g = luma; r = luma / 2; b = luma; break;
+                case Layer::Sprite: r = luma; g = luma / 3; break;
+                case Layer::Mars: r = luma; b = luma; break;
             }
             // High priority: brighter and pushed towards yellow.
-            if (px.priority && px.layer != MdLayer::Backdrop) {
+            if (px.priority && px.layer != Layer::Backdrop) {
                 r = std::min<uint32_t>(255, r + luma / 2 + 40);
                 g = std::min<uint32_t>(255, g + luma / 2 + 40);
             }
@@ -420,7 +420,7 @@ Pseudo3DRenderer::~Pseudo3DRenderer() {
     gl::DeleteProgram(program_);
 }
 
-void Pseudo3DRenderer::draw(const VideoFrameMd& frame, const Viewport& area) {
+void Pseudo3DRenderer::draw(const VideoFrame& frame, const Viewport& area) {
     splitPlanes(frame, SplitOptions{options_.highBInFront, options_.flatB}, planes_);
     const int pw = planes_.width, ph = planes_.height;
     if (pw != texWidth_ || ph != texHeight_) {
