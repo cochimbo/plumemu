@@ -299,7 +299,7 @@ bool SongExtractor::tryRun(const std::string& romPath, const std::string& game, 
         return !progress || progress(p);
     };
     auto frameOn = [this](MegaDrive& m) {
-        if (wait_ && m.frameCount() % kFps == 0) wait_();
+        if (wait_ && m.frames() % kFps == 0) wait_();
         m.runFrame();
         m.audio().clearSamples();
     };
@@ -336,11 +336,11 @@ bool SongExtractor::tryRun(const std::string& romPath, const std::string& game, 
             return;
         }
         if (m68k && addr >= 0xA00000 && addr < 0xA02000) {
-            if (z80Writes.size() < 500000) z80Writes.push_back({md->frameCount(), static_cast<uint16_t>(addr & 0x1FFF), v});
+            if (z80Writes.size() < 500000) z80Writes.push_back({md->frames(), static_cast<uint16_t>(addr & 0x1FFF), v});
             ZWriter& w = z80Code[md->cpu().pc >> 8];
             ++w.writes;
-            if (w.lastFrame != md->frameCount()) {
-                w.lastFrame = md->frameCount();
+            if (w.lastFrame != md->frames()) {
+                w.lastFrame = md->frames();
                 ++w.frames;
             }
         }
@@ -348,7 +348,7 @@ bool SongExtractor::tryRun(const std::string& romPath, const std::string& game, 
         if (m68k && addr >= 0xFF0000 && addr - (md->cpu().a[7] & 0xFFFFFF) < 0x100) return;
         if (sms && ((addr - md->z80().sp + 0x40) & 0xFFFF) < 0x140) return;
         const size_t i = addr >= 0xFF0000 ? (addr & 0xFFFF) : 0x10000 + (addr & 0x1FFF);
-        const uint64_t now = md->frameCount();
+        const uint64_t now = md->frames();
         if (v != 0 && v != 0x80) {
             if (m68k) {
                 pendingValue[i] = v;
@@ -372,7 +372,7 @@ bool SongExtractor::tryRun(const std::string& romPath, const std::string& game, 
     std::map<uint64_t, std::vector<uint8_t>> checkpoints;
     if (!report(tr("Arrancando el juego"))) return fail("");
     for (int f = 0; f < kBootFrames; ++f) {
-        if (f % kCheckpointEvery == 0) md->saveState(checkpoints[md->frameCount()], true);
+        if (f % kCheckpointEvery == 0) md->saveState(checkpoints[md->frames()], true);
         if (pressStart) {  // for a tenth of a second every three, once past the logos
             PadState pad;
             pad.start = f >= 5 * kFps && f % (3 * kFps) < 6;
@@ -788,7 +788,7 @@ bool SongExtractor::tryRun(const std::string& romPath, const std::string& game, 
         m.lockSoundRequests(0, 0);
         m.cpu().skipRoutine = 0;
         m.cpu().holdMain(false);
-        while (m.frameCount() < n) frameOn(m);
+        while (m.frames() < n) frameOn(m);
         return true;
     };
     auto goTo = [&](uint64_t n) { return goToOn(*md, n); };

@@ -12,6 +12,7 @@
 #include "audio_mixer.h"
 #include "cartridge.h"
 #include "cheats.h"
+#include "core/console_base.h"
 #include "io.h"
 #include "m68k.h"
 #include "mars.h"
@@ -37,8 +38,9 @@ namespace plumsg {
 // With a Master System cartridge it runs in the console's Master System mode instead:
 // only the Z80, the PSG and the Master System's own VDP and memory map. It knows
 // nothing about windows, rendering or audio devices: frontends call runFrame(), then
-// read frame() and audio().samples(), and feed the pads in.
-class MegaDrive : private M68kBus, private Z80Bus {
+// read frame() and audio().samples(), and feed the pads in. Frames, savestates and
+// run-ahead work as for every console (plum::ConsoleBase).
+class MegaDrive : public plum::ConsoleBase, private M68kBus, private Z80Bus {
 public:
     static constexpr double kMasterNtsc = 53693175.0;
     static constexpr double kMasterPal = 53203424.0;
@@ -74,8 +76,8 @@ public:
     void loadRomDataWithDisc(std::vector<uint8_t> rom, std::unique_ptr<CdImage> disc);  // tests and tools
     bool hasMsuMd() const { return mcd_ && mcd_->cartridgeMode(); }
     const std::string& loadNotice() const { return loadNotice_; }  // empty when all went well
-    void reset();       // the console's reset button: CPUs, VDP and sound; RAM is kept
-    void powerCycle();  // also clears memory
+    void reset() override;       // the console's reset button: CPUs, VDP and sound; RAM is kept
+    void powerCycle() override;  // also clears memory
 
     // Auto follows the ROM header. Takes effect on the next reset or power cycle.
     // Mega CD discs always run in their own region, whatever this says.
@@ -139,13 +141,9 @@ public:
     void setOverclock(int percent) { overclock_ = std::clamp(percent, kMinOverclock, kMaxOverclock); }
     int overclock() const { return overclock_; }
 
-    void runFrame();  // up to the start of the next frame (just after VBlank ends)
-    // Run-ahead, to take frames of input lag away: runs `frames` more frames with the
-    // pads as they are, without sound, the Roland sound or the VGM recording, so that
-    // frame() shows the last of them (drawn even under setDrawing(false)), and then
-    // puts the console back as it was. Only the picture is left from the future;
-    // false if the state could not be put back.
-    bool runAhead(int frames);
+    void runFrame() override;  // up to the start of the next frame (just after VBlank ends)
+    // Run-ahead (runAhead) leaves the Roland sound and the VGM recording out of the
+    // frames it runs.
 
     // The Roland sound (not owned; null for the console's own). It plays the FM and PSG
     // music instead, which stays at `chipPercent` of its volume; the DAC is untouched.
@@ -159,20 +157,13 @@ public:
     double masterClock() const { return pal() ? kMasterPal : kMasterNtsc; }
     uint64_t masterClocks() const { return now_; }
 
-    const VideoFrame& frame() const { return vdp_.frame(); }
+    const VideoFrame& frame() const override { return vdp_.frame(); }
     AudioMixer& audio() { return mixer_; }
     // Sample rate for audio().samples(); the frontend nudges it to keep its queue level.
-    void setSampleRate(double hz);
-    double refreshRate() const { return pal() ? 49.701459 : 59.922743; }
-    uint64_t frameCount() const { return frames_; }
+    void setSampleRate(double hz) override;
+    double refreshRate() const override { return pal() ? 49.701459 : 59.922743; }
 
-    // Savestates: only between frames. The format is versioned and made of tagged
-    // blocks, so newer readers can skip unknown blocks; it is deflate-compressed and
-    // tied to the ROM's CRC32. loadState() leaves the console untouched on failure.
-    // `quick` skips the thumbnail and compresses less, for rewind snapshots taken
-    // every frame.
-    bool saveState(std::vector<uint8_t>& out, bool quick = false);
-    bool loadState(const std::vector<uint8_t>& in, std::string* error);
+    // Savestates (saveState, loadState: plum::ConsoleBase), tied to the ROM's CRC32.
     // The half-size picture stored in a savestate (RGBA, `width` x `height`).
     static bool stateThumbnail(const std::vector<uint8_t>& state, std::vector<uint32_t>& pixels, int* width,
                                int* height);
@@ -227,10 +218,34 @@ public:
     // Writes a byte of work RAM or Z80 RAM (a Master System's at 0xC000) directly, past
     // the lock.
     void poke(uint32_t addr, uint8_t value);
-    // Runs without drawing the picture (faster, for when only the sound matters).
-    void setDrawing(bool on) { drawing_ = on; }
+
+protected:
+    // plumsg's savestates: "PMDS", with the region after the CRC.
+    static const StateFormat kStateFormat;
+    const StateFormat& stateFormat() const override { return kStateFormat; }
+    std::string stateError(StateError e) const override;
+    uint32_t stateCrc() const override { return cart_.crc32(); }
+    void saveStateHeader(StateWriter& w) override;
+    void beforeLoadBlocks(const uint8_t* header) override;
+    void saveBlocks(StateBlocks& blocks) override;
+    bool loadBlock(uint32_t id, StateReader& r) override;
+    void afterLoad() override;
+    void beginRunAhead() override;
+    void endRunAhead() override;
 
 private:
+    // What a state being loaded said (or did not say) in its header and its blocks,
+    // for afterLoad().
+    struct Loading {
+        uint8_t region = 0;
+        bool hasMixer = false;
+        bool cacheFromBoot = false;  // from a version whose boot turns the 32X's cache on
+        uint16_t overclock = 100;    // states without the block are from a console at its speed
+        std::vector<uint8_t> addOnState;
+    } loading_;
+    RolandSound* aheadRoland_ = nullptr;  // what run-ahead took away from its frames
+    VgmWriter* aheadVgm_ = nullptr;
+
     // 68000 bus.
     uint8_t read8(uint32_t addr) override;
     uint16_t read16(uint32_t addr) override;
@@ -346,10 +361,7 @@ private:
     static constexpr int kRefreshEvery = 128 * 7;  // one every 128 cycles,
     static constexpr int kRefreshStall = 2 * 7;    // 2 of them on the bus
     int overclock_ = 100;      // the 68000's speed, percent of the real one
-    uint64_t frames_ = 0;
     std::vector<int16_t> psgBuffer_;
-    std::vector<uint8_t> loadedThumbnail_;
-    std::vector<uint8_t> aheadState_;  // runAhead()'s way back, kept to reuse its memory
     std::vector<CheatPatch> ramCheats_;
     std::vector<std::pair<uint32_t, uint8_t>> romOriginal_;  // bytes the ROM cheats replaced
     void applyRamCheats();
@@ -366,8 +378,7 @@ private:
     bool songBytes_ = false;
     int entryWay_[M68000::kWatchedEntries]{};
     void songWrite(uint32_t addr, uint8_t value);
-    bool drawing_ = true;
-    bool fromM68k_ = false;  // the Z80 bus write being made comes from the 68000  // THMB of the last loaded state, until a frame runs
+    bool fromM68k_ = false;  // the Z80 bus write being made comes from the 68000
 };
 
 }  // namespace plumsg
