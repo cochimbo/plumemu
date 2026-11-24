@@ -1,10 +1,12 @@
 #pragma once
 
+#include "plum.h"
+
 #include <algorithm>
 
-#include "../core/video_frame_md.h"
+#include "core/video_frame.h"
 
-namespace plumsg {
+namespace plum {
 
 enum class ScaleMode { Integer, Fit, Stretch };
 
@@ -15,8 +17,9 @@ constexpr float kMinTilt = -10.0f, kMaxTilt = 80.0f, kMaxYaw = 75.0f, kMinZoom =
 enum class Style3D { Layers, Voxels };
 
 // Look of the 2D picture: plain, with the dark gaps between a TV's lines, or a whole
-// CRT (scanlines, a slightly curved screen, the phosphor mask and darker corners).
-enum class Filter2D { None, Scanlines, Crt };
+// CRT (scanlines, a slightly curved screen, the phosphor mask and darker corners), or
+// a handheld's LCD (the grid between its pixels and the trail moving things leave).
+enum class Filter2D { None, Scanlines, Crt, Lcd };
 
 // Experimental: the 2D picture drawn bigger than the console made it, guessing the
 // detail. xBR rounds the stairs of the diagonals off; Anime4K is a small neural
@@ -28,7 +31,7 @@ struct RenderOptions {
     ScaleMode scale = ScaleMode::Integer;
     bool smooth = false;     // bilinear filtering instead of sharp pixels
     Filter2D filter = Filter2D::None;  // only the 2D view uses it
-    float filterStrength = 0.6f;       // 0..1, how strong the scanlines and the rest are
+    float filterStrength = 0.6f;       // 0..1, how strong the scanlines, the LCD and the rest are
     Upscale2D upscale = Upscale2D::None;  // only the 2D view uses it; wins over the filter
     bool pseudo3d = false;   // toggled by the "efecto 3D" hotkey: draw with the pseudo-3D renderer
     // Pseudo-3D look, each 0..1 except the tilt.
@@ -50,11 +53,12 @@ struct RenderOptions {
 
 // Width on screen of one pixel, for a line height of 1. The TV shows 224 lines at 4:3
 // whatever the horizontal resolution (PAL's 240 lines just take more of the screen);
-// the widescreen columns are as wide as the console's own. The Game Gear's screen
-// shows its 144 lines at 4:3.
-inline float pixelAspect(const VideoFrameMd& frame, bool squarePixels) {
+// the widescreen columns are as wide as the console's own. The Game Gear's screen shows
+// its 144 lines at 4:3; the Game Boy's has its own shape instead: frame.screenAspect.
+inline float pixelAspect(const VideoFrame& frame, bool squarePixels) {
+    const float aspect = frame.screenAspect > 0 ? frame.screenAspect : 4.0f / 3.0f;
     return squarePixels ? 1.0f
-                        : static_cast<float>(frame.aspectLines) * 4.0f / 3.0f / static_cast<float>(frame.consoleWidth());
+                        : static_cast<float>(frame.aspectLines) * aspect / static_cast<float>(frame.consoleWidth());
 }
 
 // Where to draw, in OpenGL window coordinates (origin at the bottom left).
@@ -64,7 +68,7 @@ struct Viewport {
 
 // Where the 2D views draw the picture inside `area`: as large as the scale mode allows,
 // centred, the lines kept sharp with the integer scale.
-inline Viewport pictureArea(const VideoFrameMd& frame, const Viewport& area, const RenderOptions& options) {
+inline Viewport pictureArea(const VideoFrame& frame, const Viewport& area, const RenderOptions& options) {
     // Size of the picture in "screen pixels": lines are one unit high (two interlaced
     // lines share one), and pixels are as wide as the TV makes them.
     const float lines = frame.interlaced ? frame.height / 2.0f : static_cast<float>(frame.height);
@@ -84,7 +88,7 @@ inline Viewport pictureArea(const VideoFrameMd& frame, const Viewport& area, con
     return Viewport{area.x + (area.width - w) / 2, area.y + (area.height - h) / 2, w, h};
 }
 
-// A renderer turns a VideoFrameMd into pixels on screen. The emulator core never calls
+// A renderer turns a VideoFrame into pixels on screen. The emulator core never calls
 // into a renderer; the frontend hands it each finished frame. A pseudo-3D renderer
 // is just another implementation of this interface. Renderers draw with OpenGL 3.3 into
 // the current context.
@@ -92,11 +96,11 @@ class Renderer {
 public:
     virtual ~Renderer() = default;
     virtual const char* name() const = 0;
-    virtual void draw(const VideoFrameMd& frame, const Viewport& area) = 0;
+    virtual void draw(const VideoFrame& frame, const Viewport& area) = 0;
     void setOptions(const RenderOptions& options) { options_ = options; }
 
 protected:
     RenderOptions options_;
 };
 
-}  // namespace plumsg
+}  // namespace plum

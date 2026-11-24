@@ -1,9 +1,9 @@
-#include "gl_renderers.h"
+#include "render/gl_renderers.h"
 
 #include <algorithm>
 #include <cmath>
 
-namespace plumsg {
+namespace plum {
 
 namespace {
 
@@ -57,6 +57,10 @@ void main() { outColor = texture(uImage, vUv); }
 // and the corners darken. uStrength 0..1 scales all of it. The picture is sampled by
 // hand: one texel row per beam and, across, a blend of the two nearest texels that is
 // sharp in the middle of a pixel and soft at its edges.
+// uFilter 3 is a handheld's LCD instead: every pixel of the picture is a cell with a
+// thin dark line around it, about one screen pixel wide (it fades away when the picture
+// is too small for it to fit), and the cells are lit a little brighter so the whole keeps
+// its brightness. The trail of a slow LCD is not here: draw() mixes it into the picture.
 constexpr const char* kCrtFragment = R"(#version 330 core
 uniform sampler2D uImage;
 uniform int uFilter;
@@ -87,9 +91,26 @@ float beam(float distance, vec3 colour) {
     return exp(-0.5 * distance * distance / (width * width));
 }
 
+vec3 lcd(vec2 uv, float strength) {
+    vec2 p = uv * uSource;
+    vec2 cell = floor(p), f = p - cell;
+    vec3 c = pow(texel(cell.x, cell.y), vec3(2.2));
+    vec2 size = uOutput / uSource;  // screen pixels per picture pixel
+    float fit = clamp((min(size.x, size.y) - 2.0) / 2.0, 0.0, 1.0);
+    vec2 gap = clamp(1.0 / size, 0.0, 0.3);
+    vec2 inside = smoothstep(vec2(0.0), gap, f) * smoothstep(vec2(0.0), gap, 1.0 - f);
+    float amount = strength * fit;
+    float lit = mix(1.0, mix(0.35, 1.0, inside.x * inside.y), amount);
+    return c * lit * (1.0 + 0.18 * amount);
+}
+
 void main() {
     vec2 uv = vUv;
     float strength = clamp(uStrength, 0.0, 1.0);
+    if (uFilter == 3) {
+        outColor = vec4(pow(clamp(lcd(uv, strength), 0.0, 1.0), vec3(1.0 / 2.2)), 1.0);
+        return;
+    }
     if (uFilter == 2) {
         vec2 c = uv * 2.0 - 1.0;
         c *= 1.0 + 0.10 * strength * (c.yx * c.yx);
@@ -339,7 +360,7 @@ GlTextureRenderer::~GlTextureRenderer() {
     gl::DeleteProgram(crtProgram_);
 }
 
-void GlTextureRenderer::draw(const VideoFrameMd& frame, const Viewport& area) {
+void GlTextureRenderer::draw(const VideoFrame& frame, const Viewport& area) {
     const int fw = frame.width, fh = frame.height;
     if (fw != texWidth_ || fh != texHeight_) {
         texWidth_ = fw;
@@ -348,7 +369,25 @@ void GlTextureRenderer::draw(const VideoFrameMd& frame, const Viewport& area) {
         resize(texture_, fw, fh);
     }
     compose(frame, pixels_.data());
-    upload(texture_, pixels_.data(), fw, fh, options_.smooth);
+    const bool lcd = filterable_ && options_.filter == Filter2D::Lcd && options_.upscale == Upscale2D::None;
+    if (!lcd) {
+        lcd_.clear();
+    } else if (lcd_.size() != pixels_.size()) {
+        lcd_ = pixels_;
+        lcdFrame_ = frame.frameNumber;
+    } else if (frame.frameNumber != lcdFrame_) {
+        // Once per frame of the console, not per frame of the monitor, so the trail is
+        // as long at 144 Hz as at 60 Hz (and a paused game does not blur away).
+        lcdFrame_ = frame.frameNumber;
+        const uint32_t keep = static_cast<uint32_t>(std::clamp(options_.filterStrength, 0.0f, 1.0f) * 0.45f * 256.0f);
+        for (size_t i = 0; i < pixels_.size(); ++i) {
+            const uint32_t now = pixels_[i], was = lcd_[i];
+            const uint32_t rb = (((now & 0xFF00FFu) * (256 - keep) + (was & 0xFF00FFu) * keep) >> 8) & 0xFF00FFu;
+            const uint32_t g = (((now & 0x00FF00u) * (256 - keep) + (was & 0x00FF00u) * keep) >> 8) & 0x00FF00u;
+            lcd_[i] = (now & 0xFF000000u) | rb | g;
+        }
+    }
+    upload(texture_, lcd ? lcd_.data() : pixels_.data(), fw, fh, options_.smooth);
 
     const Viewport picture = pictureArea(frame, area, options_);
     const int w = picture.width, h = picture.height;
@@ -360,7 +399,7 @@ void GlTextureRenderer::draw(const VideoFrameMd& frame, const Viewport& area) {
     gl::UseProgram(program);
     gl::Uniform1i(gl::GetUniformLocation(program, "uImage"), 0);
     if (crt) {
-        gl::Uniform1i(gl::GetUniformLocation(program, "uFilter"), options_.filter == Filter2D::Crt ? 2 : 1);
+        gl::Uniform1i(gl::GetUniformLocation(program, "uFilter"), options_.filter == Filter2D::Lcd ? 3 : options_.filter == Filter2D::Crt ? 2 : 1);
         gl::Uniform1f(gl::GetUniformLocation(program, "uStrength"), options_.filterStrength);
         gl::Uniform2f(gl::GetUniformLocation(program, "uSource"), static_cast<float>(fw), static_cast<float>(fh));
         gl::Uniform2f(gl::GetUniformLocation(program, "uOutput"), static_cast<float>(w), static_cast<float>(h));
@@ -371,31 +410,31 @@ void GlTextureRenderer::draw(const VideoFrameMd& frame, const Viewport& area) {
     gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);
 }
 
-void FlatRenderer::compose(const VideoFrameMd& frame, uint32_t* out) {
+void FlatRenderer::compose(const VideoFrame& frame, uint32_t* out) {
     for (int y = 0; y < frame.height; ++y) {
-        const uint32_t* src = &frame.rgba[y * VideoFrameMd::kMaxWidth];
+        const uint32_t* src = &frame.rgba[y * VideoFrame::kMaxWidth];
         std::copy(src, src + frame.width, out + y * frame.width);
     }
 }
 
-void LayerRenderer::compose(const VideoFrameMd& frame, uint32_t* out) {
+void LayerRenderer::compose(const VideoFrame& frame, uint32_t* out) {
     for (int y = 0; y < frame.height; ++y) {
         for (int x = 0; x < frame.width; ++x) {
-            const int i = y * VideoFrameMd::kMaxWidth + x;
+            const int i = y * VideoFrame::kMaxWidth + x;
             const uint32_t c = frame.rgba[i];
             const uint32_t luma = (((c >> 16) & 0xFF) + ((c >> 8) & 0xFF) + (c & 0xFF)) / 3 / 2 + 64;
-            const MdPixel& px = frame.info[i];
+            const Pixel& px = frame.info[i];
             uint32_t r = 0, g = 0, b = 0;
             switch (px.layer) {
-                case MdLayer::Backdrop: r = g = b = luma / 3; break;
-                case MdLayer::PlaneB: b = luma; g = luma / 2; break;
-                case MdLayer::PlaneA: g = luma; b = luma / 3; break;
-                case MdLayer::Window: g = luma; r = luma / 2; b = luma; break;
-                case MdLayer::Sprite: r = luma; g = luma / 3; break;
-                case MdLayer::Mars: r = luma; b = luma; break;
+                case Layer::Backdrop: r = g = b = luma / 3; break;
+                case Layer::Back: b = luma; g = luma / 2; break;
+                case Layer::Front: g = luma; b = luma / 3; break;
+                case Layer::Window: g = luma; r = luma / 2; b = luma; break;
+                case Layer::Sprite: r = luma; g = luma / 3; break;
+                case Layer::Mars: r = luma; b = luma; break;
             }
             // High priority: brighter and pushed towards yellow.
-            if (px.priority && px.layer != MdLayer::Backdrop) {
+            if (px.priority && px.layer != Layer::Backdrop) {
                 r = std::min<uint32_t>(255, r + luma / 2 + 40);
                 g = std::min<uint32_t>(255, g + luma / 2 + 40);
             }
@@ -420,7 +459,7 @@ Pseudo3DRenderer::~Pseudo3DRenderer() {
     gl::DeleteProgram(program_);
 }
 
-void Pseudo3DRenderer::draw(const VideoFrameMd& frame, const Viewport& area) {
+void Pseudo3DRenderer::draw(const VideoFrame& frame, const Viewport& area) {
     splitPlanes(frame, SplitOptions{options_.highBInFront, options_.flatB}, planes_);
     const int pw = planes_.width, ph = planes_.height;
     if (pw != texWidth_ || ph != texHeight_) {
@@ -581,4 +620,4 @@ void Pseudo3DRenderer::draw(const VideoFrameMd& frame, const Viewport& area) {
     gl::Disable(gl::DEPTH_TEST);
 }
 
-}  // namespace plumsg
+}  // namespace plum

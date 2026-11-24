@@ -81,9 +81,9 @@ bool widescreenControls(int& left, int& right) {
             changed = true;
         }
     }
-    ImGui::SliderInt(tr("Izquierda##ancha"), &left, 0, VideoFrameMd::kMaxWideSide, "%d px", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SliderInt(tr("Izquierda##ancha"), &left, 0, VideoFrame::kMaxWideSide, "%d px", ImGuiSliderFlags_AlwaysClamp);
     changed |= ImGui::IsItemDeactivatedAfterEdit();
-    ImGui::SliderInt(tr("Derecha##ancha"), &right, 0, VideoFrameMd::kMaxWideSide, "%d px", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SliderInt(tr("Derecha##ancha"), &right, 0, VideoFrame::kMaxWideSide, "%d px", ImGuiSliderFlags_AlwaysClamp);
     changed |= ImGui::IsItemDeactivatedAfterEdit();
     return changed;
 }
@@ -1800,8 +1800,8 @@ void Ui::drawStateOptions(int tab, const UiState& state, UiActions& out) {
                                settings_.wideLeft = settings_.wideRight = kWidescreens[next].columns;
                            },
                            kSave});
-        options.push_back(number(N_("Izquierda##ancha"), settings_.wideLeft, 0, VideoFrameMd::kMaxWideSide, 4, "%.0f px"));
-        options.push_back(number(N_("Derecha##ancha"), settings_.wideRight, 0, VideoFrameMd::kMaxWideSide, 4, "%.0f px"));
+        options.push_back(number(N_("Izquierda##ancha"), settings_.wideLeft, 0, VideoFrame::kMaxWideSide, 4, "%.0f px"));
+        options.push_back(number(N_("Derecha##ancha"), settings_.wideRight, 0, VideoFrame::kMaxWideSide, 4, "%.0f px"));
         options.push_back(toggle(N_("Pantalla completa (F11)"), settings_.fullscreen, kSave | kFullscreen));
         options.push_back(toggle(N_("Mostrar la barra de menús (Esc)"), settings_.showMenu));
         int scale = 0;

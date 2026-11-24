@@ -1,12 +1,14 @@
 #pragma once
 
+#include "plum.h"
+
 #include <array>
 #include <cstdint>
 #include <vector>
 
-#include "../core/video_frame.h"
+#include "core/video_frame.h"
 
-namespace plumnin {
+namespace plum {
 
 // The planes the pseudo-3D view stands apart, back to front.
 enum Plane { PlaneSky, PlaneB, PlaneA, PlaneSprites, PlanePriority, kPlanes };
@@ -25,14 +27,17 @@ struct SplitOptions {
 };
 
 // Splits the frame into planes. In interlace only the even field is used, so the
-// planes keep the normal height. The sky is always full: the backdrop (plus all of
-// plane B with flatB), with the gaps behind plane B filled from the nearest sky pixel
-// on the line. Plane A takes the low-priority tiles of plane A and the window, Priority
-// the high-priority ones, and Sprites every sprite.
+// planes keep the normal height. The sky is always full: the backdrop or the 32X's
+// picture (plus all of plane B with flatB), with the gaps behind plane B filled from the
+// nearest sky pixel on the line. Plane A takes the low-priority tiles of plane A and the
+// window, Priority the high-priority ones, and Sprites every sprite (the Mega Drive's
+// operator sprites of shadow/highlight mode only change colours, so they are not in any
+// plane).
 //
 // The hardware's priority order does not match the planes' depth order exactly (a
-// sprite behind the background, as the NES and the Game Boy allow, or a high priority
-// plane B tile covering low priority sprites and plane A). So, for every pixel, the plane holding what the
+// Mega Drive's high priority sprite covers high priority tiles; a sprite can be behind
+// the background, as the NES and the Game Boy allow; a high priority plane B tile covers
+// low priority sprites and plane A). So, for every pixel, the plane holding what the
 // console actually shows gets its final colour, and the planes in front of it lose
 // that pixel; the planes behind keep theirs, so tilting the camera shows what is
 // hidden. With the camera straight on, the 3D view is exactly the 2D picture.
@@ -89,4 +94,4 @@ private:
     bool seen_ = false;
 };
 
-}  // namespace plumnin
+}  // namespace plum

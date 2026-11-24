@@ -1374,7 +1374,7 @@ bool MegaDrive::saveState(std::vector<uint8_t>& out, bool quick) {
         block("THMB", loadedThumbnail_);
     } else {
         // Thumbnail: the 2D picture at half size, without the widescreen columns.
-        const VideoFrameMd& f = vdp_.frame();
+        const VideoFrame& f = vdp_.frame();
         const int step = f.interlaced ? 2 : 1;
         uint16_t tw = static_cast<uint16_t>(f.consoleWidth() / 2), th = static_cast<uint16_t>(f.height / step / 2);
         StateWriter w;

@@ -8,7 +8,7 @@
 
 #include "../core/cartridge.h"
 #include "../core/io.h"
-#include "../render/renderer.h"
+#include "render/renderer.h"
 #include "input.h"
 
 namespace plumsg {
@@ -48,7 +48,7 @@ struct Settings {
     // Draw every sprite on a line, without the console's limit that makes them flicker.
     bool unlimitedSprites = false;
     // Widescreen: columns added on the left and on the right (at 320 pixels a line, up to
-    // VideoFrameMd::kMaxWideSide), with the planes and sprites past the edges of the screen.
+    // VideoFrame::kMaxWideSide), with the planes and sprites past the edges of the screen.
     int wideLeft = 0, wideRight = 0;
     int windowScale = 3;
     bool fullscreen = false;

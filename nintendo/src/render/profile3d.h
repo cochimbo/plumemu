@@ -3,7 +3,7 @@
 #include <ostream>
 #include <string>
 
-#include "renderer.h"
+#include "render/renderer.h"
 
 namespace plumnin {
 

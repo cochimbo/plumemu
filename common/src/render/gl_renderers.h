@@ -1,14 +1,16 @@
 #pragma once
 
+#include "plum.h"
+
 #include <array>
 #include <vector>
 
 #include "render/gl.h"
-#include "planes.h"
-#include "renderer.h"
-#include "upscale.h"
+#include "render/planes.h"
+#include "render/renderer.h"
+#include "render/upscale.h"
 
-namespace plumsg {
+namespace plum {
 
 // Base for renderers that build a flat image of the frame's size and scale it to the
 // window, at 4:3 unless square pixels are asked for.
@@ -18,12 +20,12 @@ public:
     ~GlTextureRenderer() override;
     GlTextureRenderer(const GlTextureRenderer&) = delete;
     GlTextureRenderer& operator=(const GlTextureRenderer&) = delete;
-    void draw(const VideoFrameMd& frame, const Viewport& area) override;
+    void draw(const VideoFrame& frame, const Viewport& area) override;
 
 protected:
     // Fills `out` (frame.width x frame.height, 0xAARRGGBB) from the frame.
-    virtual void compose(const VideoFrameMd& frame, uint32_t* out) = 0;
-    bool filterable_ = false;  // draws through the scanlines / CRT filter or the upscaler when one is chosen
+    virtual void compose(const VideoFrame& frame, uint32_t* out) = 0;
+    bool filterable_ = false;  // draws through the scanlines / CRT / LCD filter or the upscaler when one is chosen
 
 private:
     gl::GLuint program_ = 0;
@@ -32,17 +34,21 @@ private:
     gl::GLuint texture_ = 0;
     int texWidth_ = 0, texHeight_ = 0;
     std::vector<uint32_t> pixels_;
+    // The LCD filter's trail: what the screen shows, which follows the picture a frame
+    // late, as a slow liquid crystal does. Empty when the filter is off.
+    std::vector<uint32_t> lcd_;
+    uint64_t lcdFrame_ = 0;
     Upscaler upscaler_;
 };
 
-// The real Mega Drive picture.
+// The console's own picture.
 class FlatRenderer : public GlTextureRenderer {
 public:
     FlatRenderer() { filterable_ = true; }
     const char* name() const override { return "2D"; }
 
 protected:
-    void compose(const VideoFrameMd& frame, uint32_t* out) override;
+    void compose(const VideoFrame& frame, uint32_t* out) override;
 };
 
 // Debug view that tints each pixel by the layer it came from, which is the
@@ -52,7 +58,7 @@ public:
     const char* name() const override { return "capas (depuración)"; }
 
 protected:
-    void compose(const VideoFrameMd& frame, uint32_t* out) override;
+    void compose(const VideoFrame& frame, uint32_t* out) override;
 };
 
 // Pulls the picture apart into planes and stands them up like a diorama seen from a
@@ -69,7 +75,7 @@ public:
     Pseudo3DRenderer(const Pseudo3DRenderer&) = delete;
     Pseudo3DRenderer& operator=(const Pseudo3DRenderer&) = delete;
     const char* name() const override { return "3D"; }
-    void draw(const VideoFrameMd& frame, const Viewport& area) override;
+    void draw(const VideoFrame& frame, const Viewport& area) override;
 
 private:
     gl::GLuint program_ = 0;
@@ -83,4 +89,4 @@ private:
     LiveCamera live_;
 };
 
-}  // namespace plumsg
+}  // namespace plum

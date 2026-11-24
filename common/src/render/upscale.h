@@ -1,12 +1,14 @@
 #pragma once
 
+#include "plum.h"
+
 #include <array>
 #include <vector>
 
 #include "render/gl.h"
-#include "renderer.h"
+#include "render/renderer.h"
 
-namespace plumsg {
+namespace plum {
 
 // Draws the 2D picture bigger than the console made it with one of the experimental
 // upscalers, in place of the plain quad. Its programs are built the first time each
@@ -48,4 +50,4 @@ private:
     std::array<Stage, 2> stages_{};
 };
 
-}  // namespace plumsg
+}  // namespace plum

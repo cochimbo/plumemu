@@ -1,11 +1,11 @@
-#include "upscale.h"
+#include "render/upscale.h"
 
 #include <cstring>
 #include <string>
 
 #include "render/anime4k_shaders.h"
 
-namespace plumnin {
+namespace plum {
 
 namespace {
 
@@ -273,4 +273,4 @@ bool Upscaler::draw(Upscale2D kind, gl::GLuint source, int w, int h, const Viewp
     return true;
 }
 
-}  // namespace plumnin
+}  // namespace plum

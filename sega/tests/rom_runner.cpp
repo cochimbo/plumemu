@@ -64,7 +64,7 @@ bool writeWav(const std::string& path, const std::vector<int16_t>& samples, int 
     return static_cast<bool>(out);
 }
 
-uint32_t frameHash(const VideoFrameMd& f) {
+uint32_t frameHash(const VideoFrame& f) {
     uint32_t h = 2166136261u;
     for (int y = 0; y < f.height; ++y)
         for (int x = 0; x < f.width; ++x) {
@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
         md.audio().clearSamples();
     }
 
-    const VideoFrameMd& f = md.frame();
+    const VideoFrame& f = md.frame();
     double sumSq = 0;
     for (int16_t s : sound) sumSq += static_cast<double>(s) * s;
     const double rms = sound.empty() ? 0 : std::sqrt(sumSq / static_cast<double>(sound.size()));
@@ -137,11 +137,11 @@ int main(int argc, char** argv) {
                 md.cartridge().header().title.c_str(), frames, f.width, f.height, frameHash(f), sound.size() / 2, rms,
                 md.cpu().pc);
     if (md.isMegaCd()) std::printf("sub pc: %06x\n", md.megaCd()->sub().pc);
-    if (!png.empty() && !writePng(png, f.rgba.data(), f.width, f.height, VideoFrameMd::kMaxWidth)) return 1;
+    if (!png.empty() && !writePng(png, f.rgba.data(), f.width, f.height, VideoFrame::kMaxWidth)) return 1;
     if (!layers.empty()) {
-        writePng(layers + "_planeB.png", f.planeB.data(), f.width, f.height, VideoFrameMd::kMaxWidth);
-        writePng(layers + "_planeA.png", f.planeA.data(), f.width, f.height, VideoFrameMd::kMaxWidth);
-        writePng(layers + "_sprites.png", f.sprites.data(), f.width, f.height, VideoFrameMd::kMaxWidth);
+        writePng(layers + "_planeB.png", f.planeB.data(), f.width, f.height, VideoFrame::kMaxWidth);
+        writePng(layers + "_planeA.png", f.planeA.data(), f.width, f.height, VideoFrame::kMaxWidth);
+        writePng(layers + "_sprites.png", f.sprites.data(), f.width, f.height, VideoFrame::kMaxWidth);
     }
     if (!wav.empty()) writeWav(wav, sound, 44100);
     if (!stateOut.empty()) {

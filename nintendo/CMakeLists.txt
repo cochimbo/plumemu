@@ -152,7 +152,6 @@ add_library(plumnin_core STATIC
   src/core/song_export.cpp
   src/core/cheats.cpp
   src/core/netplay.cpp
-  src/render/planes.cpp
   src/render/profile3d.cpp
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
@@ -244,8 +243,8 @@ add_executable(plumnin WIN32
   ${PLUM_COMMON_DIR}/src/frontend/languages.cpp
   src/frontend/achievements_ui.cpp
   ${PLUM_COMMON_DIR}/src/render/gl.cpp
-  src/render/gl_renderers.cpp
-  src/render/upscale.cpp
+  ${PLUM_COMMON_DIR}/src/render/gl_renderers.cpp
+  ${PLUM_COMMON_DIR}/src/render/upscale.cpp
   src/render/box_shelf.cpp
   ${PLUM_COMMON_DIR}/src/render/room.cpp
   src/render/console_models.cpp

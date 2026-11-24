@@ -6,7 +6,8 @@
 #include <functional>
 #include <memory>
 
-#include "video_frame_md.h"
+#include "core/video_frame.h"
+#include "core/md_width.h"
 
 namespace plumsg {
 
@@ -22,7 +23,7 @@ namespace plumsg {
 // CPU goes on. The port calls that take a master clock run it in time; the ones without
 // do everything at once (tests).
 //
-// Every line it renders goes into a VideoFrameMd twice: the final mix and the three
+// Every line it renders goes into a VideoFrame twice: the final mix and the three
 // layers apart, which is what the pseudo-3D view needs.
 class VdpMd {
 public:
@@ -105,8 +106,8 @@ public:
     bool z80Irq() const { return z80Irq_; }
     void lowerZ80Irq() { z80Irq_ = false; }
 
-    const VideoFrameMd& frame() const { return *frame_; }
-    VideoFrameMd& frame() { return *frame_; }  // for the 32X, which draws over it
+    const VideoFrame& frame() const { return *frame_; }
+    VideoFrame& frame() { return *frame_; }  // for the 32X, which draws over it
     bool displayEnabled() const { return (regs_[1] & 0x40) != 0; }
     bool h40() const { return (regs_[12] & 0x01) != 0; }
     uint8_t reg(int r) const { return regs_[r]; }
@@ -123,8 +124,8 @@ public:
     // picture changes, as with the sprite limit, so it is not part of the state either.
     // It can change at any frame.
     void setWidescreen(int left, int right) {
-        wideLeft_ = std::clamp(left, 0, VideoFrameMd::kMaxWideSide);
-        wideRight_ = std::clamp(right, 0, VideoFrameMd::kMaxWideSide);
+        wideLeft_ = std::clamp(left, 0, VideoFrame::kMaxWideSide);
+        wideRight_ = std::clamp(right, 0, VideoFrame::kMaxWideSide);
     }
     // The columns on each side, at 320 pixels a line, that make a W:H picture (16:9: 53).
     static int wideColumnsFor(int aspectW, int aspectH);
@@ -190,7 +191,7 @@ private:
     void clearFifo();
     int entrySlots(const FifoEntry& e) const { return (e.code & 0x0F) == 1 ? 2 : 1; }
     void cacheColors();
-    uint32_t color(int index, MdShade shade) const;
+    uint32_t color(int index, Shade shade) const;
     // A byte into VRAM; `addr` keeps A16, which the sprite table cache compares too.
     // bothHalves: the byte reaches the sprite table cache on both halves of its word.
     void writeVram(uint32_t addr, uint8_t value, bool bothHalves = false);
@@ -202,10 +203,10 @@ private:
         uint16_t tile;
     };
     // They fill `out[0, left + width + right)` for screen columns -left .. width + right.
-    using LineCells = std::array<Cell, VideoFrameMd::kMaxWidth>;
+    using LineCells = std::array<Cell, kMdMaxWidth>;
     void drawPlane(int line, bool planeA, int left, int right, LineCells& out,
-                   std::array<bool, VideoFrameMd::kMaxWidth>& isWindow);
-    void drawSprites(int line, int left, int right, LineCells& out, std::array<uint8_t, VideoFrameMd::kMaxWidth>& number);
+                   std::array<bool, kMdMaxWidth>& isWindow);
+    void drawSprites(int line, int left, int right, LineCells& out, std::array<uint8_t, kMdMaxWidth>& number);
 
     std::array<uint8_t, 0x10000> vram_{};
     // The VDP keeps its own copy of the first four bytes (Y, size, link) of each sprite in
@@ -276,7 +277,7 @@ private:
     std::array<CramWrite, 256> cramWrites_{};
     int cramWriteCount_ = 0;
     uint64_t slotClock_ = kUntimed;
-    std::unique_ptr<VideoFrameMd> frame_;
+    std::unique_ptr<VideoFrame> frame_;
     std::function<uint16_t(uint32_t)> dmaRead_;
 };
 

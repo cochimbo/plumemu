@@ -12,7 +12,7 @@
 #include "synth_music.h"
 #include "vgm.h"
 #include "system.h"
-#include "video_frame.h"
+#include "core/video_frame.h"
 
 namespace plumnin {
 

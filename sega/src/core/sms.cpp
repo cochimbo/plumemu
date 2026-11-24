@@ -61,7 +61,7 @@ PadType masterSystemControllerFor(uint32_t romCrc) {
     return PadType::SixButton;
 }
 
-MasterSystem::MasterSystem(Cartridge& cart, std::array<uint8_t, 0x2000>& ram, VideoFrameMd& frame, bool gameGear)
+MasterSystem::MasterSystem(Cartridge& cart, std::array<uint8_t, 0x2000>& ram, VideoFrame& frame, bool gameGear)
     : cart_(cart), ram_(ram), vdp_(frame), gameGear_(gameGear) {
     vdp_.setGameGear(gameGear);
 }

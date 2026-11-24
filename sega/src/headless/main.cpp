@@ -148,7 +148,7 @@ uint32_t fnvAdd(uint32_t h, uint32_t v) {
 }
 
 // The same hash the tests and rom_runner print: FNV-1a over the visible pixels.
-uint32_t frameHash(const VideoFrameMd& f) {
+uint32_t frameHash(const VideoFrame& f) {
     uint32_t h = 2166136261u;
     for (int y = 0; y < f.height; ++y)
         for (int x = 0; x < f.width; ++x) h = fnvAdd(h, f.pixel(x, y));
@@ -709,8 +709,8 @@ int main(int argc, char** argv) {
             std::snprintf(name, sizeof name, "frame_%06ld.png", frame);
             path = outDir + "/" + name;
         }
-        const VideoFrameMd& f = md.frame();
-        if (writePng(path, f.rgba.data(), f.width, f.height, VideoFrameMd::kMaxWidth)) return true;
+        const VideoFrame& f = md.frame();
+        if (writePng(path, f.rgba.data(), f.width, f.height, VideoFrame::kMaxWidth)) return true;
         std::fprintf(stderr, "cannot write %s\n", path.c_str());
         return false;
     };
@@ -764,18 +764,18 @@ int main(int argc, char** argv) {
     GameRecording gifRecording, aviRecording;
     auto recordVideo = [&](GameRecording& r, const std::string& path, GameRecording::Format format) {
         if (path.empty()) return;
-        const VideoFrameMd& f = md.frame();
+        const VideoFrame& f = md.frame();
         std::string error;
         // As wide as H40 (an H32 picture is stretched to it, as on a TV) and as tall as the
         // first frame without interlace.
         const int height = f.interlaced ? f.height / 2 : f.height;
-        if (!r.active() && !r.start(path, format, VideoFrameMd::kMaxWidth, height, md.refreshRate(), 44100, &error)) {
+        if (!r.active() && !r.start(path, format, kMdMaxWidth, height, md.refreshRate(), 44100, &error)) {
             std::fprintf(stderr, "%s\n", error.c_str());
             ioError = true;
             return;
         }
         r.addAudio(md.audio().samples().data(), md.audio().samples().size());
-        r.addFrame(f.rgba.data(), f.width, f.height, VideoFrameMd::kMaxWidth);
+        r.addFrame(f.rgba.data(), f.width, f.height, VideoFrame::kMaxWidth);
     };
 
     // What happens after each frame is final: the log, the expected log, the sound.
@@ -921,13 +921,13 @@ int main(int argc, char** argv) {
         divergenceWhat = "the run ended before the expected log";
     }
 
-    const VideoFrameMd& f = md.frame();
+    const VideoFrame& f = md.frame();
     const uint32_t lastHash = frameHash(f);
     if (!png.empty() && !screenshot(png, ran - 1)) ioError = true;
     if (!layers.empty()) {
         for (auto [name, layer] : {std::pair<const char*, const uint32_t*>{"_planeB.png", f.planeB.data()},
                                    {"_planeA.png", f.planeA.data()}, {"_sprites.png", f.sprites.data()}})
-            if (!writePng(layers + name, layer, f.width, f.height, VideoFrameMd::kMaxWidth)) ioError = true;
+            if (!writePng(layers + name, layer, f.width, f.height, VideoFrame::kMaxWidth)) ioError = true;
     }
     if (!wav.empty() && !writeWav(wav, sound, kRate)) ioError = true;
     for (GameRecording* r : {&gifRecording, &aviRecording}) {

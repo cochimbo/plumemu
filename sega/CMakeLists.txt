@@ -208,7 +208,6 @@ add_library(plumsg_core STATIC
   src/core/cd_image.cpp
   src/core/megacd.cpp
   src/core/netplay.cpp
-  src/render/planes.cpp
   src/render/profile3d.cpp
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
@@ -302,12 +301,12 @@ add_executable(plumsg WIN32
   ${PLUM_COMMON_DIR}/src/frontend/languages.cpp
   src/frontend/achievements_ui.cpp
   ${PLUM_COMMON_DIR}/src/render/gl.cpp
-  src/render/gl_renderers.cpp
+  ${PLUM_COMMON_DIR}/src/render/gl_renderers.cpp
   src/render/box_shelf.cpp
   ${PLUM_COMMON_DIR}/src/render/room.cpp
   src/render/console_models.cpp
   src/render/gltf_model.cpp
-  src/render/upscale.cpp
+  ${PLUM_COMMON_DIR}/src/render/upscale.cpp
 )
 # The plum icon of plumsg.exe (Explorer, taskbar, shortcuts).
 if(WIN32)

@@ -10,7 +10,7 @@ constexpr int kPlaneCells[4] = {32, 64, 32, 128};  // size code 2 is invalid; ac
 
 }  // namespace
 
-VdpMd::VdpMd() : frame_(std::make_unique<VideoFrameMd>()) { reset(); }
+VdpMd::VdpMd() : frame_(std::make_unique<VideoFrame>()) { reset(); }
 
 void VdpMd::reset() {
     vram_.fill(0);
@@ -53,7 +53,7 @@ void VdpMd::cacheColors() {
     }
 }
 
-uint32_t VdpMd::color(int index, MdShade shade) const { return colors_[static_cast<int>(shade) * 64 + (index & 63)]; }
+uint32_t VdpMd::color(int index, Shade shade) const { return colors_[static_cast<int>(shade) * 64 + (index & 63)]; }
 
 void VdpMd::writeRegister(int reg, uint8_t value) {
     // Without mode 5 (M5 in register 1) only registers 0-10 take writes.
@@ -625,11 +625,11 @@ int VdpMd::wideColumnsFor(int aspectW, int aspectH) {
     // The console's picture is 4:3; each side takes half of what is missing:
     // 320 * (W:H / 4:3 - 1) / 2, rounded.
     const int extra = (320 * (3 * aspectW - 4 * aspectH) + 4 * aspectH) / (8 * aspectH);
-    return std::clamp(extra, 0, VideoFrameMd::kMaxWideSide);
+    return std::clamp(extra, 0, VideoFrame::kMaxWideSide);
 }
 
 void VdpMd::drawPlane(int line, bool planeA, int left, int right, LineCells& out,
-                      std::array<bool, VideoFrameMd::kMaxWidth>& isWindow) {
+                      std::array<bool, kMdMaxWidth>& isWindow) {
     const int width = h40() ? 320 : 256;
     const bool im2 = (regs_[12] & 0x06) == 0x06;
     const int tileRows = im2 ? 16 : 8;
@@ -644,8 +644,8 @@ void VdpMd::drawPlane(int line, bool planeA, int left, int right, LineCells& out
     const int hsOffset = hsMode == 0 ? 0 : hsMode == 1 ? (line & 7) * 4 : hsMode == 2 ? (line & ~7) * 4 : line * 4;
     const uint32_t hsAddr = (hsBase + static_cast<uint32_t>(hsOffset) + (planeA ? 0 : 2)) & 0xFFFE;
     const int hscroll = (vram_[hsAddr] << 8 | vram_[hsAddr + 1]) & 0x3FF;
-    if (planeA) frame_->lines[std::min(y, VideoFrameMd::kMaxHeight - 1)].hscrollA = static_cast<int16_t>(hscroll);
-    else frame_->lines[std::min(y, VideoFrameMd::kMaxHeight - 1)].hscrollB = static_cast<int16_t>(hscroll);
+    if (planeA) frame_->lines[std::min(y, VideoFrame::kMaxHeight - 1)].hscrollA = static_cast<int16_t>(hscroll);
+    else frame_->lines[std::min(y, VideoFrame::kMaxHeight - 1)].hscrollB = static_cast<int16_t>(hscroll);
     const bool columnScroll = (regs_[11] & 0x04) != 0;
 
     // The window replaces plane A on the lines above/below regs 18 and the columns
@@ -705,7 +705,7 @@ void VdpMd::drawPlane(int line, bool planeA, int left, int right, LineCells& out
     }
 }
 
-void VdpMd::drawSprites(int line, int left, int right, LineCells& out, std::array<uint8_t, VideoFrameMd::kMaxWidth>& number) {
+void VdpMd::drawSprites(int line, int left, int right, LineCells& out, std::array<uint8_t, kMdMaxWidth>& number) {
     const bool wide = h40();
     const int width = wide ? 320 : 256;
     const int maxSprites = wide ? 80 : 64;
@@ -808,7 +808,7 @@ void VdpMd::drawSprites(int line, int left, int right, LineCells& out, std::arra
 }
 
 void VdpMd::renderLine(int line) {
-    VideoFrameMd& f = *frame_;
+    VideoFrame& f = *frame_;
     const int width = h40() ? 320 : 256;
     // The widescreen columns cover the same part of the screen in H32 as in H40.
     const int left = (wideLeft_ * width + 160) / 320, right = (wideRight_ * width + 160) / 320;
@@ -822,14 +822,14 @@ void VdpMd::renderLine(int line) {
         f.interlaced = im2;
     }
     const int row = im2 ? line * 2 + (oddFrame_ ? 1 : 0) : line;
-    if (row >= VideoFrameMd::kMaxHeight) return;
-    const int o = row * VideoFrameMd::kMaxWidth;
+    if (row >= VideoFrame::kMaxHeight) return;
+    const int o = row * VideoFrame::kMaxWidth;
     const int backdropIndex = regs_[7] & 0x3F;
     const bool sh = (regs_[12] & 0x08) != 0;
     f.lines[row].displayEnabled = displayEnabled();
 
     if (!displayEnabled()) {
-        uint32_t c = color(backdropIndex, MdShade::Normal);
+        uint32_t c = color(backdropIndex, Shade::Normal);
         // The backdrop's writes during the picture: the line starts with the colour from
         // before the first, and each one shows from its pixel on.
         const uint64_t start = slotLineStart_;
@@ -840,7 +840,7 @@ void VdpMd::renderLine(int line) {
         if (first < cramWriteCount_) c = cramWrites_[static_cast<size_t>(first)].before;
         f.backdrop[row] = c;
         int next = first;
-        for (int x = 0; x < VideoFrameMd::kMaxWidth; ++x) {
+        for (int x = 0; x < kMdMaxWidth; ++x) {
             for (; next < cramWriteCount_; ++next) {
                 const CramWrite& w = cramWrites_[static_cast<size_t>(next)];
                 if (w.clock < start || w.index != backdropIndex) continue;
@@ -849,27 +849,27 @@ void VdpMd::renderLine(int line) {
                 c = w.after;
             }
             f.rgba[o + x] = c;
-            f.info[o + x] = MdPixel{static_cast<uint8_t>(backdropIndex), MdLayer::Backdrop, false, MdShade::Normal, 0};
+            f.info[o + x] = Pixel{static_cast<uint8_t>(backdropIndex), Layer::Backdrop, false, Shade::Normal, 0};
             f.planeA[o + x] = f.planeB[o + x] = f.sprites[o + x] = 0;
-            f.planeAInfo[o + x] = f.planeBInfo[o + x] = f.spriteInfo[o + x] = MdPixel{};
+            f.planeAInfo[o + x] = f.planeBInfo[o + x] = f.spriteInfo[o + x] = Pixel{};
         }
         return;
     }
 
     LineCells b, a, s;
-    std::array<bool, VideoFrameMd::kMaxWidth> isWindow{}, unusedWindow{};
-    std::array<uint8_t, VideoFrameMd::kMaxWidth> spriteNumber{};
+    std::array<bool, kMdMaxWidth> isWindow{}, unusedWindow{};
+    std::array<uint8_t, kMdMaxWidth> spriteNumber{};
     drawPlane(line, false, left, right, b, unusedWindow);
     drawPlane(line, true, left, right, a, isWindow);
     drawSprites(line, left, right, s, spriteNumber);
 
-    f.backdrop[row] = color(backdropIndex, sh ? MdShade::Shadow : MdShade::Normal);
+    f.backdrop[row] = color(backdropIndex, sh ? Shade::Shadow : Shade::Normal);
     for (int x = 0; x < total; ++x) {
         const Cell& B = b[x];
         const Cell& A = a[x];
         const Cell& S = s[x];
         const bool bOpaque = (B.color & 15) != 0, aOpaque = (A.color & 15) != 0, sOpaque = (S.color & 15) != 0;
-        const MdLayer aLayer = isWindow[x] ? MdLayer::Window : MdLayer::PlaneA;
+        const Layer aLayer = isWindow[x] ? Layer::Window : Layer::Front;
         const bool shadowed = sh && !B.priority && !A.priority;
         const bool sOperator = sh && sOpaque && (S.color == 0x3E || S.color == 0x3F);
 
@@ -890,23 +890,23 @@ void VdpMd::renderLine(int line) {
         else if (sOpaque) pick = PickS;
         else pick = pickPlanes(false);
 
-        MdShade shade = shadowed ? MdShade::Shadow : MdShade::Normal;
+        Shade shade = shadowed ? Shade::Shadow : Shade::Normal;
         if (pick == PickS) {
             if (sOperator) {
                 // Palette 3 colours 14/15 do not draw: they highlight or shadow what lies below.
                 pick = pickPlanes(false);
-                if (S.color == 0x3F) shade = MdShade::Shadow;
-                else shade = shadowed ? MdShade::Normal : MdShade::Highlight;
+                if (S.color == 0x3F) shade = Shade::Shadow;
+                else shade = shadowed ? Shade::Normal : Shade::Highlight;
             } else if (S.priority) {
-                shade = MdShade::Normal;
+                shade = Shade::Normal;
             }
         }
 
-        MdPixel px;
+        Pixel px{};
         uint32_t rgb;
         switch (pick) {
             case PickS:
-                px = {S.color, MdLayer::Sprite, S.priority, shade, spriteNumber[x]};
+                px = {S.color, Layer::Sprite, S.priority, shade, spriteNumber[x]};
                 rgb = color(S.color, shade);
                 break;
             case PickA:
@@ -914,11 +914,11 @@ void VdpMd::renderLine(int line) {
                 rgb = color(A.color, shade);
                 break;
             case PickB:
-                px = {B.color, MdLayer::PlaneB, B.priority, shade, B.tile};
+                px = {B.color, Layer::Back, B.priority, shade, B.tile};
                 rgb = color(B.color, shade);
                 break;
             default:
-                px = {static_cast<uint8_t>(backdropIndex), MdLayer::Backdrop, false, shade, 0};
+                px = {static_cast<uint8_t>(backdropIndex), Layer::Backdrop, false, shade, 0};
                 rgb = color(backdropIndex, shade);
                 break;
         }
@@ -926,20 +926,20 @@ void VdpMd::renderLine(int line) {
         f.info[o + x] = px;
 
         // The layers on their own, with the shading each would show where it is visible.
-        const MdShade planeShade = shadowed ? MdShade::Shadow : MdShade::Normal;
-        const MdShade bShade = pick == PickB ? shade : planeShade;
-        const MdShade aShade = pick == PickA ? shade : planeShade;
+        const Shade planeShade = shadowed ? Shade::Shadow : Shade::Normal;
+        const Shade bShade = pick == PickB ? shade : planeShade;
+        const Shade aShade = pick == PickA ? shade : planeShade;
         f.planeB[o + x] = bOpaque ? color(B.color, bShade) : 0;
-        f.planeBInfo[o + x] = {B.color, MdLayer::PlaneB, B.priority, bShade, B.tile};
+        f.planeBInfo[o + x] = {B.color, Layer::Back, B.priority, bShade, B.tile};
         f.planeA[o + x] = aOpaque ? color(A.color, aShade) : 0;
         f.planeAInfo[o + x] = {A.color, aLayer, A.priority, aShade, A.tile};
-        const MdShade sShade = (S.priority || !shadowed) ? MdShade::Normal : MdShade::Shadow;
+        const Shade sShade = (S.priority || !shadowed) ? Shade::Normal : Shade::Shadow;
         f.sprites[o + x] = (sOpaque && !sOperator) ? color(S.color, sShade) : 0;
-        f.spriteInfo[o + x] = {S.color, MdLayer::Sprite, S.priority, sShade, spriteNumber[x]};
+        f.spriteInfo[o + x] = {S.color, Layer::Sprite, S.priority, sShade, spriteNumber[x]};
     }
-    for (int x = total; x < VideoFrameMd::kMaxWidth; ++x) {
+    for (int x = total; x < kMdMaxWidth; ++x) {
         f.rgba[o + x] = f.planeA[o + x] = f.planeB[o + x] = f.sprites[o + x] = 0;
-        f.info[o + x] = f.planeAInfo[o + x] = f.planeBInfo[o + x] = f.spriteInfo[o + x] = MdPixel{};
+        f.info[o + x] = f.planeAInfo[o + x] = f.planeBInfo[o + x] = f.spriteInfo[o + x] = Pixel{};
     }
 }
 

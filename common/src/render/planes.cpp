@@ -1,33 +1,71 @@
-#include "planes.h"
+#include "render/planes.h"
 
 #include <algorithm>
 
-namespace plumsg {
+namespace plum {
 
 namespace {
 
 // Source row of plane line y: in interlace mode 2 only the even field.
-int sourceRow(const VideoFrameMd& frame, int y) { return frame.interlaced ? y * 2 : y; }
+int sourceRow(const VideoFrame& frame, int y) { return frame.interlaced ? y * 2 : y; }
+
+// The playfield's tiles: plane A's (and the window's), or the only background of a
+// console that has just one.
+const std::array<Pixel, VideoFrame::kPixels>& playfieldInfo(const VideoFrame& frame) {
+    return frame.oneBackground ? frame.planeBInfo : frame.planeAInfo;
+}
+
+bool isPlayfield(const VideoFrame& frame, Layer layer) {
+    return frame.oneBackground ? layer == Layer::Back : layer == Layer::Front || layer == Layer::Window;
+}
+
+// 1 for the pixels of the playfield's solid tiles (planes' size): tile patterns of which
+// at most a quarter of the pixels on screen are transparent.
+void solidPixels(const VideoFrame& frame, int w, int h, std::vector<uint8_t>& out) {
+    const auto& info = playfieldInfo(frame);
+    std::array<uint16_t, 2048> total{}, clear{};  // per tile pattern
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) {
+            const Pixel& a = info[sourceRow(frame, y) * VideoFrame::kMaxWidth + x];
+            if (!isPlayfield(frame, a.layer)) continue;
+            const int pattern = a.source & 2047;
+            ++total[pattern];
+            if ((a.color & 0x0F) == 0) ++clear[pattern];
+        }
+    out.assign(static_cast<size_t>(w) * h, 0);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) {
+            const Pixel& a = info[sourceRow(frame, y) * VideoFrame::kMaxWidth + x];
+            if (!isPlayfield(frame, a.layer) || (a.color & 0x0F) == 0) continue;
+            const int pattern = a.source & 2047;
+            if (clear[pattern] * 4 <= total[pattern]) out[static_cast<size_t>(y) * w + x] = 1;
+        }
+}
+
+// No window over this pixel (the Game Boy's window is its plane A).
+bool noWindow(const VideoFrame& frame, int y, int x) {
+    return frame.planeAInfo[sourceRow(frame, y) * VideoFrame::kMaxWidth + x].layer != Layer::Window;
+}
 
 }  // namespace
 
-void splitPlanes(const VideoFrameMd& frame, const SplitOptions& options, Planes& planes) {
+void splitPlanes(const VideoFrame& frame, const SplitOptions& options, Planes& planes) {
     const int w = frame.width;
     const int h = frame.interlaced ? frame.height / 2 : frame.height;
     planes.width = w;
     planes.height = h;
     for (auto& p : planes.layer) p.assign(static_cast<size_t>(w) * h, 0);
 
-    auto planeOf = [&](const MdPixel& px) -> int {
+    auto planeOf = [&](const Pixel& px) -> int {
         switch (px.layer) {
-            case MdLayer::Backdrop: return PlaneSky;
-            case MdLayer::PlaneB:
+            case Layer::Backdrop: return PlaneSky;
+            case Layer::Back:
                 if (options.flatB) return PlaneSky;
                 return px.priority && options.highBInFront ? PlanePriority : PlaneB;
-            case MdLayer::PlaneA:
-            case MdLayer::Window: return px.priority ? PlanePriority : PlaneA;
-            case MdLayer::Sprite: return PlaneSprites;
-            case MdLayer::Mars: return PlaneSky;  // the 32X's picture stays flat, at the back
+            case Layer::Front:
+            case Layer::Window: return px.priority ? PlanePriority : PlaneA;
+            case Layer::Sprite: return PlaneSprites;
+            case Layer::Mars: return PlaneSky;  // the 32X's picture stays flat, at the back
         }
         return PlaneSky;
     };
@@ -37,7 +75,7 @@ void splitPlanes(const VideoFrameMd& frame, const SplitOptions& options, Planes&
         uint32_t* sky = &planes[PlaneSky][static_cast<size_t>(y) * w];
         int firstSky = -1;
         for (int x = 0; x < w; ++x) {
-            const int i = row * VideoFrameMd::kMaxWidth + x;
+            const int i = row * VideoFrame::kMaxWidth + x;
             const size_t o = static_cast<size_t>(y) * w + x;
             // Every layer into its plane.
             uint32_t b = frame.planeB[i];
@@ -53,8 +91,8 @@ void splitPlanes(const VideoFrameMd& frame, const SplitOptions& options, Planes&
             for (int p = shown + 1; p < kPlanes; ++p) planes[p][o] = 0;
             if (shown != PlaneSky) planes[shown][o] = frame.rgba[i] | 0xFF000000u;
             const bool bOpaque = (b >> 24) != 0;
-            // Behind the Mega Drive's planes: the 32X's picture if it has one, else the backdrop.
-            const uint32_t m = frame.mars[static_cast<size_t>(y) * VideoFrameMd::kMaxWidth + x];
+            // Behind the planes: the 32X's picture if it has one, else the backdrop.
+            const uint32_t m = frame.mars[static_cast<size_t>(y) * VideoFrame::kMaxWidth + x];
             const uint32_t under = (m >> 24) ? m : frame.backdrop[row];
             if (shown == PlaneSky) sky[x] = frame.rgba[i] | 0xFF000000u;
             else if (options.flatB) sky[x] = (bOpaque ? b : under) | 0xFF000000u;
@@ -66,7 +104,7 @@ void splitPlanes(const VideoFrameMd& frame, const SplitOptions& options, Planes&
         // colours (or the backdrop), so tilting never shows a hole.
         if (firstSky < 0) {
             for (int x = 0; x < w; ++x) {
-                const int i = row * VideoFrameMd::kMaxWidth + x;
+                const int i = row * VideoFrame::kMaxWidth + x;
                 sky[x] = (frame.planeB[i] >> 24 ? frame.planeB[i] : frame.backdrop[row]) | 0xFF000000u;
             }
             continue;
@@ -76,6 +114,18 @@ void splitPlanes(const VideoFrameMd& frame, const SplitOptions& options, Planes&
             if (sky[x]) fill = sky[x];
             else sky[x] = fill;
         }
+    }
+    // With one background, its solid tiles are the playfield: they stand on plane A,
+    // and the rest of the background (what has holes: foliage, clouds, outlines) stays
+    // on plane B behind them. Only where plane A is empty, so the window keeps its place.
+    if (frame.oneBackground) {
+        std::vector<uint8_t> tiles;
+        solidPixels(frame, w, h, tiles);
+        for (size_t o = 0; o < tiles.size(); ++o)
+            if (tiles[o] && planes[PlaneB][o] && !planes[PlaneA][o]) {
+                planes[PlaneA][o] = planes[PlaneB][o];
+                planes[PlaneB][o] = 0;
+            }
     }
 }
 
@@ -101,25 +151,16 @@ void markEdgeDistance(std::vector<uint32_t>& plane, int w, int h) {
         }
 }
 
-void markSolidTiles(const VideoFrameMd& frame, const Planes& planes, std::vector<uint32_t>& solid) {
+void markSolidTiles(const VideoFrame& frame, const Planes& planes, std::vector<uint32_t>& solid) {
     const int w = planes.width, h = planes.height;
-    std::array<uint16_t, 2048> total{}, clear{};  // per tile pattern
-    for (int y = 0; y < h; ++y)
-        for (int x = 0; x < w; ++x) {
-            const MdPixel& a = frame.planeAInfo[sourceRow(frame, y) * VideoFrameMd::kMaxWidth + x];
-            if (a.layer != MdLayer::PlaneA && a.layer != MdLayer::Window) continue;
-            const int pattern = a.source & 2047;
-            ++total[pattern];
-            if ((a.color & 0x0F) == 0) ++clear[pattern];
-        }
+    std::vector<uint8_t> tiles;
+    solidPixels(frame, w, h, tiles);
     solid.assign(static_cast<size_t>(w) * h, 0);
     for (int y = 0; y < h; ++y)
         for (int x = 0; x < w; ++x) {
-            const MdPixel& a = frame.planeAInfo[sourceRow(frame, y) * VideoFrameMd::kMaxWidth + x];
-            if ((a.layer != MdLayer::PlaneA && a.layer != MdLayer::Window) || (a.color & 0x0F) == 0) continue;
-            const int pattern = a.source & 2047;
-            if (clear[pattern] * 4 <= total[pattern] && planes[PlaneA][static_cast<size_t>(y) * w + x])
-                solid[static_cast<size_t>(y) * w + x] = 0xFFFFFFFFu;
+            const size_t o = static_cast<size_t>(y) * w + x;
+            if (tiles[o] && planes[PlaneA][o] && (!frame.oneBackground || noWindow(frame, y, x)))
+                solid[o] = 0xFFFFFFFFu;
         }
 }
 
@@ -129,7 +170,7 @@ void clearBehindSolid(const std::vector<uint32_t>& solid, Planes& planes) {
         if (solid[i]) b[i] = 0;
 }
 
-void LiveCamera::update(const VideoFrameMd& frame, const Planes& planes) {
+void LiveCamera::update(const VideoFrame& frame, const Planes& planes) {
     if (!seen_ || frame.frameNumber != lastFrame_) {
         // Where the sprites are, -1..1 from the middle of the picture.
         const auto& sprites = planes[PlaneSprites];
@@ -151,7 +192,7 @@ void LiveCamera::update(const VideoFrameMd& frame, const Planes& planes) {
         // bits and grows to the right on screen, so the level moving left (the player
         // running right) makes it smaller.
         const int line = planes.height / 2;  // lines are counted without interlacing
-        const int scroll = frame.lines[static_cast<size_t>(std::clamp(line, 0, VideoFrameMd::kMaxHeight - 1))].hscrollA;
+        const int scroll = frame.lines[static_cast<size_t>(std::clamp(line, 0, VideoFrame::kMaxHeight - 1))].hscrollA;
         if (seen_ && frame.frameNumber == lastFrame_ + 1) {
             const int delta = ((lastScroll_ - scroll + 512) & 1023) - 512;
             speed_ += 0.15f * (static_cast<float>(delta) - speed_);
@@ -167,4 +208,4 @@ void LiveCamera::update(const VideoFrameMd& frame, const Planes& planes) {
     tilt_ += 0.04f * (targetTilt_ - tilt_);
 }
 
-}  // namespace plumsg
+}  // namespace plum

@@ -8,7 +8,7 @@
 
 #include "../core/pad.h"
 #include "../core/system.h"
-#include "../render/renderer.h"
+#include "render/renderer.h"
 #include "input.h"
 
 namespace plumnin {
