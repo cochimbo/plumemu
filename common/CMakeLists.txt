@@ -1,6 +1,7 @@
 # The code plumsg (sega/) and plumnin (nintendo/) share, in namespace plum.
 #
-# plum_common: what needs no SDL (texts and translations, rewind, recordings). Both
+# plum_common: what needs no SDL (texts and translations, rewind, recordings, the split
+# of a frame into the 3D view's planes). Both
 # programs link it through their cores, so in plumemu's build it is built once.
 #
 # The common frontend and render files (common/src/frontend, common/src/render) need
@@ -27,6 +28,7 @@ add_library(plum_common STATIC
   src/core/i18n.cpp
   src/core/recording.cpp
   src/core/rewind.cpp
+  src/render/planes.cpp
 )
 # Its headers are included as "core/i18n.h", "frontend/audio.h", "render/gl.h"...
 target_include_directories(plum_common PUBLIC src)

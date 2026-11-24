@@ -19,7 +19,7 @@
 #include "core/recording.h"
 #include "core/rewind.h"
 #include "../core/system.h"
-#include "../render/gl_renderers.h"
+#include "render/gl_renderers.h"
 #include "../render/profile3d.h"
 #include "../net/udp.h"
 #include "achievements.h"

@@ -1,10 +1,12 @@
 #pragma once
 
+#include "plum.h"
+
 #include <algorithm>
 
 #include "core/video_frame.h"
 
-namespace plumnin {
+namespace plum {
 
 enum class ScaleMode { Integer, Fit, Stretch };
 
@@ -51,8 +53,8 @@ struct RenderOptions {
 
 // Width on screen of one pixel, for a line height of 1. The TV shows 224 lines at 4:3
 // whatever the horizontal resolution (PAL's 240 lines just take more of the screen);
-// the widescreen columns are as wide as the console's own. A handheld's own screen (the
-// Game Boy's) has its own shape instead: frame.screenAspect.
+// the widescreen columns are as wide as the console's own. The Game Gear's screen shows
+// its 144 lines at 4:3; the Game Boy's has its own shape instead: frame.screenAspect.
 inline float pixelAspect(const VideoFrame& frame, bool squarePixels) {
     const float aspect = frame.screenAspect > 0 ? frame.screenAspect : 4.0f / 3.0f;
     return squarePixels ? 1.0f
@@ -101,4 +103,4 @@ protected:
     RenderOptions options_;
 };
 
-}  // namespace plumnin
+}  // namespace plum

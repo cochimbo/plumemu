@@ -8,7 +8,7 @@
 
 #include "../core/cartridge.h"
 #include "../core/io.h"
-#include "../render/renderer.h"
+#include "render/renderer.h"
 #include "input.h"
 
 namespace plumsg {

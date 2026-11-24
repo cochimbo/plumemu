@@ -1,9 +1,9 @@
-#include "gl_renderers.h"
+#include "render/gl_renderers.h"
 
 #include <algorithm>
 #include <cmath>
 
-namespace plumnin {
+namespace plum {
 
 namespace {
 
@@ -431,6 +431,7 @@ void LayerRenderer::compose(const VideoFrame& frame, uint32_t* out) {
                 case Layer::Front: g = luma; b = luma / 3; break;
                 case Layer::Window: g = luma; r = luma / 2; b = luma; break;
                 case Layer::Sprite: r = luma; g = luma / 3; break;
+                case Layer::Mars: r = luma; b = luma; break;
             }
             // High priority: brighter and pushed towards yellow.
             if (px.priority && px.layer != Layer::Backdrop) {
@@ -619,4 +620,4 @@ void Pseudo3DRenderer::draw(const VideoFrame& frame, const Viewport& area) {
     gl::Disable(gl::DEPTH_TEST);
 }
 
-}  // namespace plumnin
+}  // namespace plum
