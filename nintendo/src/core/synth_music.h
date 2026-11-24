@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "core/gm_sound.h"
+
 namespace plumnin {
 
 // The synthesizer: plays the music the console's sound chip is playing as General MIDI
@@ -42,19 +44,8 @@ public:
     static uint32_t hash(const uint8_t* data, size_t size, uint32_t seed = 2166136261u);
 
     // What an instrument plays instead of its own sound.
-    struct Assignment {
-        int program = -1;       // General MIDI instrument 0-127
-        int drum = -1;          // or a piece of the GM drum kit (note 35-81), on the drum channel
-        bool original = false;  // or none: it keeps its own sound from the chip
-        int octave = 0;         // -3..3, added to every note
-        int volume = 100;       // percent of the note's own loudness
-        bool operator==(const Assignment& o) const {
-            return program == o.program && drum == o.drum && original == o.original && octave == o.octave &&
-                   volume == o.volume;
-        }
-        bool operator!=(const Assignment& o) const { return !(*this == o); }
-    };
-    using Assignments = std::map<uint32_t, Assignment>;
+    using Assignment = gm::Assignment;  // core/gm_sound.h
+    using Assignments = gm::Assignments;
 
     struct Traits;
     // What one of the chip's channels is doing when the console polls it.
@@ -151,9 +142,9 @@ public:
 
     void setEffects(int reverb, int chorus);  // 0..100 each
     // The equalizer: a gain in dB (-kEqRange..kEqRange) for each band, from the bass up.
-    static constexpr int kEqBands = 5;
-    static constexpr int kEqRange = 12;
-    static constexpr double kEqFrequencies[kEqBands] = {100, 400, 1200, 3500, 9000};
+    static constexpr int kEqBands = gm::kEqBands;
+    static constexpr int kEqRange = gm::kEqRange;
+    static constexpr const double* kEqFrequencies = gm::kEqFrequencies;
     void setEqualizer(const std::array<int, kEqBands>& gains);
     void setVolume(int percent) { volume_ = percent; }
 
@@ -291,8 +282,7 @@ private:
     void apply(const Event& e);
     void render(int16_t* out, int frames);
 
-    struct Synth;
-    std::unique_ptr<Synth> synth_;
+    std::unique_ptr<gm::Synth> synth_;
     std::array<Voice, kVoices> voices_{};
     std::array<Channel, 16> channels_{};
     std::map<uint32_t, Rule> rules_;

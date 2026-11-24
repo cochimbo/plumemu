@@ -117,40 +117,6 @@ else()
   target_compile_options(plumsg_rcheevos PRIVATE -w)
 endif()
 
-# shine (LGPL 2, fixed point): the MP3 encoder of the instrument editor's Exportar a MP3.
-# Pinned; built as a library of its own, so it can be swapped (its source is shine's).
-FetchContent_Declare(shine
-  GIT_REPOSITORY https://github.com/toots/shine.git
-  GIT_TAG ab5e3526b64af1a2eaa43aa6f441a7312e013519)
-FetchContent_GetProperties(shine)
-if(NOT shine_POPULATED)
-  FetchContent_Populate(shine)
-endif()
-add_library(plumsg_shine STATIC
-  ${shine_SOURCE_DIR}/src/lib/bitstream.c
-  ${shine_SOURCE_DIR}/src/lib/huffman.c
-  ${shine_SOURCE_DIR}/src/lib/l3bitstream.c
-  ${shine_SOURCE_DIR}/src/lib/l3loop.c
-  ${shine_SOURCE_DIR}/src/lib/l3mdct.c
-  ${shine_SOURCE_DIR}/src/lib/l3subband.c
-  ${shine_SOURCE_DIR}/src/lib/layer3.c
-  ${shine_SOURCE_DIR}/src/lib/reservoir.c
-  ${shine_SOURCE_DIR}/src/lib/tables.c)
-target_include_directories(plumsg_shine SYSTEM PUBLIC ${shine_SOURCE_DIR}/src/lib)
-if(MSVC)
-  target_compile_options(plumsg_shine PRIVATE /W0)
-  # (GCC's __attribute__((unused)) on two variables.)
-  target_compile_options(plumsg_shine PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/tools/shine/msvc_compat.h)
-else()
-  target_compile_options(plumsg_shine PRIVATE -w)
-endif()
-if(NOT MSVC)
-  find_library(PLUMSG_LIBM m)
-  if(PLUMSG_LIBM)
-    target_link_libraries(plumsg_shine PUBLIC ${PLUMSG_LIBM})
-  endif()
-endif()
-
 # The version About and the crash reports show: -DPLUMSG_VERSION=... (the release workflow
 # passes the release's), else the tag and commit it was built from.
 set(PLUMSG_VERSION "" CACHE STRING "Version shown in About and in crash reports (empty: git describe)")
@@ -204,7 +170,7 @@ add_library(plumsg_core STATIC
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
 target_include_directories(plumsg_core PUBLIC src src/core PRIVATE ${PLUM_ROOT}/third_party/tsf ${PLUM_ROOT}/third_party/stb)
-target_link_libraries(plumsg_core PUBLIC plum_common plum_miniz Threads::Threads PRIVATE plumsg_ymfm chdr-static plumsg_decoders plumsg_shine)
+target_link_libraries(plumsg_core PUBLIC plum_common plum_miniz Threads::Threads PRIVATE plumsg_ymfm chdr-static plumsg_decoders)
 # While plumsg's own code is in namespace plumsg, it sees the common code's names (common/src/plum.h).
 target_compile_definitions(plumsg_core PUBLIC PLUM_APP_NAMESPACE=plumsg)
 
