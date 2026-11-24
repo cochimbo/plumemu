@@ -21,7 +21,7 @@
 #include "../core/system.h"
 #include "../core/test_console.h"
 #include "render/gl_renderers.h"
-#include "../render/profile3d.h"
+#include "render/profile3d.h"
 #include "../net/udp.h"
 #include "achievements.h"
 #include "frontend/audio.h"

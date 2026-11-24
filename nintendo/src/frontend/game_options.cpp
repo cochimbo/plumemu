@@ -5,8 +5,8 @@
 #include <sstream>
 
 #include "core/i18n.h"
-#include "../core/ini_names.h"
-#include "../render/profile3d.h"
+#include "core/ini_names.h"
+#include "render/profile3d.h"
 
 namespace plumnin {
 

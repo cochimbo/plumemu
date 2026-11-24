@@ -1,9 +1,9 @@
 #include "settings.h"
 
-#include "../core/ini_names.h"
+#include "core/ini_names.h"
 #include "../core/system.h"
 #include "core/video_frame.h"
-#include "../render/profile3d.h"
+#include "render/profile3d.h"
 
 #include <algorithm>
 #include <iterator>

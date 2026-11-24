@@ -1,4 +1,4 @@
-#include "profile3d.h"
+#include "render/profile3d.h"
 
 #include <algorithm>
 #include <cctype>
@@ -6,9 +6,10 @@
 #include <cstdlib>
 #include <sstream>
 
-#include "../core/ini_names.h"
+#include "core/app_info.h"
+#include "core/ini_names.h"
 
-namespace plumnin {
+namespace plum {
 
 namespace {
 
@@ -105,8 +106,8 @@ void write3D(std::ostream& out, const RenderOptions& r) {
 
 std::string formatProfile(const RenderOptions& r, const std::string& game) {
     std::ostringstream out;
-    out << "# plumnin 3D profile for " << game << ". While this game is loaded, these settings\n"
-        << "# replace the 3D ones in [video] in plumnin.ini.\n\n[profile_3d]\n";
+    out << "# " << appInfo().name << " 3D profile for " << game << ". While this game is loaded, these settings\n"
+        << "# replace the 3D ones in [video] in " << appInfo().iniName << ".\n\n[profile_3d]\n";
     write3D(out, r);
     return out.str();
 }
@@ -130,4 +131,4 @@ bool parseProfile(const std::string& text, RenderOptions& r) {
     return found;
 }
 
-}  // namespace plumnin
+}  // namespace plum

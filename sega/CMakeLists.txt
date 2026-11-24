@@ -199,7 +199,7 @@ add_library(plumsg_core STATIC
   src/core/cd_image.cpp
   src/core/megacd.cpp
   src/core/netplay.cpp
-  src/render/profile3d.cpp
+  ${PLUM_COMMON_DIR}/src/render/profile3d.cpp
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
 target_include_directories(plumsg_core PUBLIC src src/core PRIVATE ${PLUM_ROOT}/third_party/tsf ${PLUM_ROOT}/third_party/stb)
