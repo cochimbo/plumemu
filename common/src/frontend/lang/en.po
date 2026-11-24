@@ -1,0 +1,1448 @@
+# plumemu (what plumsg and plumnin share) in English. The msgid is the Spanish text in the code; msgstr its translation.
+# Keep the %-specifiers (%d, %s...) in the same order. Updated with tools/i18n.py --update.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+
+msgid ""
+"\n"
+"Al activarlo, el juego vuelve a empezar."
+msgstr ""
+"\n"
+"Turning it on restarts the game."
+
+msgid " (hardcore)"
+msgstr " (hardcore)"
+
+msgid "%d fotogramas"
+msgstr "%d frames"
+
+msgid "%d resultados. Pulsa uno para verlo."
+msgstr "%d results. Click one to see it."
+
+msgid "%d truco activo"
+msgstr "%d cheat on"
+
+msgid "%d trucos activos"
+msgstr "%d cheats on"
+
+msgid "%s, %u puntos"
+msgstr "%s, %u points"
+
+msgid "%u de %u logros, %u de %u puntos%s"
+msgstr "%u of %u achievements, %u of %u points%s"
+
+msgid "%u puntos"
+msgstr "%u points"
+
+msgid "-10 s  ·  ahora a la derecha"
+msgstr "-10 s  ·  now on the right"
+
+msgid ". Modo hardcore"
+msgstr ". Hardcore mode"
+
+msgid "1 fotograma"
+msgstr "1 frame"
+
+msgid "A / Intro: abrir   B / Retroceso: subir   Esc: cerrar"
+msgstr "A / Enter: open   B / Backspace: up   Esc: close"
+
+msgid "A / Intro: cargar   Y / Espacio: guardar"
+msgstr "A / Enter: load   Y / Space: save"
+
+msgid "A / Intro: entrar   B / Retroceso: subir   Esc: cerrar"
+msgstr "A / Enter: go in   B / Backspace: up   Esc: close"
+
+msgid "A punto (reto en marcha)"
+msgstr "Almost (challenge running)"
+
+msgid ""
+"A: escribir   B: borrar   Y: espacio   X: mayúsculas\n"
+"L1 / R1: mover el cursor   Start: aceptar"
+msgstr ""
+"A: type   B: delete   Y: space   X: shift\n"
+"L1 / R1: move the cursor   Start: done"
+
+msgid "Abajo a la derecha"
+msgstr "Bottom right"
+
+msgid "Abajo a la izquierda"
+msgstr "Bottom left"
+
+msgid "Abre primero el juego."
+msgstr "Open the game first."
+
+msgid "Abre un juego, o elige uno en la biblioteca con el botón derecho."
+msgstr "Open a game, or pick one in the library with the right button."
+
+msgid "Abre una ROM para guardar estados."
+msgstr "Open a ROM to save states."
+
+msgid "Abrir juego"
+msgstr "Open game"
+
+msgid "Abrir la carpeta"
+msgstr "Open the folder"
+
+msgid "Acción"
+msgstr "Action"
+
+msgid "Aceptar"
+msgstr "OK"
+
+msgid "Acordeón"
+msgstr "Accordion"
+
+msgid "Activado"
+msgstr "On"
+
+msgid "Activar los logros"
+msgstr "Turn on achievements"
+
+msgid "Agogó"
+msgstr "Agogo"
+
+msgid "Agogó agudo"
+msgstr "High agogo"
+
+msgid "Agogó grave"
+msgstr "Low agogo"
+
+msgid "Ahora no se usa ninguna cuenta tuya."
+msgstr "No account of yours is being used."
+
+msgid "Ajustes"
+msgstr "Settings"
+
+msgid "Al volver a descargar"
+msgstr "When downloading again"
+
+msgid "Alojar"
+msgstr "Host"
+
+msgid "Alojar la partida (jugador 1)"
+msgstr "Host the game (player 1)"
+
+msgid "Anfitrión"
+msgstr "Host"
+
+msgid "Aplausos"
+msgstr "Applause"
+
+msgid "Archivos"
+msgstr "Files"
+
+msgid "Armonio"
+msgstr "Reed organ"
+
+msgid "Armónica"
+msgstr "Harmonica"
+
+msgid "Armónicos de guitarra"
+msgstr "Guitar harmonics"
+
+msgid "Arpa"
+msgstr "Harp"
+
+msgid "Arriba a la derecha"
+msgstr "Top right"
+
+msgid "Arriba a la izquierda"
+msgstr "Top left"
+
+msgid "Automática (la de la ROM)"
+msgstr "Automatic (the ROM's)"
+
+msgid "Automático"
+msgstr "Automatic"
+
+msgid "Automático (%s)"
+msgstr "Automatic (%s)"
+
+msgid "Avance rápido"
+msgstr "Fast forward"
+
+msgid "Aventura"
+msgstr "Adventure"
+
+msgid "Añadir carpeta..."
+msgstr "Add folder..."
+
+msgid "Añadir solo lo que falte (rápido: no vuelve a pedir el juego)"
+msgstr "Only add what is missing (quick: the game is not asked for again)"
+
+msgid "Año"
+msgstr "Year"
+
+msgid "Aún no se ha descargado nada de este juego: pulsa Descargar de ScreenScraper."
+msgstr "Nothing has been downloaded for this game yet: press Download from ScreenScraper."
+
+msgid "Bajo acústico"
+msgstr "Acoustic bass"
+
+msgid "Bajo eléctrico (dedo)"
+msgstr "Electric bass (finger)"
+
+msgid "Bajo eléctrico (púa)"
+msgstr "Electric bass (pick)"
+
+msgid "Bajo sin trastes"
+msgstr "Fretless bass"
+
+msgid "Bajo sintetizado 1"
+msgstr "Synth bass 1"
+
+msgid "Bajo sintetizado 2"
+msgstr "Synth bass 2"
+
+msgid "Bajo slap 1"
+msgstr "Slap bass 1"
+
+msgid "Bajo slap 2"
+msgstr "Slap bass 2"
+
+msgid "Bandoneón"
+msgstr "Tango accordion"
+
+msgid "Banjo"
+msgstr "Banjo"
+
+msgid "Beat'em up"
+msgstr "Beat'em up"
+
+msgid "Bombo"
+msgstr "Bass drum"
+
+msgid "Bombo acústico"
+msgstr "Acoustic bass drum"
+
+msgid "Bongó agudo"
+msgstr "High bongo"
+
+msgid "Bongó grave"
+msgstr "Low bongo"
+
+msgid "Borrar"
+msgstr "Delete"
+
+msgid "Botella soplada"
+msgstr "Blown bottle"
+
+msgid "Botones propios de este juego"
+msgstr "This game's own buttons"
+
+msgid "Buscando..."
+msgstr "Searching..."
+
+msgid "Buscar"
+msgstr "Search"
+
+msgid "Buscar otro juego"
+msgstr "Search for another game"
+
+msgid "Cabasa"
+msgstr "Cabasa"
+
+msgid "Caja"
+msgstr "Snare"
+
+msgid "Caja china"
+msgstr "Woodblock"
+
+msgid "Caja china aguda"
+msgstr "High woodblock"
+
+msgid "Caja china grave"
+msgstr "Low woodblock"
+
+msgid "Caja de música"
+msgstr "Music box"
+
+msgid "Caja eléctrica"
+msgstr "Electric snare"
+
+msgid "Caja en 3D"
+msgstr "3D box"
+
+msgid "Cambia el nombre si no sale el juego: sin región ni número de versión suele ir mejor."
+msgstr "Change the name if the game does not show up: without region or version number usually works better."
+
+msgid "Campana del ride"
+msgstr "Ride bell"
+
+msgid "Campanas tubulares"
+msgstr "Tubular bells"
+
+msgid "Campanilla"
+msgstr "Tinkle bell"
+
+msgid "Cancelar"
+msgstr "Cancel"
+
+msgid "Captura"
+msgstr "Screenshot"
+
+msgid "Carreras"
+msgstr "Racing"
+
+msgid "Cartucho"
+msgstr "Cartridge"
+
+msgid "Casi"
+msgstr "Almost there"
+
+msgid "Casual"
+msgstr "Casual"
+
+msgid "Caza y pesca"
+msgstr "Hunting and fishing"
+
+msgid "Celesta"
+msgstr "Celesta"
+
+msgid "Cencerro"
+msgstr "Cowbell"
+
+msgid "Cerrar sesión"
+msgstr "Log out"
+
+msgid "Charles abierto"
+msgstr "Open hi-hat"
+
+msgid "Charles cerrado"
+msgstr "Closed hi-hat"
+
+msgid "Charles con pedal"
+msgstr "Pedal hi-hat"
+
+msgid "Clarinete"
+msgstr "Clarinet"
+
+msgid "Clavecín"
+msgstr "Harpsichord"
+
+msgid "Claves"
+msgstr "Claves"
+
+msgid "Clavinet"
+msgstr "Clavinet"
+
+msgid "Composición"
+msgstr "Composite"
+
+msgid "Conexión recuperada: logros enviados."
+msgstr "Connection back: achievements sent."
+
+msgid "Conga aguda abierta"
+msgstr "Open high conga"
+
+msgid "Conga aguda apagada"
+msgstr "Muted high conga"
+
+msgid "Conga grave"
+msgstr "Low conga"
+
+msgid "Conseguidos"
+msgstr "Unlocked"
+
+msgid "Conseguidos, sin enviar todavía"
+msgstr "Unlocked, not sent yet"
+
+msgid "Consola"
+msgstr "Console"
+
+msgid "Contrabajo"
+msgstr "Contrabass"
+
+msgid "Contraportada"
+msgstr "Back cover"
+
+msgid "Contraseña"
+msgstr "Password"
+
+msgid "Controles"
+msgstr "Controls"
+
+msgid "Corno inglés"
+msgstr "English horn"
+
+msgid "Coro \"aah\""
+msgstr "Choir \"aah\""
+
+msgid "Crear una cuenta"
+msgstr "Create an account"
+
+msgid "Crear una cuenta en retroachievements.org"
+msgstr "Create an account on retroachievements.org"
+
+msgid "Cuenta"
+msgstr "Account"
+
+msgid "Cuenta..."
+msgstr "Account..."
+
+msgid "Cuerdas 1"
+msgstr "Strings 1"
+
+msgid "Cuerdas 2"
+msgstr "Strings 2"
+
+msgid "Cuerdas en pizzicato"
+msgstr "Pizzicato strings"
+
+msgid "Cuerdas en trémolo"
+msgstr "Tremolo strings"
+
+msgid "Cuerdas sintetizadas 1"
+msgstr "Synth strings 1"
+
+msgid "Cuerdas sintetizadas 2"
+msgstr "Synth strings 2"
+
+msgid ""
+"Cuántos fotogramas tarda en hacer efecto lo que pulsas. Con más retardo hay menos\n"
+"saltos cuando la conexión es lenta; con 0 responde al instante pero salta más.\n"
+"Vale el del anfitrión. 2 va bien casi siempre."
+msgstr ""
+"How many frames it takes for what you press to have an effect. More delay means fewer\n"
+"jumps when the connection is slow; with 0 it responds at once but jumps more.\n"
+"The host's value is the one used. 2 works well almost always."
+
+msgid "Cuíca abierta"
+msgstr "Open cuica"
+
+msgid "Cuíca apagada"
+msgstr "Muted cuica"
+
+msgid "Cámara lenta"
+msgstr "Slow motion"
+
+msgid "Deja de usar estos y vuelve a los de Opciones > Controles"
+msgstr "Stops using these and goes back to the ones in Options > Controls"
+
+msgid "Deportes"
+msgstr "Sports"
+
+msgid "Deportes con animales"
+msgstr "Sports with animals"
+
+msgid "Derecha"
+msgstr "Right"
+
+msgid "Desactivado"
+msgstr "Off"
+
+msgid "Desactivado (velocidad real)"
+msgstr "Off (real speed)"
+
+msgid "Desactivados"
+msgstr "Off"
+
+msgid "Desarrolladora"
+msgstr "Developer"
+
+msgid "Desarrolladora: %s"
+msgstr "Developer: %s"
+
+msgid ""
+"Descarga los medios de este juego en lugar de los que había, y su portada y etiqueta\n"
+"pasan a ser las de la biblioteca."
+msgstr ""
+"Downloads this game's media instead of the ones there were, and its cover and label\n"
+"become the library's."
+
+msgid "Descarga otra vez los medios del mismo juego de ScreenScraper."
+msgstr "Downloads the same game's media from ScreenScraper again."
+
+msgid "Descarga sus medios de ScreenScraper para ver su descripción y una captura."
+msgstr "Download its media from ScreenScraper to see its description and a screenshot."
+
+msgid "Descargado"
+msgstr "Downloaded"
+
+msgid "Descargar de ScreenScraper"
+msgstr "Download from ScreenScraper"
+
+msgid "Descargar: %s"
+msgstr "Download: %s"
+
+msgid "Descripción"
+msgstr "Description"
+
+msgid "Disparo"
+msgstr "Gunshot"
+
+msgid "Disparos"
+msgstr "Shooter"
+
+msgid "Distribuidora"
+msgstr "Publisher"
+
+msgid "Dos jugadores, cada uno en su ordenador y con el mismo juego abierto (la misma ROM). Quien aloja es el jugador 1 y quien se une, el jugador 2; cada uno juega con sus controles del jugador 1. La partida empieza donde la tenga el anfitrión."
+msgstr "Two players, each on their own computer with the same game open (the same ROM). Whoever hosts is player 1 and whoever joins is player 2; each plays with their own player 1 controls. The game starts wherever the host has it."
+
+msgid "Dulcémele"
+msgstr "Dulcimer"
+
+msgid "EE. UU. (NTSC)"
+msgstr "USA (NTSC)"
+
+msgid "Educativo"
+msgstr "Educational"
+
+msgid "Efecto atmósfera"
+msgstr "FX atmosphere"
+
+msgid "Efecto banda sonora"
+msgstr "FX soundtrack"
+
+msgid "Efecto brillo"
+msgstr "FX brightness"
+
+msgid "Efecto ciencia ficción"
+msgstr "FX sci-fi"
+
+msgid "Efecto cristal"
+msgstr "FX crystal"
+
+msgid "Efecto duendes"
+msgstr "FX goblins"
+
+msgid "Efecto ecos"
+msgstr "FX echoes"
+
+msgid "Efecto lluvia"
+msgstr "FX rain"
+
+msgid "El VGM está cortado."
+msgstr "The VGM is cut short."
+
+msgid "El anfitrión está jugando a otro juego: abrid los dos el mismo (la misma ROM)."
+msgstr "The host is playing another game: both of you open the same one (the same ROM)."
+
+msgid "El anfitrión no ha aceptado la conexión."
+msgstr "The host did not accept the connection."
+
+msgid "El anfitrión no responde. Comprueba la dirección y que tenga el puerto UDP abierto."
+msgstr "The host does not answer. Check the address and that it has the UDP port open."
+
+msgid "El anfitrión usa otra versión de %s: tenéis que usar la misma."
+msgstr "The host uses another version of %s: you both need the same one."
+
+msgid "El juego abierto tiene sus propios botones (en Opciones de este juego); aquí cambias los generales."
+msgstr "The open game has its own buttons (in This game's options); here you change the general ones."
+
+msgid "El juego vuelve a empezar: así se juega en hardcore."
+msgstr "The game starts over: that is how hardcore is played."
+
+msgid "El manual no es un PDF que se pueda abrir."
+msgstr "The manual is not a PDF that can be opened."
+
+msgid "El manual no tiene páginas."
+msgstr "The manual has no pages."
+
+msgid "El otro jugador ha salido de la partida."
+msgstr "The other player has left the game."
+
+msgid "El puerto %d está ocupado (¿hay otro %s alojando?)."
+msgstr "Port %d is in use (is another %s hosting?)."
+
+msgid "El puerto de \"%s\" no es válido."
+msgstr "The port in \"%s\" is not valid."
+
+msgid "Elegir archivo"
+msgstr "Choose file"
+
+msgid "Elegir carpeta"
+msgstr "Choose folder"
+
+msgid "Elegir imagen"
+msgstr "Choose image"
+
+msgid "Emulación"
+msgstr "Emulation"
+
+msgid "En ScreenScraper: «%s»"
+msgstr "On ScreenScraper: “%s”"
+
+msgid "En casa, tu amigo se une a %s:%d."
+msgstr "At home, your friend joins %s:%d."
+
+msgid "En una partida en red no se pueden cambiar."
+msgstr "They cannot be changed in a netplay game."
+
+msgid "Error del servidor: %s"
+msgstr "Server error: %s"
+
+msgid "Escalado"
+msgstr "Scaling"
+
+msgid "Escribe la dirección del anfitrión."
+msgstr "Type the host's address."
+
+msgid "Escribe un código."
+msgstr "Type a code."
+
+msgid "Espacio"
+msgstr "Space"
+
+msgid "Esta compilación de %s no trae la cuenta de desarrollador de ScreenScraper, así que no puede descargar nada. Los instaladores publicados sí la traen."
+msgstr "This build of %s does not include the ScreenScraper developer account, so it cannot download anything. The published installers do include it."
+
+msgid "Esta compilación de %s no trae la cuenta de desarrollador de ScreenScraper."
+msgstr "This build of %s does not include the ScreenScraper developer account."
+
+msgid "Esta consola todavía no tiene trucos."
+msgstr "This console has no cheats yet."
+
+msgid "Estados"
+msgstr "States"
+
+msgid "Este juego no tiene logros todavía."
+msgstr "This game has no achievements yet."
+
+msgid "Este juego: %u de %u logros"
+msgstr "This game: %u of %u achievements"
+
+msgid "Estrategia"
+msgstr "Strategy"
+
+msgid "Etiqueta del cartucho"
+msgstr "Cartridge label"
+
+msgid "Europa (PAL)"
+msgstr "Europe (PAL)"
+
+msgid "Fagot"
+msgstr "Bassoon"
+
+msgid "Falta pdfium.dll junto a %s: sin ella no se pueden leer los manuales."
+msgstr "pdfium.dll is missing next to %s: without it manuals cannot be read."
+
+msgid "Fecha"
+msgstr "Date"
+
+msgid "Filtro 2D"
+msgstr "2D filter"
+
+msgid "Flauta"
+msgstr "Flute"
+
+msgid "Flauta de pan"
+msgstr "Pan flute"
+
+msgid "Flauta dulce"
+msgstr "Recorder"
+
+msgid "Flautín"
+msgstr "Piccolo"
+
+msgid "Fondo (fan art)"
+msgstr "Background (fan art)"
+
+msgid "Fondo arco"
+msgstr "Pad bowed"
+
+msgid "Fondo barrido"
+msgstr "Pad sweep"
+
+msgid "Fondo coro"
+msgstr "Pad choir"
+
+msgid "Fondo cálido"
+msgstr "Pad warm"
+
+msgid "Fondo halo"
+msgstr "Pad halo"
+
+msgid "Fondo metálico"
+msgstr "Pad metallic"
+
+msgid "Fondo new age"
+msgstr "Pad new age"
+
+msgid "Fondo polisintetizador"
+msgstr "Pad polysynth"
+
+msgid "Gaita"
+msgstr "Bagpipe"
+
+msgid "Glockenspiel"
+msgstr "Glockenspiel"
+
+msgid "Golpe de aro"
+msgstr "Side stick"
+
+msgid "Golpe de orquesta"
+msgstr "Orchestra hit"
+
+msgid "Guitarra de acero"
+msgstr "Steel guitar"
+
+msgid "Guitarra de nailon"
+msgstr "Nylon guitar"
+
+msgid "Guitarra distorsionada"
+msgstr "Distortion guitar"
+
+msgid "Guitarra eléctrica apagada"
+msgstr "Muted electric guitar"
+
+msgid "Guitarra eléctrica de jazz"
+msgstr "Jazz electric guitar"
+
+msgid "Guitarra eléctrica limpia"
+msgstr "Clean electric guitar"
+
+msgid "Guitarra saturada"
+msgstr "Overdriven guitar"
+
+msgid "Género"
+msgstr "Genre"
+
+msgid "Güiro corto"
+msgstr "Short guiro"
+
+msgid "Güiro largo"
+msgstr "Long guiro"
+
+msgid "Has salido de la partida."
+msgstr "You left the game."
+
+msgid "Helicóptero"
+msgstr "Helicopter"
+
+msgid "IP o nombre, y :puerto si no es el de arriba"
+msgstr "IP or name, and :port if not the one above"
+
+msgid "Identifica el juego por su ROM (o por su nombre) y descarga sus medios."
+msgstr "Identifies the game by its ROM (or by its name) and downloads its media."
+
+msgid "Imagen"
+msgstr "Picture"
+
+msgid "Imágenes"
+msgstr "Images"
+
+msgid "Iniciando sesión..."
+msgstr "Logging in..."
+
+msgid "Iniciar sesión"
+msgstr "Log in"
+
+msgid "Intensidad del filtro"
+msgstr "Filter strength"
+
+msgid "Izquierda"
+msgstr "Left"
+
+msgid "Japón (NTSC)"
+msgstr "Japan (NTSC)"
+
+msgid "Juegos"
+msgstr "Games"
+
+msgid "Juegos de azar"
+msgstr "Gambling"
+
+msgid "Jugadores"
+msgstr "Players"
+
+msgid "Jugadores: %s"
+msgstr "Players: %s"
+
+msgid "Jugar en hardcore"
+msgstr "Play in hardcore"
+
+msgid "Jugar en red"
+msgstr "Netplay"
+
+msgid "Kalimba"
+msgstr "Kalimba"
+
+msgid "Koto"
+msgstr "Koto"
+
+msgid "L1 / R1 (o Q / E): cambiar de pestaña   B / Esc: cerrar"
+msgstr "L1 / R1 (or Q / E): change tab   B / Esc: close"
+
+msgid "La base de trucos de libretro no tiene listas para este juego."
+msgstr "libretro's cheat database has no lists for this game."
+
+msgid "La contraseña no se guarda: %s guarda la sesión que te da el servidor."
+msgstr "The password is not saved: %s keeps the session the server gives you."
+
+msgid "La partida se ha descompasado y no se puede recuperar."
+msgstr "The game went out of sync and cannot be recovered."
+
+msgid "La sesión ha caducado: vuelve a escribir la contraseña."
+msgstr "The session has expired: type the password again."
+
+msgid "Lo que se descarga de cada juego. Los vídeos y los manuales ocupan mucho, así que no se descargan si no los marcas (cada juego los puede descargar aparte)."
+msgstr "What is downloaded for each game. Videos and manuals take a lot of space, so they are not downloaded unless you tick them (each game can download them separately)."
+
+msgid "Logo"
+msgstr "Logo"
+
+msgid "Logros de este juego"
+msgstr "This game's achievements"
+
+msgid "Logros de este juego..."
+msgstr "This game's achievements..."
+
+msgid ""
+"Logros de retroachievements.org: los mismos que en RetroArch y otros emuladores,\n"
+"con tu cuenta de allí."
+msgstr ""
+"Achievements from retroachievements.org: the same as in RetroArch and other emulators,\n"
+"with your account there."
+
+msgid "Logros, marcas y retos para cada juego, los de retroachievements.org. Necesitas una cuenta (gratis) allí."
+msgstr "Achievements, scores and challenges for each game, the ones from retroachievements.org. You need a (free) account there."
+
+msgid ""
+"Los logros cuentan para tu puntuación hardcore y las clasificaciones, pero sin\n"
+"ayudas: no se puede rebobinar, ir a cámara lenta, usar trucos ni cargar estados.%s"
+msgstr ""
+"Achievements count for your hardcore score and the leaderboards, but without\n"
+"help: no rewinding, slow motion, cheats or loading states.%s"
+
+msgid "Lucha"
+msgstr "Fighting"
+
+msgid "Mando"
+msgstr "Pad"
+
+msgid "Mandos conectados:"
+msgstr "Pads connected:"
+
+msgid "Manual"
+msgstr "Manual"
+
+msgid "Maracas"
+msgstr "Maracas"
+
+msgid "Marca enviada: %s"
+msgstr "Score submitted: %s"
+
+msgid "Marimba"
+msgstr "Marimba"
+
+msgid "Marquesina"
+msgstr "Marquee"
+
+msgid "Matamarcianos"
+msgstr "Shoot'em up"
+
+msgid "Mayúsculas"
+msgstr "Shift"
+
+msgid "Medios de ScreenScraper"
+msgstr "ScreenScraper media"
+
+msgid "Metales sintetizados 1"
+msgstr "Synth brass 1"
+
+msgid "Metales sintetizados 2"
+msgstr "Synth brass 2"
+
+msgid "Modo hardcore"
+msgstr "Hardcore mode"
+
+msgid "Música y baile"
+msgstr "Music and dance"
+
+msgid "No"
+msgstr "No"
+
+msgid "No hay ROMs en esta carpeta."
+msgstr "There are no ROMs in this folder."
+
+msgid "No hay carpetas dentro de esta."
+msgstr "There are no folders inside this one."
+
+msgid "No hay mandos conectados."
+msgstr "No pads connected."
+
+msgid "No hay un juego con logros abierto."
+msgstr "No game with achievements is open."
+
+msgid "No oficiales"
+msgstr "Unofficial"
+
+msgid "No se encuentra \"%s\"."
+msgstr "\"%s\" cannot be found."
+
+msgid "No se pudieron cargar los logros: %s"
+msgstr "Could not load the achievements: %s"
+
+msgid "No se pudo cargar la partida del anfitrión: %s"
+msgstr "The host's game could not be loaded: %s"
+
+msgid "No se pudo conectar con la base de trucos de libretro."
+msgstr "Could not connect to libretro's cheat database."
+
+msgid "No se pudo crear %s"
+msgstr "Could not create %s"
+
+msgid "No se pudo crear el socket UDP."
+msgstr "The UDP socket could not be created."
+
+msgid "No se pudo descargar la lista de trucos. ¿Hay conexión a internet?"
+msgstr "The cheat list could not be downloaded. Is there an internet connection?"
+
+msgid "No se pudo escribir %s: ¿falta espacio en el disco?"
+msgstr "Could not write %s: is the disk full?"
+
+msgid "No se pudo iniciar la red."
+msgstr "The network could not be started."
+
+msgid "No se pudo iniciar sesión: %s"
+msgstr "Could not log in: %s"
+
+msgid "No se pudo leer %s"
+msgstr "Could not read %s"
+
+msgid "No se pudo leer la lista de trucos de libretro (error %d)."
+msgstr "libretro's cheat list could not be read (error %d)."
+
+msgid "No se pudo preparar el socket UDP."
+msgstr "The UDP socket could not be set up."
+
+msgid "No se pudo preparar la partida: %s"
+msgstr "The game could not be prepared: %s"
+
+msgid "No se puede conectar con RetroAchievements."
+msgstr "Cannot connect to RetroAchievements."
+
+msgid "No se puede grabar con ese tamaño"
+msgstr "Cannot record at that size"
+
+msgid "No se pueden conseguir en %s"
+msgstr "Cannot be unlocked in %s"
+
+msgid "Nombre del juego"
+msgstr "Game name"
+
+msgid "Nota"
+msgstr "Rating"
+
+msgid "Oboe"
+msgstr "Oboe"
+
+msgid "Ocarina"
+msgstr "Ocarina"
+
+msgid "Olas"
+msgstr "Seashore"
+
+msgid "Opciones de este juego"
+msgstr "Options for this game"
+
+msgid "Opciones propias de %s. Pon una opción en Propio para que este juego use su propio valor; las que dejes en General siguen a las generales."
+msgstr "Own options of %s. Set an option to Own for this game to use its own value; the ones left on General follow the general ones."
+
+msgid "PDF"
+msgstr "PDF"
+
+msgid "Palmada"
+msgstr "Hand clap"
+
+msgid "Pandereta"
+msgstr "Tambourine"
+
+msgid "Pantalla ancha"
+msgstr "Widescreen"
+
+msgid "Pantalla de título"
+msgstr "Title screen"
+
+msgid "Piano brillante"
+msgstr "Bright piano"
+
+msgid "Piano de cantina"
+msgstr "Honky-tonk piano"
+
+msgid "Piano de cola"
+msgstr "Grand piano"
+
+msgid "Piano eléctrico 1"
+msgstr "Electric piano 1"
+
+msgid "Piano eléctrico 2"
+msgstr "Electric piano 2"
+
+msgid "Piano eléctrico de cola"
+msgstr "Electric grand piano"
+
+msgid "Pinball"
+msgstr "Pinball"
+
+msgid "Pistola de luz"
+msgstr "Light gun"
+
+msgid "Plataformas"
+msgstr "Platform"
+
+msgid "Platillo al revés"
+msgstr "Reverse cymbal"
+
+msgid "Platillo chino"
+msgstr "Chinese cymbal"
+
+msgid "Platillo crash 1"
+msgstr "Crash cymbal 1"
+
+msgid "Platillo crash 2"
+msgstr "Crash cymbal 2"
+
+msgid "Platillo ride 1"
+msgstr "Ride cymbal 1"
+
+msgid "Platillo ride 2"
+msgstr "Ride cymbal 2"
+
+msgid "Platillo splash"
+msgstr "Splash cymbal"
+
+msgid "Por conseguir"
+msgstr "Locked"
+
+msgid "Por internet: abre (redirige) el puerto UDP %d de tu router hacia este ordenador y dale tu IP pública; o usad los dos una red privada como Tailscale o ZeroTier y no hace falta abrir nada."
+msgstr "Over the internet: open (forward) UDP port %d on your router to this computer and give them your public IP; or both of you use a private network like Tailscale or ZeroTier and nothing needs opening."
+
+msgid "Portada"
+msgstr "Front cover"
+
+msgid "Portada completa"
+msgstr "Full cover"
+
+msgid "Preguntas"
+msgstr "Quiz"
+
+msgid "Probar la conexión"
+msgstr "Test the connection"
+
+msgid "Puerto UDP"
+msgstr "UDP port"
+
+msgid "Pulsa un botón..."
+msgstr "Press a button..."
+
+msgid "Pulsa una casilla y luego la tecla o el botón del mando. \"+\" añade otro, \"x\" lo borra, Esc cancela."
+msgstr "Click a box and then the key or the pad button. \"+\" adds another, \"x\" deletes it, Esc cancels."
+
+msgid "Pulsa una tecla..."
+msgstr "Press a key..."
+
+msgid "Puzle"
+msgstr "Puzzle"
+
+msgid "Pájaros"
+msgstr "Bird tweet"
+
+msgid "Píxeles cuadrados"
+msgstr "Square pixels"
+
+msgid "Quitar"
+msgstr "Remove"
+
+msgid "Quitar la cuenta"
+msgstr "Remove the account"
+
+msgid "Qué descargar"
+msgstr "What to download"
+
+msgid "Ranura %d"
+msgstr "Slot %d"
+
+msgid "Ranura %d  (actual)"
+msgstr "Slot %d  (current)"
+
+msgid "Recién conseguidos"
+msgstr "Recently unlocked"
+
+msgid "Recopilatorio"
+msgstr "Compilation"
+
+msgid "Reescalado (experimental)"
+msgstr "Upscaling (experimental)"
+
+msgid "Respiración"
+msgstr "Breath noise"
+
+msgid "Restaurar predeterminados"
+msgstr "Restore defaults"
+
+msgid "Retardo de los mandos"
+msgstr "Input delay"
+
+msgid "Reto empezado: %s"
+msgstr "Challenge started: %s"
+
+msgid "Reto fallido: %s"
+msgstr "Challenge failed: %s"
+
+msgid "RetroAchievements no conoce este juego (o esta versión de la ROM)."
+msgstr "RetroAchievements does not know this game (or this version of the ROM)."
+
+msgid "Rol (RPG)"
+msgstr "Role-playing (RPG)"
+
+msgid "Run-ahead (menos latencia)"
+msgstr "Run-ahead (less latency)"
+
+msgid "Salir de la partida"
+msgstr "Leave the game"
+
+msgid "Saxo alto"
+msgstr "Alto sax"
+
+msgid "Saxo barítono"
+msgstr "Baritone sax"
+
+msgid "Saxo soprano"
+msgstr "Soprano sax"
+
+msgid "Saxo tenor"
+msgstr "Tenor sax"
+
+msgid "Scraping"
+msgstr "Scraping"
+
+msgid "ScreenScraper no tiene descripción de este juego."
+msgstr "ScreenScraper has no description of this game."
+
+msgid "Se ha perdido la conexión con el otro jugador."
+msgstr "The connection with the other player was lost."
+
+msgid "Se usa la cuenta «%s»."
+msgstr "Using the account “%s”."
+
+msgid "Sección de metales"
+msgstr "Brass section"
+
+msgid "Segundos de rebobinado"
+msgstr "Rewind seconds"
+
+msgid "Sesión iniciada como %s (%u puntos)"
+msgstr "Logged in as %s (%u points)"
+
+msgid "Sesión iniciada como %s (%u puntos)."
+msgstr "Logged in as %s (%u points)."
+
+msgid "Shakuhachi"
+msgstr "Shakuhachi"
+
+msgid "Shamisen"
+msgstr "Shamisen"
+
+msgid "Shanai"
+msgstr "Shanai"
+
+msgid "Si ya tienes cuenta, escribe aquí tu usuario y tu contraseña de screenscraper.fr: con ella se pueden hacer más peticiones al día, y ScreenScraper sigue respondiendo aunque esté lleno. Se guarda en %s.ini."
+msgstr "If you already have an account, type your screenscraper.fr user name and password here: it allows more requests a day, and ScreenScraper keeps answering even when it is full. It is kept in %s.ini."
+
+msgid "Silbato corto"
+msgstr "Short whistle"
+
+msgid "Silbato largo"
+msgstr "Long whistle"
+
+msgid "Silbido"
+msgstr "Whistle"
+
+msgid "Silencio"
+msgstr "Mute"
+
+msgid "Simulación"
+msgstr "Simulation"
+
+msgid "Sin conexión: los logros se enviarán cuando vuelva."
+msgstr "No connection: the achievements will be sent when it is back."
+
+msgid "Sin imagen"
+msgstr "No image"
+
+msgid "Sin límite de sprites"
+msgstr "No sprite limit"
+
+msgid "Sin rebobinar, cámara lenta, trucos ni cargar estados (guardar sí). Los logros cuentan para tu puntuación hardcore y se puede entrar en las clasificaciones. Al activarlo, el juego vuelve a empezar."
+msgstr "No rewinding, slow motion, cheats or loading states (saving is fine). Achievements count for your hardcore score and you can get on the leaderboards. Turning it on restarts the game."
+
+msgid "Sin sesión iniciada"
+msgstr "Not logged in"
+
+msgid "Sistema"
+msgstr "System"
+
+msgid "Sitar"
+msgstr "Sitar"
+
+msgid "Sobrescribir todos los medios"
+msgstr "Overwrite all the media"
+
+msgid "Solista bajo y melodía"
+msgstr "Lead bass + lead"
+
+msgid "Solista calíope"
+msgstr "Lead calliope"
+
+msgid "Solista charango"
+msgstr "Lead charang"
+
+msgid "Solista chiff"
+msgstr "Lead chiff"
+
+msgid "Solista cuadrada"
+msgstr "Lead square"
+
+msgid "Solista diente de sierra"
+msgstr "Lead sawtooth"
+
+msgid "Solista quintas"
+msgstr "Lead fifths"
+
+msgid "Solista voz"
+msgstr "Lead voice"
+
+msgid "Sonido"
+msgstr "Sound"
+
+msgid "Suavizado"
+msgstr "Smoothing"
+
+msgid "Subir"
+msgstr "Up"
+
+msgid "Sí"
+msgstr "Yes"
+
+msgid "Tablero"
+msgstr "Board game"
+
+msgid "Taiko"
+msgstr "Taiko drum"
+
+msgid "También tiene"
+msgstr "It also has"
+
+msgid "Tambor sintetizado"
+msgstr "Synth drum"
+
+msgid "Tambores metálicos"
+msgstr "Steel drums"
+
+msgid "Teclado (jugador 1)"
+msgstr "Keyboard (player 1)"
+
+msgid "Teclado (jugador 2)"
+msgstr "Keyboard (player 2)"
+
+msgid "Teléfono"
+msgstr "Telephone ring"
+
+msgid "Tienes %u de %u logros (%u de %u puntos)"
+msgstr "You have %u of %u achievements (%u of %u points)"
+
+msgid "Timbal agudo"
+msgstr "High timbale"
+
+msgid "Timbal grave"
+msgstr "Low timbale"
+
+msgid "Timbales"
+msgstr "Timpani"
+
+msgid "Todos los ajustes del 3D"
+msgstr "All the 3D settings"
+
+msgid "Todos los archivos"
+msgstr "All files"
+
+msgid "Tom agudo"
+msgstr "High tom"
+
+msgid "Tom agudo de suelo"
+msgstr "High floor tom"
+
+msgid "Tom grave"
+msgstr "Low tom"
+
+msgid "Tom grave de suelo"
+msgstr "Low floor tom"
+
+msgid "Tom medio agudo"
+msgstr "High-mid tom"
+
+msgid "Tom medio grave"
+msgstr "Low-mid tom"
+
+msgid "Tom melódico"
+msgstr "Melodic tom"
+
+msgid "Total"
+msgstr "Total"
+
+msgid "Trabajando..."
+msgstr "Working..."
+
+msgid "Traste de guitarra"
+msgstr "Guitar fret noise"
+
+msgid "Triángulo abierto"
+msgstr "Open triangle"
+
+msgid "Triángulo apagado"
+msgstr "Muted triangle"
+
+msgid "Trombón"
+msgstr "Trombone"
+
+msgid "Trompa"
+msgstr "French horn"
+
+msgid "Trompeta"
+msgstr "Trumpet"
+
+msgid "Trompeta con sordina"
+msgstr "Muted trumpet"
+
+msgid "Tu cuenta de screenscraper.fr"
+msgstr "Your screenscraper.fr account"
+
+msgid "Tu mejor marca: %s"
+msgstr "Your best score: %s"
+
+msgid "Tu puesto: %u de %u"
+msgstr "Your rank: %u of %u"
+
+msgid "Tuba"
+msgstr "Tuba"
+
+msgid "Título"
+msgstr "Title"
+
+msgid "Unidades"
+msgstr "Drives"
+
+msgid "Unirse"
+msgstr "Join"
+
+msgid "Unirse a una partida (jugador 2)"
+msgstr "Join a game (player 2)"
+
+msgid "Usa los de Opciones > Controles."
+msgstr "Uses the ones in Options > Controls."
+
+msgid "Usar el stick izquierdo como cruceta"
+msgstr "Use the left stick as d-pad"
+
+msgid "Usar esta carpeta"
+msgstr "Use this folder"
+
+msgid "Usar esta cuenta"
+msgstr "Use this account"
+
+msgid "Usar este juego"
+msgstr "Use this game"
+
+msgid "Usuario"
+msgstr "User name"
+
+msgid "Usuario o contraseña incorrectos."
+msgstr "Wrong user name or password."
+
+msgid "Varios"
+msgstr "Various"
+
+msgid "Velocidad"
+msgstr "Speed"
+
+msgid "Ver en screenscraper.fr"
+msgstr "See on screenscraper.fr"
+
+msgid "Vibraslap"
+msgstr "Vibraslap"
+
+msgid "Vibráfono"
+msgstr "Vibraphone"
+
+msgid "Viola"
+msgstr "Viola"
+
+msgid "Violonchelo"
+msgstr "Cello"
+
+msgid "Violín"
+msgstr "Violin"
+
+msgid "Violín celta"
+msgstr "Fiddle"
+
+msgid "Vista"
+msgstr "View"
+
+msgid "Volumen"
+msgstr "Volume"
+
+msgid "Volver a descargar"
+msgstr "Download again"
+
+msgid "Volver a los generales"
+msgstr "Back to the general ones"
+
+msgid "Voz \"ooh\""
+msgstr "Voice \"ooh\""
+
+msgid "Voz sintetizada"
+msgstr "Synth voice"
+
+msgid "Vídeo"
+msgstr "Video"
+
+msgid "Xilófono"
+msgstr "Xylophone"
+
+msgid "Zona muerta del stick"
+msgstr "Stick dead zone"
+
+msgid "activado"
+msgstr "on"
+
+msgid "desactivado"
+msgstr "off"
+
+msgid "pantalla"
+msgstr "screen"
+
+msgid "vacía"
+msgstr "empty"
+
+msgid "¡Enhorabuena!"
+msgstr "Congratulations!"
+
+msgid "¡Juego completado! Tienes todos sus logros."
+msgstr "Game completed! You have all its achievements."
+
+msgid "¡Juego dominado! Tienes todos sus logros en hardcore."
+msgstr "Game mastered! You have all its achievements in hardcore."
+
+msgid "¡Logro desbloqueado! (%u puntos)"
+msgstr "Achievement unlocked! (%u points)"
+
+msgid "¿No tienes cuenta? Es gratis:"
+msgstr "No account? It is free:"
+
+msgid "Órgano de barras"
+msgstr "Drawbar organ"
+
+msgid "Órgano de iglesia"
+msgstr "Church organ"
+
+msgid "Órgano de percusión"
+msgstr "Percussive organ"
+
+msgid "Órgano de rock"
+msgstr "Rock organ"

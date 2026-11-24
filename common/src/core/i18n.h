@@ -9,7 +9,7 @@ namespace plum {
 // The texts people read are written in Spanish in the code; tr() gives them in the
 // language chosen with setLanguage(), or as they are if it has no translation for them.
 // The translations live in src/frontend/lang/<code>.po, one entry per Spanish text, and
-// tools/i18n.py keeps those files in step with the code (see src/frontend/lang/README.md).
+// tools/i18n.py keeps those files in step with the code (see common/src/frontend/lang/README.md).
 //
 // A label's "##id" part is kept as it is and only the text before it is translated.
 // The pointer stays valid for as long as the program runs.
