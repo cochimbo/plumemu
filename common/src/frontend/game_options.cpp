@@ -1,14 +1,15 @@
-#include "game_options.h"
+#include "frontend/game_options.h"
 
 #include <algorithm>
 #include <cctype>
 #include <sstream>
 
+#include "core/app_info.h"
 #include "core/i18n.h"
 #include "core/ini_names.h"
 #include "render/profile3d.h"
 
-namespace plumsg {
+namespace PLUM_APP_NAMESPACE {
 
 namespace {
 
@@ -35,8 +36,12 @@ std::string optionFor(const std::string& name) {
 
 }  // namespace
 
-const std::vector<GameOption>& gameOptions() {
-    static const std::vector<GameOption> options = {
+namespace {
+
+// The options in the order the window lists them: the program's own sound and console ones
+// go after the volume.
+std::vector<GameOption> makeGameOptions() {
+    std::vector<GameOption> options = {
         {"view", N_("Vista"), N_("Vídeo"), [](const Settings& f, Settings& t) { t.view = f.view; }},
         {"scale", N_("Escalado"), N_("Vídeo"), [](const Settings& f, Settings& t) { t.render.scale = f.render.scale; }},
         {"smooth", N_("Suavizado"), N_("Vídeo"), [](const Settings& f, Settings& t) { t.render.smooth = f.render.smooth; }},
@@ -56,22 +61,23 @@ const std::vector<GameOption>& gameOptions() {
         {"profile_3d", N_("Todos los ajustes del 3D"), "3D", [](const Settings& f, Settings& t) { copy3D(f.render, t.render); }},
         {"volume", N_("Volumen"), N_("Sonido"), [](const Settings& f, Settings& t) { t.volume = f.volume; }},
         {"mute", N_("Silencio"), N_("Sonido"), [](const Settings& f, Settings& t) { t.mute = f.mute; }},
-        {"mode", N_("Sintetizador"), N_("Sonido"), [](const Settings& f, Settings& t) { t.roland = f.roland; }},
-        {"soundfont", N_("SoundFont"), N_("Sonido"), [](const Settings& f, Settings& t) { t.soundfont = f.soundfont; }},
-        {"chip_mix", N_("Sonido original mezclado"), N_("Sonido"), [](const Settings& f, Settings& t) { t.chipMix = f.chipMix; }},
-        {"reverb", N_("Reverb"), N_("Sonido"), [](const Settings& f, Settings& t) { t.reverb = f.reverb; }},
-        {"chorus", N_("Chorus"), N_("Sonido"), [](const Settings& f, Settings& t) { t.chorus = f.chorus; }},
-        {"effects", N_("Efectos de sonido originales"), N_("Sonido"),
-         [](const Settings& f, Settings& t) { t.effectsOriginal = f.effectsOriginal; }},
-        {"region", N_("Región"), N_("Consola"), [](const Settings& f, Settings& t) { t.region = f.region; }},
-        {"pads", N_("Tipo de mando"), N_("Consola"), [](const Settings& f, Settings& t) { t.padType = f.padType; }},
-        {"overclock", N_("Overclock"), N_("Consola"), [](const Settings& f, Settings& t) { t.overclock = f.overclock; }},
+    };
+    for (std::vector<GameOption> more : {soundGameOptions(), consoleGameOptions()})
+        options.insert(options.end(), more.begin(), more.end());
+    options.insert(options.end(), {
         {"rewind_seconds", N_("Segundos de rebobinado"), N_("Velocidad"),
          [](const Settings& f, Settings& t) { t.rewindSeconds = f.rewindSeconds; }},
         {"fast_forward", N_("Avance rápido"), N_("Velocidad"), [](const Settings& f, Settings& t) { t.fastForward = f.fastForward; }},
         {"slow_motion", N_("Cámara lenta"), N_("Velocidad"), [](const Settings& f, Settings& t) { t.slowMotion = f.slowMotion; }},
         {"run_ahead", N_("Run-ahead (menos latencia)"), N_("Velocidad"), [](const Settings& f, Settings& t) { t.runAhead = f.runAhead; }},
-    };
+    });
+    return options;
+}
+
+}  // namespace
+
+const std::vector<GameOption>& gameOptions() {
+    static const std::vector<GameOption> options = makeGameOptions();
     return options;
 }
 
@@ -127,8 +133,8 @@ GameOverrides parseGameOverrides(const std::string& text, const Settings& genera
 std::string formatGameOverrides(const GameOverrides& o, const std::string& game) {
     if (o.own.empty()) return {};
     std::ostringstream out;
-    out << "# plumsg options of " << game << ". While this game is loaded, these settings\n"
-        << "# replace those in plumsg.ini.\n";
+    out << "# " << appInfo().name << " options of " << game << ". While this game is loaded, these settings\n"
+        << "# replace those in " << appInfo().name << ".ini.\n";
     if (o.has("profile_3d")) {
         out << "\n[profile_3d]\n";
         write3D(out, o.values.render);
@@ -137,7 +143,7 @@ std::string formatGameOverrides(const GameOverrides& o, const std::string& game)
         out << "\n";
         o.controls.writeButtons(out);
     }
-    // The rest as plumsg.ini writes them, keeping only this game's keys and their sections.
+    // The rest as the program's .ini writes them, keeping only this game's keys and their sections.
     std::ostringstream all;
     o.values.write(all);
     std::istringstream in(all.str());
@@ -162,4 +168,4 @@ std::string formatGameOverrides(const GameOverrides& o, const std::string& game)
     return out.str();
 }
 
-}  // namespace plumsg
+}  // namespace PLUM_APP_NAMESPACE

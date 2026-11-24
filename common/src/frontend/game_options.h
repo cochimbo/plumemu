@@ -5,14 +5,14 @@
 #include <vector>
 
 #include "frontend/input.h"
-#include "settings.h"
+#include "frontend/settings.h"
 
-namespace plumsg {
+namespace PLUM_APP_NAMESPACE {
 
 // Options a game can keep a value of its own for, which takes the place of the general
 // one while that game is loaded. Each game's own values live in a small .ini of that game
 // in the profiles folder: the 3D options in [profile_3d] (the 3D profiles of before) and
-// the rest in the same sections and with the same keys as in plumsg.ini.
+// the rest in the same sections and with the same keys as in the program's .ini.
 struct GameOption {
     const char* key;    // the key in the .ini; "profile_3d" stands for every 3D option, "pads" for both pads
     const char* label;  // for the Opciones de este juego window
@@ -20,10 +20,14 @@ struct GameOption {
     void (*copy)(const Settings& from, Settings& to);
 };
 const std::vector<GameOption>& gameOptions();
+// What each program adds to them (in its settings.cpp): its sound's options, after the
+// volume, and its console's (region, pads, overclock).
+std::vector<GameOption> soundGameOptions();
+std::vector<GameOption> consoleGameOptions();
 const GameOption* findGameOption(const std::string& key);
 
 // The key in GameOverrides::own for a game's own console buttons (keyboard and pads),
-// kept in its file under [teclado], [teclado2] and [mando] as in plumsg.ini.
+// kept in its file under [teclado], [teclado2] and [mando] as in the program's .ini.
 constexpr const char* kGameControls = "controls";
 
 struct GameOverrides {
@@ -44,4 +48,4 @@ GameOverrides parseGameOverrides(const std::string& text, const Settings& genera
 // The file for `o`, or an empty string when the game has nothing of its own.
 std::string formatGameOverrides(const GameOverrides& o, const std::string& game);
 
-}  // namespace plumsg
+}  // namespace PLUM_APP_NAMESPACE

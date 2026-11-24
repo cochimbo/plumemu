@@ -1290,11 +1290,11 @@ msgstr "Waiting for notes... (drums are not written: they have no notes)"
 msgid "Esta canción (%s)"
 msgstr "This song (%s)"
 
-msgid "Esta compilación de plumsg no trae la cuenta de desarrollador de ScreenScraper, así que no puede descargar nada. Los instaladores publicados sí la traen."
-msgstr "This build of plumsg does not include the ScreenScraper developer account, so it cannot download anything. The published installers do include it."
+msgid "Esta compilación de %s no trae la cuenta de desarrollador de ScreenScraper, así que no puede descargar nada. Los instaladores publicados sí la traen."
+msgstr "This build of %s does not include the ScreenScraper developer account, so it cannot download anything. The published installers do include it."
 
-msgid "Esta compilación de plumsg no trae la cuenta de desarrollador de ScreenScraper."
-msgstr "This build of plumsg does not include the ScreenScraper developer account."
+msgid "Esta compilación de %s no trae la cuenta de desarrollador de ScreenScraper."
+msgstr "This build of %s does not include the ScreenScraper developer account."
 
 msgid "Esta consola todavía no tiene trucos."
 msgstr "This console has no cheats yet."
@@ -1401,8 +1401,8 @@ msgstr "The Japanese Mega CD BIOS is missing: choose it in Console > Mega CD BIO
 msgid "Falta la función %s"
 msgstr "The function %s is missing"
 
-msgid "Falta pdfium.dll junto a plumsg: sin ella no se pueden leer los manuales."
-msgstr "pdfium.dll is missing next to plumsg: without it manuals cannot be read."
+msgid "Falta pdfium.dll junto a %s: sin ella no se pueden leer los manuales."
+msgstr "pdfium.dll is missing next to %s: without it manuals cannot be read."
 
 msgid "Favoritos"
 msgstr "Favourites"
@@ -1796,8 +1796,8 @@ msgstr ""
 "netplay, achievements and states are not affected. If a game still flickers, it does\n"
 "that on its own."
 
-msgid "La contraseña no se guarda: plumsg guarda la sesión que te da el servidor."
-msgstr "The password is not saved: plumsg keeps the session the server gives you."
+msgid "La contraseña no se guarda: %s guarda la sesión que te da el servidor."
+msgstr "The password is not saved: %s keeps the session the server gives you."
 
 msgid ""
 "La cámara se balancea unos grados siguiendo la acción,\n"
@@ -2904,8 +2904,8 @@ msgstr "Shanai"
 msgid "Si"
 msgstr "B"
 
-msgid "Si ya tienes cuenta, escribe aquí tu usuario y tu contraseña de screenscraper.fr: con ella se pueden hacer más peticiones al día, y ScreenScraper sigue respondiendo aunque esté lleno. Se guarda en plumsg.ini."
-msgstr "If you already have an account, type your screenscraper.fr user name and password here: it allows more requests a day, and ScreenScraper keeps answering even when it is full. It is kept in plumsg.ini."
+msgid "Si ya tienes cuenta, escribe aquí tu usuario y tu contraseña de screenscraper.fr: con ella se pueden hacer más peticiones al día, y ScreenScraper sigue respondiendo aunque esté lleno. Se guarda en %s.ini."
+msgstr "If you already have an account, type your screenscraper.fr user name and password here: it allows more requests a day, and ScreenScraper keeps answering even when it is full. It is kept in %s.ini."
 
 msgid "Silbato corto"
 msgstr "Short whistle"

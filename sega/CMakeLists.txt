@@ -237,7 +237,8 @@ add_executable(plumsg WIN32
   src/frontend/buttons.cpp
   ${PLUM_COMMON_DIR}/src/frontend/audio.cpp
   src/frontend/settings.cpp
-  src/frontend/game_options.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/settings_ini.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/game_options.cpp
   src/frontend/instrument_editor.cpp
   src/frontend/score_view.cpp
   ${PLUM_COMMON_DIR}/src/frontend/file_dialog.cpp
@@ -249,16 +250,16 @@ add_executable(plumsg WIN32
   src/frontend/music_batch.cpp
   ${PLUM_COMMON_DIR}/src/frontend/texture_cache.cpp
   ${PLUM_COMMON_DIR}/src/frontend/library_names.cpp
-  src/frontend/game_info.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/game_info.cpp
   ${PLUM_COMMON_DIR}/src/frontend/game_info_data.cpp
   ${PLUM_COMMON_DIR}/src/frontend/http.cpp
   src/frontend/screenscraper.cpp
   ${PLUM_COMMON_DIR}/src/frontend/screenscraper_data.cpp
-  src/frontend/ui_media.cpp
-  src/frontend/manual.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/ui_media.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/manual.cpp
   ${PLUM_COMMON_DIR}/src/frontend/cheat_database.cpp
   ${PLUM_COMMON_DIR}/src/frontend/languages.cpp
-  src/frontend/achievements_ui.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/achievements_ui.cpp
   ${PLUM_COMMON_DIR}/src/render/gl.cpp
   ${PLUM_COMMON_DIR}/src/render/gl_renderers.cpp
   ${PLUM_COMMON_DIR}/src/render/box_shelf.cpp
@@ -391,8 +392,8 @@ if(PLUMSG_BUILD_TESTS)
 
   # The frontend's files (a game's own options and controls); needs SDL2 for the key names.
   if(PLUMSG_BUILD_FRONTEND)
-    add_executable(plumsg_frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp ${PLUM_COMMON_DIR}/src/frontend/input.cpp src/frontend/buttons.cpp
-                   src/frontend/settings.cpp ${PLUM_COMMON_DIR}/src/frontend/crash.cpp ${PLUM_COMMON_DIR}/src/frontend/handheld.cpp)
+    add_executable(plumsg_frontend_tests tests/frontend_tests.cpp ${PLUM_COMMON_DIR}/src/frontend/game_options.cpp ${PLUM_COMMON_DIR}/src/frontend/input.cpp src/frontend/buttons.cpp
+                   src/frontend/settings.cpp ${PLUM_COMMON_DIR}/src/frontend/settings_ini.cpp ${PLUM_COMMON_DIR}/src/frontend/crash.cpp ${PLUM_COMMON_DIR}/src/frontend/handheld.cpp)
     set_target_properties(plumsg_frontend_tests PROPERTIES OUTPUT_NAME frontend_tests)
     target_link_libraries(plumsg_frontend_tests PRIVATE plumsg_core ${PLUMSG_SDL2_TARGET})
     add_test(NAME sega_frontend_tests COMMAND plumsg_frontend_tests)

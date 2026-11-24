@@ -1,4 +1,4 @@
-#include "manual.h"
+#include "frontend/manual.h"
 
 #include <SDL.h>
 
@@ -8,11 +8,12 @@
 #include <fstream>
 #include <iterator>
 
+#include "core/app_info.h"
 #include "core/i18n.h"
 #include "render/gl.h"
-#include "library.h"
+#include "frontend/library.h"
 
-namespace plumsg {
+namespace PLUM_APP_NAMESPACE {
 
 namespace fs = std::filesystem;
 
@@ -45,7 +46,7 @@ struct Pdfium {
     bool ok = false;
 };
 
-// Loaded once, the first time it is asked for, and kept until plumsg ends.
+// Loaded once, the first time it is asked for, and kept until the program ends.
 Pdfium& pdfium() {
     static Pdfium p = [] {
         Pdfium f;
@@ -58,7 +59,7 @@ Pdfium& pdfium() {
 #endif
         void* lib = nullptr;
         for (const char* name : names) {
-            // Next to plumsg first, then wherever the system looks.
+            // Next to the program first, then wherever the system looks.
             if (char* base = SDL_GetBasePath()) {
                 lib = SDL_LoadObject((std::string(base) + name).c_str());
                 SDL_free(base);
@@ -212,7 +213,7 @@ void ManualReader::work() {
             if (path.empty()) continue;
             if (!pdf) pdf = &pdfium();
             if (!pdf->ok) {
-                d.error = tr("Falta pdfium.dll junto a plumsg: sin ella no se pueden leer los manuales.");
+                d.error = trf("Falta pdfium.dll junto a %s: sin ella no se pueden leer los manuales.", appInfo().name);
             } else {
                 std::ifstream in(fs::u8path(path), std::ios::binary);
                 data.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
@@ -258,4 +259,4 @@ void ManualReader::work() {
     if (doc) pdf->CloseDocument(doc);
 }
 
-}  // namespace plumsg
+}  // namespace PLUM_APP_NAMESPACE
