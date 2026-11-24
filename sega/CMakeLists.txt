@@ -188,7 +188,8 @@ target_link_libraries(plumsg_achievements PUBLIC plumsg_core plumsg_rcheevos)
 target_include_directories(plumsg_achievements PRIVATE ${rcheevos_SOURCE_DIR}/src/rhash)
 
 # The emulator without a window, for tests, CI and reproducing bugs (see --help).
-add_executable(plumsg-headless src/headless/main.cpp ${PLUM_COMMON_DIR}/src/headless/headless_tools.cpp)
+add_executable(plumsg-headless src/headless/main.cpp ${PLUM_COMMON_DIR}/src/headless/headless_tools.cpp
+               ${PLUM_COMMON_DIR}/src/headless/headless_run.cpp)
 target_include_directories(plumsg-headless PRIVATE tests)
 target_link_libraries(plumsg-headless PRIVATE plumsg_core plumsg_net)
 

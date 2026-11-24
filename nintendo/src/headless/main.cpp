@@ -30,6 +30,7 @@
 #include "miniz.h"
 #include "net/udp.h"
 #include "core/netplay.h"
+#include "headless/headless_run.h"
 #include "headless/headless_tools.h"
 #include "core/recording.h"
 #include "system.h"
@@ -155,161 +156,116 @@ static void printInstruments(SynthMusic& synth) {
     }
 }
 
+
+namespace {
+
+// What only plumnin knows about the game being run: its console, the synthesizer and the
+// music it records.
+class NintendoGame : public RunGame {
+public:
+    std::unique_ptr<Console> console_;
+    SynthMusic synth;
+    VgmWriter vgm;
+    std::string vgmOut, spcOut, synthFont;
+
+    ConsoleBase& console() override { return *console_; }
+    const std::vector<int16_t>& samples() override { return console_->audio().samples(); }
+    bool writeRam(const std::string& path) override {
+        std::vector<uint8_t> ram;
+        for (const MemoryRegion& m : console_->memoryMap()) ram.insert(ram.end(), m.data, m.data + m.size);
+        return writeFile(path, ram.data(), ram.size());
+    }
+    bool writeOutputs() override {
+        bool ok = true;
+        if (!vgmOut.empty()) {
+            console_->recordMusic(nullptr);
+            const std::vector<uint8_t> file = vgm.finish({});
+            if (!writeFile(vgmOut, file.data(), file.size())) ok = false;
+        }
+        if (!spcOut.empty()) {
+            const std::vector<uint8_t> file = console_->musicSnapshot("", 0);
+            if (file.empty()) std::fprintf(stderr, "--spc: this console's music cannot be saved as an SPC\n");
+            if (file.empty() || !writeFile(spcOut, file.data(), file.size())) ok = false;
+        }
+        return ok;
+    }
+    std::string title() override { return console_->title(); }
+    std::string system() override { return systemKey(console_->system()); }
+    bool pal() override { return console_->effectiveRegion() == Region::EuropePal; }
+    // With --synth: the instruments it heard and what each sounds as.
+    void printDetails() override {
+        if (!synthFont.empty()) printInstruments(synth);
+    }
+};
+
+}  // namespace
+
 int main(int argc, char** argv) {
-    std::string game, png, layers, wav, gifOut, aviOut, stateIn, stateOut, ramOut, hashLog, json, expectLog;
-    std::string outDir = ".";
-    std::vector<std::string> cheats, scripts, lines;
+    RunOptions o;
     ConsoleSystem testSystem = ConsoleSystem::Nes;
-    long frames = 600, overclock = 100, pngEvery = 0, netPort = 0, inputDelay = 2, netLag = 0, netLoss = 0, synthChip = 0;
-    std::string synthFont, vgmOut, ripDir, spcOut, effectsFile, mp3Out;
-    bool netHost = false;
-    std::string netJoin;
+    long synthChip = 0;
+    std::string synthFont, ripDir, spcOut, effectsFile;
     int wideLeft = 0, wideRight = 0;
-    bool noPad2 = false, noSpriteLimit = false, quiet = false, haveExpectHash = false, haveExpectAudio = false;
-    uint32_t expectHash = 0, expectAudio = 0;
     Region region = Region::Auto;
 
     if (argc < 2) {
         std::fputs(kUsage, stderr);
         return 2;
     }
-    for (int i = 1; i < argc; ++i) {
-        const std::string a = argv[i];
-        bool missing = false;
-        auto next = [&]() -> std::string {
-            if (i + 1 < argc) return argv[++i];
-            missing = true;
-            return "";
-        };
-        auto number = [&](long* out) {
-            const std::string s = next();
-            char* end = nullptr;
-            *out = std::strtol(s.c_str(), &end, 10);
-            if (s.empty() || *end != 0 || *out < 0) missing = true;
-        };
-        auto hash = [&](uint32_t* out) {
-            const std::string s = next();
-            char* end = nullptr;
-            *out = static_cast<uint32_t>(std::strtoul(s.c_str(), &end, 16));
-            if (s.empty() || *end != 0) missing = true;
-        };
+    for (Args args(argc, argv); args.next();) {
+        const std::string& a = args.arg();
         if (a == "--help" || a == "-h") {
             std::fputs(kUsage, stdout);
             return 0;
-        } else if (a == "--frames") number(&frames);
-        else if (a == "--region") {
-            const std::string r = next();
+        } else if (o.parse(args)) {
+        } else if (a == "--region") {
+            const std::string r = args.value();
             if (r == "jp" || r == "japan") region = Region::JapanNtsc;
             else if (r == "us" || r == "usa") region = Region::UsaNtsc;
             else if (r == "eu" || r == "europe" || r == "pal") region = Region::EuropePal;
-            else missing = true;
+            else args.setMissing();
         } else if (a == "--pal") region = Region::EuropePal;
         else if (a == "--system") {
-            const std::string v = next();
+            const std::string v = args.value();
             if (v == "gb") testSystem = ConsoleSystem::GameBoy;
             else if (v == "gbc") testSystem = ConsoleSystem::GameBoyColor;
             else if (v == "nes") testSystem = ConsoleSystem::Nes;
             else if (v == "snes") testSystem = ConsoleSystem::Snes;
-            else missing = true;
+            else args.setMissing();
         }
-        else if (a == "--no-pad2") noPad2 = true;
-        else if (a == "--no-sprite-limit") noSpriteLimit = true;
         else if (a == "--widescreen") {
-            const std::string v = next();
+            const std::string v = args.value();
             int w = 0, h = 0;
             if (std::sscanf(v.c_str(), "%d:%d", &w, &h) == 2 && w > 0 && h > 0) wideLeft = wideRight = wideColumnsFor(w, h);
-            else if (std::sscanf(v.c_str(), "%d,%d", &wideLeft, &wideRight) != 2 || wideLeft < 0 || wideRight < 0) missing = true;
+            else if (std::sscanf(v.c_str(), "%d,%d", &wideLeft, &wideRight) != 2 || wideLeft < 0 || wideRight < 0) args.setMissing();
         }
-        else if (a == "--overclock") number(&overclock);
-        else if (a == "--load-state") stateIn = next();
-        else if (a == "--firmware") Console::setFirmwareFolders({next()});
-        else if (a == "--cheat") cheats.push_back(next());
-        else if (a == "--input") scripts.push_back(next());
-        else if (a == "--do") lines.push_back(next());
-        else if (a == "--png") png = next();
-        else if (a == "--layers") layers = next();
-        else if (a == "--png-every") number(&pngEvery);
-        else if (a == "--out-dir") outDir = next();
-        else if (a == "--wav") wav = next();
-        else if (a == "--synth") synthFont = next();
-        else if (a == "--synth-chip") number(&synthChip);
-        else if (a == "--effects") effectsFile = next();
-        else if (a == "--vgm") vgmOut = next();
-        else if (a == "--rip-songs") ripDir = next();
-        else if (a == "--mp3") mp3Out = next();
-        else if (a == "--spc") spcOut = next();
-        else if (a == "--gif") gifOut = next();
-        else if (a == "--avi") aviOut = next();
-        else if (a == "--save-state") stateOut = next();
-        else if (a == "--dump-ram") ramOut = next();
-        else if (a == "--hash-log") hashLog = next();
-        else if (a == "--json") json = next();
-        else if (a == "--quiet") quiet = true;
-        else if (a == "--expect-hash") hash(&expectHash), haveExpectHash = true;
-        else if (a == "--expect-audio") hash(&expectAudio), haveExpectAudio = true;
-        else if (a == "--expect-log") expectLog = next();
-        else if (a == "--netplay-host") {
-            number(&netPort);
-            if (netPort == 0 || netPort > 65535) missing = true;
-            netHost = true;
-        } else if (a == "--netplay-join") netJoin = next();
-        else if (a == "--net-lag") number(&netLag);
-        else if (a == "--net-loss") {
-            number(&netLoss);
-            if (netLoss > 90) missing = true;
-        } else if (a == "--input-delay") {
-            number(&inputDelay);
-            if (inputDelay > 10) missing = true;
-        }
+        else if (a == "--firmware") Console::setFirmwareFolders({args.value()});
+        else if (a == "--synth") synthFont = args.value();
+        else if (a == "--synth-chip") args.number(&synthChip);
+        else if (a == "--effects") effectsFile = args.value();
+        else if (a == "--rip-songs") ripDir = args.value();
+        else if (a == "--spc") spcOut = args.value();
         else if (a.size() > 2 && a.compare(0, 2, "--") == 0 && a != "--test-rom") {
             std::fprintf(stderr, "unknown option %s (see --help)\n", a.c_str());
             return 2;
-        } else if (!game.empty()) {
-            std::fprintf(stderr, "only one game at a time (%s and %s)\n", game.c_str(), a.c_str());
+        } else if (!o.game.empty()) {
+            std::fprintf(stderr, "only one game at a time (%s and %s)\n", o.game.c_str(), a.c_str());
             return 2;
-        } else game = a;
-        if (missing) {
+        } else o.game = a;
+        if (args.missing()) {
             std::fprintf(stderr, "%s needs a valid value (see --help)\n", a.c_str());
             return 2;
         }
     }
+    const std::string &game = o.game, &wav = o.wav, &mp3Out = o.mp3Out;
+    const long frames = o.frames;
+    const bool quiet = o.quiet;
     if (game.empty()) {
         std::fputs(kUsage, stderr);
         return 2;
     }
-    const bool netplay = netHost || !netJoin.empty();
-    if (netHost && !netJoin.empty()) {
-        std::fprintf(stderr, "--netplay-host and --netplay-join: one side or the other\n");
-        return 2;
-    }
-
-    // The script.
-    std::vector<Command> commands;
-    for (const std::string& path : scripts) {
-        std::ifstream in(path);
-        if (!in) {
-            std::fprintf(stderr, "cannot read %s\n", path.c_str());
-            return 1;
-        }
-        int n = 0;
-        for (std::string line; std::getline(in, line);)
-            if (!parseLine(line, ++n, path, commands)) return 2;
-    }
-    for (size_t i = 0; i < lines.size(); ++i)
-        if (!parseLine(lines[i], static_cast<int>(i + 1), "--do", commands)) return 2;
-
-    if (netplay)
-        for (const Command& c : commands)
-            if (c.kind != Command::Buttons) {
-                std::fprintf(stderr, "script line %d: only buttons can be scripted in netplay\n", c.line);
-                return 2;
-            }
-
-    std::vector<LogLine> expected;
-    if (!expectLog.empty() && !readLog(expectLog, expected)) {
-        std::fprintf(stderr, "cannot read %s\n", expectLog.c_str());
-        return 1;
-    }
+    if (const int code = o.loadInput(); code >= 0) return code;
+    const bool netplay = o.netplay();
 
     // A VGM instead of a game: it plays for as long as --frames at 60 a second, to --wav.
     auto endsWith = [](const std::string& s, const char* end) {
@@ -408,7 +364,11 @@ int main(int argc, char** argv) {
     }
 
     // The console.
-    std::unique_ptr<Console> console;
+    NintendoGame run;
+    run.vgmOut = o.vgmOut;
+    run.spcOut = spcOut;
+    run.synthFont = synthFont;
+    std::unique_ptr<Console>& console = run.console_;
     if (game == "--test-rom") {
         console = std::make_unique<TestConsole>(testSystem);
         console->loadRomData({0});
@@ -423,13 +383,13 @@ int main(int argc, char** argv) {
     }
     Console& md = *console;
     md.setRegion(region);
-    if (noPad2 && !netplay) md.setPadType(1, PadType::None);  // the guest plays on pad 2
-    md.setUnlimitedSprites(noSpriteLimit);
+    if (o.noPad2 && !netplay) md.setPadType(1, PadType::None);  // the guest plays on pad 2
+    md.setUnlimitedSprites(o.noSpriteLimit);
     md.setWidescreen(wideLeft, wideRight);
-    md.setOverclock(static_cast<int>(overclock));
-    if (!cheats.empty()) {
+    md.setOverclock(static_cast<int>(o.overclock));
+    if (!o.cheats.empty()) {
         std::vector<CheatPatch> patches;
-        for (const std::string& code : cheats) {
+        for (const std::string& code : o.cheats) {
             std::vector<CheatPatch> p;
             std::string error;
             if (!decodeCheatCodes(code, md.cheatDecoder(), &p, &error)) {
@@ -440,53 +400,10 @@ int main(int argc, char** argv) {
         }
         md.setCheats(patches);
     }
-    auto loadState = [&](const std::string& path) {
-        std::vector<uint8_t> data;
-        std::string error;
-        if (!readFile(path, data)) error = "cannot read it";
-        else if (md.loadState(data, &error)) return true;
-        std::fprintf(stderr, "cannot load state %s: %s\n", path.c_str(), error.c_str());
-        return false;
-    };
-    auto saveState = [&](const std::string& path) {
-        std::vector<uint8_t> data;
-        if (md.saveState(data) && writeFile(path, data.data(), data.size())) return true;
-        std::fprintf(stderr, "cannot write state %s\n", path.c_str());
-        return false;
-    };
-    auto dumpRam = [&](const std::string& path) {
-        std::vector<uint8_t> ram;
-        for (const MemoryRegion& m : md.memoryMap()) ram.insert(ram.end(), m.data, m.data + m.size);
-        if (writeFile(path, ram.data(), ram.size())) return true;
-        std::fprintf(stderr, "cannot write %s\n", path.c_str());
-        return false;
-    };
-    auto screenshot = [&](std::string path, long frame) {
-        if (path.empty()) {
-            char name[32];
-            std::snprintf(name, sizeof name, "frame_%06ld.png", frame);
-            path = outDir + "/" + name;
-        }
-        const VideoFrame& f = md.frame();
-        if (writePng(path, f.rgba.data(), f.width, f.height, VideoFrame::kMaxWidth)) return true;
-        std::fprintf(stderr, "cannot write %s\n", path.c_str());
-        return false;
-    };
-    if (!stateIn.empty() && !loadState(stateIn)) return 1;
+    if (!o.stateIn.empty() && !loadStateFile(md, o.stateIn)) return 1;
 
-    std::FILE* log = nullptr;
-    if (!hashLog.empty()) {
-        log = std::fopen(hashLog.c_str(), "w");
-        if (!log) {
-            std::fprintf(stderr, "cannot write %s\n", hashLog.c_str());
-            return 1;
-        }
-        std::fprintf(log, "# frame picture sound\n");
-    }
-
-    constexpr int kRate = 44100;
-    md.setSampleRate(kRate);
-    SynthMusic synth;
+    md.setSampleRate(44100);
+    SynthMusic& synth = run.synth;
     if (!synthFont.empty()) {
         std::vector<uint8_t> data;
         if (!readFile(synthFont, data) || !synth.loadSoundfont(data)) {
@@ -513,239 +430,9 @@ int main(int argc, char** argv) {
         }
     }
     md.audio().clearSamples();
-    VgmWriter vgm;
-    if (!vgmOut.empty() && !md.recordMusic(&vgm)) {
+    if (!o.vgmOut.empty() && !md.recordMusic(&run.vgm)) {
         std::fprintf(stderr, "--vgm: this console's music cannot be recorded\n");
         return 2;
     }
-    std::vector<int16_t> sound;
-    uint32_t audioHash = 2166136261u;
-    long divergence = -1;
-    std::string divergenceWhat;
-    size_t nextExpected = 0;
-    long ran = 0;
-    bool ioError = false;
-    // --gif and --avi: started on the first frame, which gives them their size.
-    GameRecording gifRecording, aviRecording;
-    auto recordVideo = [&](GameRecording& r, const std::string& path, GameRecording::Format format) {
-        if (path.empty()) return;
-        const VideoFrame& f = md.frame();
-        std::string error;
-        // As wide and as tall as the first frame, without interlace.
-        const int height = f.interlaced ? f.height / 2 : f.height;
-        if (!r.active() && !r.start(path, format, f.width, height, md.refreshRate(), 44100, &error)) {
-            std::fprintf(stderr, "%s\n", error.c_str());
-            ioError = true;
-            return;
-        }
-        r.addAudio(md.audio().samples().data(), md.audio().samples().size());
-        r.addFrame(f.rgba.data(), f.width, f.height, VideoFrame::kMaxWidth);
-    };
-
-    // What happens after each frame is final: the log, the expected log, the sound.
-    auto record = [&](long frame, uint32_t picture, const std::vector<int16_t>& samples) {
-        const uint32_t frameSound = soundHash(2166136261u, samples);
-        audioHash = soundHash(audioHash, samples);
-        if (!wav.empty()) sound.insert(sound.end(), samples.begin(), samples.end());
-        if (log) std::fprintf(log, "%ld %08x %08x\n", frame, picture, frameSound);
-        while (nextExpected < expected.size() && expected[nextExpected].frame < frame) ++nextExpected;
-        if (divergence < 0 && nextExpected < expected.size() && expected[nextExpected].frame == frame) {
-            const LogLine& e = expected[nextExpected];
-            if (e.picture != picture) {
-                divergence = frame;
-                divergenceWhat = "picture " + hex8(picture) + ", expected " + hex8(e.picture);
-            } else if (e.sound != frameSound) {
-                divergence = frame;
-                divergenceWhat = "sound " + hex8(frameSound) + ", expected " + hex8(e.sound);
-            }
-        }
-    };
-
-    const auto start = std::chrono::steady_clock::now();
-    std::string netError;
-    long rollbacks = 0;
-    int ping = 0;
-    if (netplay) {
-        UdpTransport udp;
-        bool ok = udp.open(netHost ? static_cast<int>(netPort) : 0) && (netHost || udp.setPeer(netJoin, 7845));
-        if (!ok) netError = udp.error();
-        NetplaySession::Config config;
-        config.inputDelay = static_cast<int>(inputDelay);
-        LaggyTransport link(udp, netLag, netLoss);
-        NetplaySession session(link, netHost ? NetplaySession::Role::Host : NetplaySession::Role::Guest, config);
-        // A frame can run several times (guessed pads, then the right ones): keep the
-        // last run of each, which is final once both sides have its pads.
-        std::vector<std::vector<int16_t>> frameSamples(static_cast<size_t>(frames));
-        std::vector<uint32_t> framePictures(static_cast<size_t>(frames));
-        session.onFrame = [&](uint32_t f, ConsoleBase&) {
-            if (f >= static_cast<uint32_t>(frames)) return;
-            frameSamples[f] = md.audio().samples();
-            framePictures[f] = frameHash(md.frame());
-        };
-        const int port = netHost ? 0 : 1;
-        const auto clockStart = std::chrono::steady_clock::now();
-        auto nowMs = [&] {
-            return static_cast<uint32_t>(
-                std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - clockStart).count());
-        };
-        uint32_t doneAt = 0;
-        while (ok) {
-            const uint32_t now = nowMs();
-            link.setNow(now);
-            session.poll(md, now);
-            if (session.phase() == NetplaySession::Phase::Ended) {
-                netError = session.endReason();
-                break;
-            }
-            if (session.phase() == NetplaySession::Phase::Waiting && now > 60000) {
-                netError = "nobody joined within a minute";
-                break;
-            }
-            bool advanced = false;
-            if (session.frame() < static_cast<uint32_t>(frames)) {
-                const long n = static_cast<long>(session.frame()) + inputDelay;  // the frame this press lands on
-                PadState pads[2];
-                for (const Command& c : commands)
-                    if (n >= c.first && n <= c.last) orPad(pads[0], c.pad[0]), orPad(pads[1], c.pad[1]);
-                advanced = session.advance(md, pads[port]);
-                rollbacks += session.lastRollback();
-                md.audio().clearSamples();
-            } else {
-                session.catchUp(md);
-                if (session.confirmedFrames() >= static_cast<uint32_t>(frames)) {
-                    // Linger a moment so the other side gets our last pads too.
-                    if (doneAt == 0) doneAt = now;
-                    if (now - doneAt > 1000) break;
-                }
-            }
-            if (!advanced) std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-        ping = session.pingMs();
-        if (session.desyncFrame() >= 0 && netError.empty())
-            netError = "the two consoles went different on frame " + std::to_string(session.desyncFrame());
-        session.end();
-        if (netError.empty() || session.confirmedFrames() >= static_cast<uint32_t>(frames)) {
-            netError.clear();
-            // The log and the checks, from each frame's final run. md shows the last one.
-            for (long f = 0; f < frames; ++f) {
-                record(f, framePictures[f], frameSamples[f]);
-                ++ran;
-            }
-        }
-    }
-    for (long frame = 0; frame < frames && !netplay; ++frame) {
-        bool quit = false;
-        PadState pads[2];
-        for (const Command& c : commands) {
-            if (frame < c.first || frame > c.last) continue;
-            switch (c.kind) {
-                case Command::Buttons: orPad(pads[0], c.pad[0]), orPad(pads[1], c.pad[1]); break;
-                case Command::LoadState:
-                    if (!loadState(c.file)) ioError = true;
-                    break;
-                case Command::Reset: md.reset(); break;
-                case Command::Power: md.powerCycle(); break;
-                default: break;
-            }
-        }
-        md.setPads(pads[0], pads[1]);
-        md.runFrame();
-        ++ran;
-        const uint32_t picture = frameHash(md.frame());
-        record(frame, picture, md.audio().samples());
-        if (!netplay) {
-            recordVideo(gifRecording, gifOut, GameRecording::Format::Gif);
-            recordVideo(aviRecording, aviOut, GameRecording::Format::Avi);
-        }
-        md.audio().clearSamples();
-        if (pngEvery > 0 && frame % pngEvery == 0 && !screenshot("", frame)) ioError = true;
-        for (const Command& c : commands) {
-            if (frame < c.first || frame > c.last) continue;
-            switch (c.kind) {
-                case Command::Screenshot: if (!screenshot(c.file, frame)) ioError = true; break;
-                case Command::SaveState: if (!saveState(c.file)) ioError = true; break;
-                case Command::DumpRam: if (!dumpRam(c.file)) ioError = true; break;
-                case Command::Hash: std::printf("frame %ld hash %08x\n", frame, picture); break;
-                case Command::Quit: quit = true; break;
-                default: break;
-            }
-        }
-        if (quit) break;
-    }
-    if (!netError.empty()) {
-        std::fprintf(stderr, "netplay: %s\n", netError.c_str());
-        return 1;
-    }
-    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
-    if (log) std::fclose(log);
-    if (!expected.empty() && divergence < 0 && static_cast<long>(expected.back().frame) >= ran) {
-        divergence = ran;
-        divergenceWhat = "the run ended before the expected log";
-    }
-
-    const VideoFrame& f = md.frame();
-    const uint32_t lastHash = frameHash(f);
-    if (!png.empty() && !screenshot(png, ran - 1)) ioError = true;
-    if (!layers.empty()) {
-        for (auto [name, layer] : {std::pair<const char*, const uint32_t*>{"_planeB.png", f.planeB.data()},
-                                   {"_planeA.png", f.planeA.data()}, {"_sprites.png", f.sprites.data()}})
-            if (!writePng(layers + name, layer, f.width, f.height, VideoFrame::kMaxWidth)) ioError = true;
-    }
-    if (!wav.empty() && !writeWav(wav, sound, kRate)) ioError = true;
-    if (!vgmOut.empty()) {
-        md.recordMusic(nullptr);
-        const std::vector<uint8_t> file = vgm.finish({});
-        if (!writeFile(vgmOut, file.data(), file.size())) ioError = true;
-    }
-    if (!spcOut.empty()) {
-        const std::vector<uint8_t> file = md.musicSnapshot("", 0);
-        if (file.empty()) std::fprintf(stderr, "--spc: this console's music cannot be saved as an SPC\n");
-        if (file.empty() || !writeFile(spcOut, file.data(), file.size())) ioError = true;
-    }
-    for (GameRecording* r : {&gifRecording, &aviRecording}) {
-        std::string error;
-        if (!r->finish(&error)) {
-            std::fprintf(stderr, "%s\n", error.c_str());
-            ioError = true;
-        }
-    }
-    if (!stateOut.empty() && !saveState(stateOut)) ioError = true;
-    if (!ramOut.empty() && !dumpRam(ramOut)) ioError = true;
-
-    std::vector<std::string> failures;
-    if (haveExpectHash && lastHash != expectHash)
-        failures.push_back("picture hash " + hex8(lastHash) + ", expected " + hex8(expectHash));
-    if (haveExpectAudio && audioHash != expectAudio)
-        failures.push_back("sound hash " + hex8(audioHash) + ", expected " + hex8(expectAudio));
-    if (divergence >= 0) failures.push_back("frame " + std::to_string(divergence) + ": " + divergenceWhat);
-
-    const char* system = systemKey(md.system());
-    const bool pal = md.effectiveRegion() == Region::EuropePal;
-    const double fps = seconds > 0 ? ran / seconds : 0;
-    if (!quiet) {
-        std::printf("title: %s\nsystem: %s  region: %s\nframes: %ld  size: %dx%d  hash: %08x\n",
-                    md.title().c_str(), system, pal ? "pal" : "ntsc", ran, f.width, f.height, lastHash);
-        std::printf("audio hash: %08x\n", audioHash);
-        // With --synth: the instruments it heard and what each sounds as.
-        if (!synthFont.empty()) printInstruments(synth);
-        std::printf("speed: %.0f fps (%.1fx)\n", fps, fps / md.refreshRate());
-        if (netplay) std::printf("netplay: %ld frames run again, ping %d ms\n", rollbacks, ping);
-        for (const std::string& s : failures) std::printf("FAILED: %s\n", s.c_str());
-    }
-    if (!json.empty()) {
-        std::ostringstream j;
-        j << "{\n  \"title\": " << jsonString(md.title()) << ",\n  \"system\": \"" << system
-          << "\",\n  \"pal\": " << (pal ? "true" : "false") << ",\n  \"frames\": " << ran
-          << ",\n  \"width\": " << f.width << ",\n  \"height\": " << f.height << ",\n  \"hash\": \"" << hex8(lastHash)
-          << "\",\n  \"audio_hash\": \"" << hex8(audioHash) << "\"";
-        j << ",\n  \"fps\": " << static_cast<long>(fps) << ",\n  \"divergence\": " << divergence;
-        if (netplay) j << ",\n  \"netplay_rollback_frames\": " << rollbacks << ",\n  \"netplay_ping_ms\": " << ping;
-        j << ",\n  \"failures\": [";
-        for (size_t i = 0; i < failures.size(); ++i) j << (i ? ", " : "") << jsonString(failures[i]);
-        j << "]\n}\n";
-        if (json == "-") std::fputs(j.str().c_str(), stdout);
-        else if (std::ofstream out(json); !(out << j.str())) ioError = true;
-    }
-    if (ioError) return 1;
-    return failures.empty() ? 0 : 3;
+    return plum::headless::run(run, o);
 }
