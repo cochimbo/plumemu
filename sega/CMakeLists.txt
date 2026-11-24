@@ -28,16 +28,7 @@ if(NOT TARGET plum_common)
   add_subdirectory(${PLUM_COMMON_DIR} ${CMAKE_BINARY_DIR}/common)
 endif()
 
-# miniz (vendored, MIT): zip files, savestate compression and PNG screenshots.
-add_library(plumsg_miniz STATIC third_party/miniz/miniz.c)
-set_target_properties(plumsg_miniz PROPERTIES LINKER_LANGUAGE C)
-target_include_directories(plumsg_miniz PUBLIC third_party/miniz)
-target_compile_definitions(plumsg_miniz PUBLIC MINIZ_NO_STDIO MINIZ_NO_TIME MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
-if(MSVC)
-  target_compile_options(plumsg_miniz PRIVATE /W0)
-else()
-  target_compile_options(plumsg_miniz PRIVATE -w)
-endif()
+# miniz (vendored, MIT, in ../third_party/miniz): plum_miniz, from common/.
 
 # minimp3 (CC0) and stb_vorbis (public domain / MIT), vendored: Paprium's music, read
 # from .mp3 and .ogg files.
@@ -75,7 +66,7 @@ endif()
 
 # libchdr (BSD-3-Clause) reads Mega CD discs compressed as .chd. Pinned to a known commit.
 # It brings its own copy of miniz for decompressing; its symbols are renamed so they
-# do not clash with the miniz above.
+# do not clash with plum_miniz.
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(CHDR_WANT_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(libchdr
@@ -212,7 +203,7 @@ add_library(plumsg_core STATIC
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
 target_include_directories(plumsg_core PUBLIC src src/core PRIVATE third_party/tsf ${PLUM_ROOT}/third_party/stb)
-target_link_libraries(plumsg_core PUBLIC plum_common plumsg_miniz Threads::Threads PRIVATE plumsg_ymfm chdr-static plumsg_decoders plumsg_shine)
+target_link_libraries(plumsg_core PUBLIC plum_common plum_miniz Threads::Threads PRIVATE plumsg_ymfm chdr-static plumsg_decoders plumsg_shine)
 # While plumsg's own code is in namespace plumsg, it sees the common code's names (common/src/plum.h).
 target_compile_definitions(plumsg_core PUBLIC PLUM_APP_NAMESPACE=plumsg)
 

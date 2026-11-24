@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "cheats.h"
+#include "core/console_base.h"
 #include "pad.h"
 #include "core/state_io.h"
 #include "synth_music.h"
@@ -35,17 +36,12 @@ struct MemoryRegion {
     size_t size = 0;
 };
 
-// One emulated console, as the frontend, the headless runner, netplay and the
+// One of plumnin's consoles, as the frontend, the headless runner, netplay and the
 // achievements drive it. Each console (Game Boy, NES, Super Nintendo) is a subclass;
-// what they all do the same way (reading the file, the savestate's container and its
-// thumbnail, run-ahead) is done here.
-class Console {
+// what they all do the same way is done here (reading the file, pads, the sound's
+// extras) and in plum::ConsoleBase (frames, the savestate's container, run-ahead).
+class Console : public plum::ConsoleBase {
 public:
-    virtual ~Console() = default;
-    Console() = default;
-    Console(const Console&) = delete;
-    Console& operator=(const Console&) = delete;
-
     virtual ConsoleSystem system() const = 0;
 
     // A cartridge from a file (.zip too), or already in memory. False, with the reason
@@ -64,9 +60,6 @@ public:
     // Something worth telling about the game just loaded (empty: nothing).
     const std::string& loadNotice() const { return loadNotice_; }
 
-    virtual void reset() = 0;       // the console's reset button: RAM is kept
-    virtual void powerCycle() = 0;  // switched off and on
-
     void setRegion(Region r);
     Region region() const { return region_; }
     // The region the game runs in now: the one chosen, or the cartridge's own on Auto.
@@ -83,15 +76,7 @@ public:
     }
     PadType padType(int port) const { return padTypes_[static_cast<size_t>(port & 1)]; }
 
-    // Runs up to the start of the next frame, and draws it unless told not to.
-    virtual void runFrame() = 0;
-    virtual const VideoFrame& frame() const = 0;
-    void setDrawing(bool on) { drawing_ = on; }
-    bool drawing() const { return drawing_; }
-    // Frames run since the game was loaded.
-    uint64_t frames() const { return frames_; }
-    // Frames per second of the console's picture (59.73 on the Game Boy, 60.1 on the NES...).
-    virtual double refreshRate() const = 0;
+    // refreshRate(): 59.73 on the Game Boy, 60.1 on the NES...
 
     // Options of the picture, which only change what is drawn.
     virtual void setUnlimitedSprites(bool) {}
@@ -100,8 +85,7 @@ public:
     static constexpr int kMinOverclock = 100, kMaxOverclock = 400;
     virtual void setOverclock(int) {}
 
-    // The sound made by the last frames, at `hz` samples a second.
-    virtual void setSampleRate(double hz) = 0;
+    // The sound made by the last frames, at setSampleRate()'s rate.
     AudioOut& audio() { return audio_; }
     const AudioOut& audio() const { return audio_; }
 
@@ -143,42 +127,24 @@ public:
     // What both sides of a netplay game compare to see they still run the same game.
     virtual uint32_t checksum();
 
-    // Savestates. A quick one (rewind, run-ahead, netplay) carries no thumbnail and is
-    // compressed less.
-    bool saveState(std::vector<uint8_t>& out, bool quick = false);
-    bool loadState(const std::vector<uint8_t>& in, std::string* error);
-    // The picture saved inside a state file, 0xFFRRGGBB.
+    // Savestates (saveState, loadState: plum::ConsoleBase). The picture saved inside a
+    // state file, 0xFFRRGGBB.
     static bool stateThumbnail(const std::vector<uint8_t>& state, std::vector<uint32_t>& pixels, int* width,
                                int* height);
-    // Runs `frames` frames with the same pads, shows the last one's picture and goes
-    // back to where it was: run-ahead. False if it could not go back.
-    bool runAhead(int frames);
 
 protected:
-    // Each console's own state, in blocks with a four-letter tag.
-    class StateBlocks {
-    public:
-        explicit StateBlocks(StateWriter& body) : body_(body) {}
-        template <class F>
-        void add(const char (&tag)[5], F&& describe) {
-            StateWriter w;
-            describe(w);
-            raw(tag, w.data());
-        }
-        void raw(const char (&tag)[5], const std::vector<uint8_t>& data);
-
-    private:
-        StateWriter& body_;
-    };
-    static uint32_t fourcc(const char (&tag)[5]) {
-        return static_cast<uint32_t>(tag[0]) | static_cast<uint32_t>(tag[1]) << 8 | static_cast<uint32_t>(tag[2]) << 16 |
-               static_cast<uint32_t>(tag[3]) << 24;
-    }
-    virtual void saveBlocks(StateBlocks& blocks) = 0;
-    // One block of a state being loaded; false if it is broken. Unknown tags are skipped.
-    virtual bool loadBlock(uint32_t id, StateReader& r) = 0;
-    // Called after a state loaded: what is worked out from the rest is worked out again.
-    virtual void afterLoad() {}
+    // plumnin's savestates: "PLNS", with the console and the region after the CRC, and
+    // the pads' types in a block of their own.
+    static const StateFormat kStateFormat;
+    const StateFormat& stateFormat() const override { return kStateFormat; }
+    std::string stateError(StateError e) const override;
+    uint32_t stateCrc() const override { return romCrc_; }
+    void saveStateHeader(StateWriter& w) override;
+    std::string checkStateHeader(const uint8_t* header) const override;
+    void saveAppBlocks(StateBlocks& blocks) override;
+    bool loadAppBlock(uint32_t id, StateReader& r) override;
+    void beginRunAhead() override;
+    void endRunAhead() override;
 
     // Called by loadRom: the console takes the cartridge, or says why it cannot.
     virtual bool insert(const std::vector<uint8_t>& rom, std::string* error) = 0;
@@ -209,8 +175,6 @@ protected:
     uint32_t chipFull_ = 0, chipSilent_ = 0;
     bool chipSet_ = false;
     double outputRate_ = 44100;  // what setSampleRate() last asked for
-    uint64_t frames_ = 0;
-    bool drawing_ = true;
     std::string loadNotice_;
 
 private:
@@ -220,9 +184,9 @@ private:
     std::string romPath_;  // the file of the game being loaded, empty if from memory
     uint32_t romCrc_ = 0;
     Region region_ = Region::Auto;
-    std::vector<uint8_t> aheadState_;
-    std::vector<uint8_t> loadedThumbnail_;  // kept until a frame runs after a load
-    uint64_t thumbnailFrame_ = 0;
+    // What run-ahead took away from its frames.
+    SynthMusic* aheadSynth_ = nullptr;
+    VgmWriter* aheadRecorder_ = nullptr;
 };
 
 // Whether plumnin can run that console's games yet.

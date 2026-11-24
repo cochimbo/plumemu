@@ -4,3 +4,6 @@
 megadrive d171be7e dac54033
 mastersystem 4220de49 fbe896c5
 gamegear 72c5cc29 defdb1c5
+# 1.1.0's own run already plays the test ROM's YM2612 tone at another phase, and its
+# states carry on with that sound.
+1.1.0-megadrive d171be7e ab16d0a1

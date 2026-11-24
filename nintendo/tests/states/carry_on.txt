@@ -1,0 +1,6 @@
+# What the test pattern showed at frame 119 (picture, sound) in the versions that saved
+# these states. A state loaded at frame 89 must show the same after 30 more frames.
+0.3.9-alpha-gb 8ed7be75 845bb7fd
+0.3.9-alpha-gbc 8ed7be75 845bb7fd
+0.3.9-alpha-nes 36e51785 845bb7fd
+0.3.9-alpha-snes 36e51785 845bb7fd

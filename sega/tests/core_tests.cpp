@@ -2093,7 +2093,7 @@ void testRunAhead() {
     check(back, "run-ahead: the console went back every frame");
     const std::set<uint32_t> pictures(plainFrames.begin(), plainFrames.end());
     check(early && compared > 90 && pictures.size() > 1, "run-ahead: the picture is the next frame's");
-    check(a == b && plain.frameCount() == ahead.frameCount(), "run-ahead: the console is where it would have been");
+    check(a == b && plain.frames() == ahead.frames(), "run-ahead: the console is where it would have been");
     check(aheadSound == plainSound, "run-ahead: the sound is the same");
 }
 

@@ -28,16 +28,7 @@ if(NOT TARGET plum_common)
   add_subdirectory(${PLUM_COMMON_DIR} ${CMAKE_BINARY_DIR}/common)
 endif()
 
-# miniz (vendored, MIT): zip files, savestate compression and PNG screenshots.
-add_library(plumnin_miniz STATIC third_party/miniz/miniz.c)
-set_target_properties(plumnin_miniz PROPERTIES LINKER_LANGUAGE C)
-target_include_directories(plumnin_miniz PUBLIC third_party/miniz)
-target_compile_definitions(plumnin_miniz PUBLIC MINIZ_NO_STDIO MINIZ_NO_TIME MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
-if(MSVC)
-  target_compile_options(plumnin_miniz PRIVATE /W0)
-else()
-  target_compile_options(plumnin_miniz PRIVATE -w)
-endif()
+# miniz (vendored, MIT, in ../third_party/miniz): plum_miniz, from common/.
 
 # rcheevos (MIT, RetroAchievements) for the achievements: its client, runtime and web
 # API, without its own hashing (plumnin hashes the games itself). Pinned to v12.5.0.
@@ -156,7 +147,7 @@ add_library(plumnin_core STATIC
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
 target_include_directories(plumnin_core PUBLIC src src/core PRIVATE ${PLUM_ROOT}/third_party/stb third_party/tsf)
-target_link_libraries(plumnin_core PUBLIC plum_common plumnin_miniz plumnin_shine Threads::Threads)
+target_link_libraries(plumnin_core PUBLIC plum_common plum_miniz plumnin_shine Threads::Threads)
 # While plumnin's own code is in namespace plumnin, it sees the common code's names (common/src/plum.h).
 target_compile_definitions(plumnin_core PUBLIC PLUM_APP_NAMESPACE=plumnin)
 
@@ -389,7 +380,7 @@ if(PLUMNIN_BUILD_TESTS)
 
   # plumnin-headless end to end: hashes, savestates, input scripts and checks.
   add_test(NAME nintendo_headless COMMAND ${CMAKE_COMMAND} -DHEADLESS=$<TARGET_FILE:plumnin-headless>
-           -DWORK=${CMAKE_CURRENT_BINARY_DIR}/headless_test
+           -DWORK=${CMAKE_CURRENT_BINARY_DIR}/headless_test -DSTATES=${CMAKE_CURRENT_SOURCE_DIR}/tests/states
            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/headless_tests.cmake)
 
   # The frontend's files (a game's own options and controls); needs SDL2 for the key names.

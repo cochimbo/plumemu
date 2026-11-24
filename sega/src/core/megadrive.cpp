@@ -12,18 +12,7 @@
 
 namespace plumsg {
 
-namespace {
-
-constexpr uint32_t kStateMagic = 0x53444D50;  // "PMDS"
-constexpr uint32_t kStateVersion = 1;
-constexpr size_t kMaxStateSize = 4 << 20;
-
-constexpr uint32_t fourcc(const char (&s)[5]) {
-    return static_cast<uint32_t>(s[0]) | static_cast<uint32_t>(s[1]) << 8 | static_cast<uint32_t>(s[2]) << 16 |
-           static_cast<uint32_t>(s[3]) << 24;
-}
-
-}  // namespace
+const MegaDrive::StateFormat MegaDrive::kStateFormat{0x53444D50 /* "PMDS" */, 1, 4u << 20, 1};
 
 MegaDrive::MegaDrive() {
     vdp_.setDmaReader([this](uint32_t addr) {
@@ -379,7 +368,7 @@ void MegaDrive::reset() {
     cart_.reset();
     if (paprium_) paprium_->reset();
     tmss_ = 1;
-    loadedThumbnail_.clear();
+    forgetLoadedThumbnail();
     io_.reset();
     ym_.reset();
     ym_.samples().clear();
@@ -663,7 +652,7 @@ void MegaDrive::runFrame() {
     else runFrameMd();
     syncSound();
     ++frames_;
-    loadedThumbnail_.clear();
+    forgetLoadedThumbnail();
     // Hand this frame's sound to the mixer.
     if (paprium_) paprium_->runAudio(psg_.samples().size() / 2, mixer_.outputRate());
     psgBuffer_.insert(psgBuffer_.end(), psg_.samples().begin(), psg_.samples().end());
@@ -735,25 +724,17 @@ void MegaDrive::lightGunLine(int line) {
     vdp_.lightGunHit(x / 2 + (known ? gunGame_.xOffset : menacer ? 82 : 24));
 }
 
-bool MegaDrive::runAhead(int frames) {
-    if (frames <= 0) return true;
-    if (!saveState(aheadState_, true)) return false;
+void MegaDrive::beginRunAhead() {
     // The frames to come are run again for real, heard and recorded then.
-    RolandSound* roland = roland_;
-    VgmWriter* vgm = vgm_;
+    aheadRoland_ = roland_;
+    aheadVgm_ = vgm_;
     roland_ = nullptr;
     vgm_ = nullptr;
-    const bool drawing = drawing_;
-    for (int i = 1; i <= frames; ++i) {
-        drawing_ = i == frames;  // only the last picture is seen
-        runFrame();
-    }
-    drawing_ = drawing;
-    roland_ = roland;
-    vgm_ = vgm;
-    // The picture is not part of the state, so loading it keeps the one just drawn.
-    std::string error;
-    return loadState(aheadState_, &error);
+}
+
+void MegaDrive::endRunAhead() {
+    roland_ = aheadRoland_;
+    vgm_ = aheadVgm_;
 }
 
 void MegaDrive::irqAcknowledge(int level) {
@@ -1197,16 +1178,23 @@ void MegaDrive::busState(Ar& ar) {
        psgRemainder_, frames_);
 }
 
-bool MegaDrive::saveState(std::vector<uint8_t>& out, bool quick) {
-    StateWriter body;
-    uint32_t crc = cart_.crc32();
+std::string MegaDrive::stateError(StateError e) const {
+    switch (e) {
+    case StateError::NotAState: return tr("el archivo no es un estado de plumsg");
+    case StateError::Newer: return tr("el estado es de una versión más nueva de plumsg");
+    case StateError::OtherGame: return tr("el estado es de otra ROM");
+    case StateError::BrokenBlock: return tr("el estado está dañado o es de una versión incompatible");
+    default: return tr("el estado está dañado");
+    }
+}
+
+void MegaDrive::saveStateHeader(StateWriter& w) {
     uint8_t region = static_cast<uint8_t>(effectiveRegion_);
-    body(crc, region, frames_);
-    auto block = [&](const char (&tag)[5], const std::vector<uint8_t>& data) {
-        uint32_t id = fourcc(tag), size = static_cast<uint32_t>(data.size());
-        body(id, size);
-        body.raw(data.data(), data.size());
-    };
+    w(region);
+}
+
+void MegaDrive::saveBlocks(StateBlocks& blocks) {
+    auto block = [&](const char (&tag)[5], const std::vector<uint8_t>& data) { blocks.raw(tag, data); };
     {
         StateWriter w;
         cpu_.state(w);
@@ -1366,206 +1354,113 @@ bool MegaDrive::saveState(std::vector<uint8_t>& out, bool quick) {
         w(pos, chip);
         block("OPLL", w.data());
     }
-    if (quick) {
-        // No thumbnail: nobody looks at a rewind snapshot.
-    } else if (!loadedThumbnail_.empty()) {
-        // Nothing has run since a state was loaded: the picture on screen is still the
-        // one from before, so keep the loaded state's thumbnail.
-        block("THMB", loadedThumbnail_);
-    } else {
-        // Thumbnail: the 2D picture at half size, without the widescreen columns.
-        const VideoFrame& f = vdp_.frame();
-        const int step = f.interlaced ? 2 : 1;
-        uint16_t tw = static_cast<uint16_t>(f.consoleWidth() / 2), th = static_cast<uint16_t>(f.height / step / 2);
-        StateWriter w;
-        w(tw, th);
-        for (int y = 0; y < th; ++y)
-            for (int x = 0; x < tw; ++x) {
-                uint32_t c = f.pixel(f.wideLeft + x * 2, y * 2 * step) & 0xFFFFFF;
-                uint8_t rgb[3] = {static_cast<uint8_t>(c >> 16), static_cast<uint8_t>(c >> 8), static_cast<uint8_t>(c)};
-                w.raw(rgb, 3);
-            }
-        block("THMB", w.data());
-    }
-
-    mz_ulong packedSize = mz_compressBound(static_cast<mz_ulong>(body.data().size()));
-    std::vector<uint8_t> packed(packedSize);
-    if (mz_compress2(packed.data(), &packedSize, body.data().data(), static_cast<mz_ulong>(body.data().size()), quick ? 1 : 6) != MZ_OK)
-        return false;
-    packed.resize(packedSize);
-    StateWriter file;
-    uint32_t magic = kStateMagic, version = kStateVersion, rawSize = static_cast<uint32_t>(body.data().size());
-    file(magic, version, rawSize);
-    file.raw(packed.data(), packed.size());
-    out = std::move(file.data());
-    return true;
 }
 
-namespace {
-
-// Unpacks a savestate file into its body. Returns an empty string on success.
-std::string unpackState(const std::vector<uint8_t>& in, std::vector<uint8_t>& body) {
-    if (in.size() < 12) return tr("el archivo no es un estado de plumsg");
-    StateReader header(in.data(), 12);
-    uint32_t magic = 0, version = 0, rawSize = 0;
-    header(magic, version, rawSize);
-    if (magic != kStateMagic) return tr("el archivo no es un estado de plumsg");
-    if (version > kStateVersion) return tr("el estado es de una versión más nueva de plumsg");
-    if (rawSize == 0 || rawSize > kMaxStateSize) return tr("el estado está dañado");
-    body.resize(rawSize);
-    mz_ulong size = rawSize;
-    if (mz_uncompress(body.data(), &size, in.data() + 12, static_cast<mz_ulong>(in.size() - 12)) != MZ_OK || size != rawSize)
-        return tr("el estado está dañado");
-    return {};
-}
-
-}  // namespace
-
-bool MegaDrive::loadState(const std::vector<uint8_t>& in, std::string* error) {
-    auto fail = [&](const std::string& message) {
-        if (error) *error = message;
-        return false;
-    };
-    std::vector<uint8_t> body;
-    const std::string problem = unpackState(in, body);
-    if (!problem.empty()) return fail(problem);
-
-    StateReader r(body.data(), body.size());
-    uint32_t crc = 0;
-    uint8_t region = 0;
-    uint64_t frames = 0;
-    r(crc, region, frames);
-    if (!r.ok()) return fail(tr("el estado está dañado"));
-    if (crc != cart_.crc32()) return fail(tr("el estado es de otra ROM"));
-
-    // Keep the current state so a bad block cannot leave the console half loaded.
-    std::vector<uint8_t> backup;
-    saveState(backup, true);
-
-    bool ok = true;
-    bool hasMixer = false;
-    bool cacheFromBoot = false;  // the state comes from a version whose boot turns the 32X's cache on
-    uint16_t overclock = 100;  // states without the block are from a console at its speed
-    std::vector<uint8_t> thumbnail, addOnState;
+void MegaDrive::beforeLoadBlocks(const uint8_t* header) {
+    loading_ = Loading{};
+    loading_.region = header[0];
     dmaBusUntil_ = 0;  // states without the block: no DMA holds the bus
     refreshClocks_ = 0;  // states without the block are from before the refresh
     refreshAfterFetch_ = false;
     m68kBusStall_ = 0;
     cpu_.dropPrefetch();
     z80BusGrantAt_ = 0;  // nor the bus grant delay
-    while (ok && !r.atEnd()) {
-        uint32_t id = 0, size = 0;
-        r(id, size);
-        if (!r.ok() || size > r.remaining()) {
-            ok = false;
-            break;
-        }
-        std::vector<uint8_t> data(size);
-        if (!r.raw(data.data(), size)) {
-            ok = false;
-            break;
-        }
-        StateReader b(data.data(), data.size());
-        if (id == fourcc("M68K")) {
-            cpu_.state(b);
-            cpu_.settleIrq();
-            cpu_.forgetRoutine();
-        } else if (id == fourcc("Z80 ")) z80_.state(b);
-        else if (id == fourcc("VDP ")) vdp_.state(b);
-        else if (id == fourcc("VDPF")) vdp_.fifoState(b);
-        else if (id == fourcc("SATC")) vdp_.satState(b);
-        else if (id == fourcc("PSG ")) psg_.state(b);
-        else if (id == fourcc("BUS ")) busState(b);
-        else if (id == fourcc("RFSH")) b(refreshClocks_);
-        else if (id == fourcc("PFCH")) cpu_.prefetchState(b);
-        else if (id == fourcc("ZBGA")) b(z80BusGrantAt_);
-        else if (id == fourcc("IRQS")) {
-            cpu_.irqState(b);
-            if (mcd_) mcd_->sub().irqState(b);
-        }
-        else if (id == fourcc("IO  ")) io_.state(b);
-        else if (id == fourcc("IOTH")) io_.riseState(b);
-        else if (id == fourcc("DMAB")) b(dmaBusUntil_);
-        else if (id == fourcc("BSTL")) b(m68kBusStall_, refreshAfterFetch_);
-        else if (id == fourcc("IOSR")) io_.serialState(b);
-        else if (id == fourcc("CART")) cart_.state(b);
-        else if (id == fourcc("EEPR")) cart_.eepromState(b);
-        else if (id == fourcc("THMB")) thumbnail = data;
-        else if (id == fourcc("OVCK")) b(overclock);
-        else if (id == fourcc("32X ")) {
-            if (mars_) {
-                mars_->state(b);
-                mars_->clearTiming();  // a state without it (older) starts with empty caches
-            }
-        }
-        else if (id == fourcc("32XI")) {
-            if (mars_) mars_->ioState(b);
-        }
-        else if (id == fourcc("32XC") || id == fourcc("32X2")) {
-            if (mars_) mars_->timingState(b);
-            cacheFromBoot = id == fourcc("32X2");
-        }
-        else if (id == fourcc("PAPR")) {
-            if (paprium_) paprium_->state(b);
-        }
-        else if (id == fourcc("SVP ")) {
-            if (svp_) svp_->state(b);
-        }
-        else if (id == fourcc("MCD ")) {
-            if (mcd_) {
-                mcd_->state(b);
-                mcd_->sub().settleIrq();
-            }
-        }
-        else if (id == fourcc("SMS ")) {
-            if (sms_) sms_->state(b);
-        }
-        else if (id == fourcc("MIXA")) addOnState = data;
-        else if (id == fourcc("MIX ")) {
-            mixer_.reset();
-            mixer_.state(b);
-            hasMixer = true;
-        }
-        else if (id == fourcc("YM26")) {
-            uint64_t pos = 0;
-            std::vector<uint8_t> chip;
-            b(pos, chip);
-            if (b.ok() && ym_.loadState(chip)) ym_.setClockPosition(pos);
-            else ok = false;
-        }
-        else if (id == fourcc("YMLT")) ym_.latchState(b);
-        else if (id == fourcc("OPLL")) {
-            uint64_t pos = 0;
-            std::vector<uint8_t> chip;
-            b(pos, chip);
-            if (opll_ && b.ok() && opll_->loadState(chip)) opll_->setClockPosition(pos);
-            else if (opll_) ok = false;
-        }
-        // Unknown blocks (from newer versions) are skipped.
-        if (!b.ok()) ok = false;
+}
+
+bool MegaDrive::loadBlock(uint32_t id, StateReader& b) {
+    bool ok = true;
+    if (id == fourcc("M68K")) {
+        cpu_.state(b);
+        cpu_.settleIrq();
+        cpu_.forgetRoutine();
+    } else if (id == fourcc("Z80 ")) z80_.state(b);
+    else if (id == fourcc("VDP ")) vdp_.state(b);
+    else if (id == fourcc("VDPF")) vdp_.fifoState(b);
+    else if (id == fourcc("SATC")) vdp_.satState(b);
+    else if (id == fourcc("PSG ")) psg_.state(b);
+    else if (id == fourcc("BUS ")) busState(b);
+    else if (id == fourcc("RFSH")) b(refreshClocks_);
+    else if (id == fourcc("PFCH")) cpu_.prefetchState(b);
+    else if (id == fourcc("ZBGA")) b(z80BusGrantAt_);
+    else if (id == fourcc("IRQS")) {
+        cpu_.irqState(b);
+        if (mcd_) mcd_->sub().irqState(b);
     }
-    if (ok && mars_ && !cacheFromBoot) mars_->bootCache();  // older states left it off
-    if (!ok) {
-        std::string ignored;
-        std::vector<uint8_t> restore;
-        if (unpackState(backup, restore).empty()) {
-            // Reload the backup block by block (same code path, known good). The quick
-            // backup has no thumbnail, so keep the one that was there.
-            std::vector<uint8_t> keptThumbnail = loadedThumbnail_;
-            loadState(backup, &ignored);
-            loadedThumbnail_ = std::move(keptThumbnail);
+    else if (id == fourcc("IO  ")) io_.state(b);
+    else if (id == fourcc("IOTH")) io_.riseState(b);
+    else if (id == fourcc("DMAB")) b(dmaBusUntil_);
+    else if (id == fourcc("BSTL")) b(m68kBusStall_, refreshAfterFetch_);
+    else if (id == fourcc("IOSR")) io_.serialState(b);
+    else if (id == fourcc("CART")) cart_.state(b);
+    else if (id == fourcc("EEPR")) cart_.eepromState(b);
+    else if (id == fourcc("OVCK")) b(loading_.overclock);
+    else if (id == fourcc("32X ")) {
+        if (mars_) {
+            mars_->state(b);
+            mars_->clearTiming();  // a state without it (older) starts with empty caches
         }
-        return fail(tr("el estado está dañado o es de una versión incompatible"));
     }
-    configureFor(static_cast<Region>(region & 3));
-    setOverclock(overclock);
-    if (!hasMixer) mixer_.reset();
-    if (!addOnState.empty()) {
+    else if (id == fourcc("32XI")) {
+        if (mars_) mars_->ioState(b);
+    }
+    else if (id == fourcc("32XC") || id == fourcc("32X2")) {
+        if (mars_) mars_->timingState(b);
+        loading_.cacheFromBoot = id == fourcc("32X2");
+    }
+    else if (id == fourcc("PAPR")) {
+        if (paprium_) paprium_->state(b);
+    }
+    else if (id == fourcc("SVP ")) {
+        if (svp_) svp_->state(b);
+    }
+    else if (id == fourcc("MCD ")) {
+        if (mcd_) {
+            mcd_->state(b);
+            mcd_->sub().settleIrq();
+        }
+    }
+    else if (id == fourcc("SMS ")) {
+        if (sms_) sms_->state(b);
+    }
+    else if (id == fourcc("MIXA")) {
+        loading_.addOnState.resize(b.remaining());
+        b.raw(loading_.addOnState.data(), loading_.addOnState.size());
+    }
+    else if (id == fourcc("MIX ")) {
+        mixer_.reset();
+        mixer_.state(b);
+        loading_.hasMixer = true;
+    }
+    else if (id == fourcc("YM26")) {
+        uint64_t pos = 0;
+        std::vector<uint8_t> chip;
+        b(pos, chip);
+        if (b.ok() && ym_.loadState(chip)) ym_.setClockPosition(pos);
+        else ok = false;
+    }
+    else if (id == fourcc("YMLT")) ym_.latchState(b);
+    else if (id == fourcc("OPLL")) {
+        uint64_t pos = 0;
+        std::vector<uint8_t> chip;
+        b(pos, chip);
+        if (opll_ && b.ok() && opll_->loadState(chip)) opll_->setClockPosition(pos);
+        else if (opll_) ok = false;
+    }
+    // Unknown blocks (from newer versions) are skipped.
+    return ok;
+}
+
+void MegaDrive::afterLoad() {
+    if (mars_ && !loading_.cacheFromBoot) mars_->bootCache();  // older states left it off
+    configureFor(static_cast<Region>(loading_.region & 3));
+    setOverclock(loading_.overclock);
+    if (!loading_.hasMixer) mixer_.reset();
+    if (!loading_.addOnState.empty()) {
         // After the main mixer block, which empties the queue.
-        StateReader b(addOnState.data(), addOnState.size());
+        StateReader b(loading_.addOnState.data(), loading_.addOnState.size());
         mixer_.addOnState(b);
     }
-    loadedThumbnail_ = std::move(thumbnail);
+    loading_ = Loading{};
     mixer_.clearSamples();
     psgBuffer_.clear();
     ym_.samples().clear();
@@ -1580,43 +1475,13 @@ bool MegaDrive::loadState(const std::vector<uint8_t>& in, std::string* error) {
     addOnCd_.clear();
     addOnMixed_.clear();
     if (paprium_) paprium_->samples().clear();
-    frames_ = frames;
     vdpFreeAt_ = 0;
     updateIrq();
-    return true;
 }
 
 bool MegaDrive::stateThumbnail(const std::vector<uint8_t>& state, std::vector<uint32_t>& pixels, int* width,
                                int* height) {
-    std::vector<uint8_t> body;
-    if (!unpackState(state, body).empty()) return false;
-    StateReader r(body.data(), body.size());
-    uint32_t crc = 0;
-    uint8_t region = 0;
-    uint64_t frames = 0;
-    r(crc, region, frames);
-    while (r.ok() && !r.atEnd()) {
-        uint32_t id = 0, size = 0;
-        r(id, size);
-        if (!r.ok() || size > r.remaining()) return false;
-        std::vector<uint8_t> data(size);
-        if (!r.raw(data.data(), size)) return false;
-        if (id != fourcc("THMB")) continue;
-        StateReader b(data.data(), data.size());
-        uint16_t w = 0, h = 0;
-        b(w, h);
-        if (static_cast<size_t>(w) * h * 3 > b.remaining()) return false;
-        pixels.assign(static_cast<size_t>(w) * h, 0);
-        for (auto& p : pixels) {
-            uint8_t rgb[3];
-            b.raw(rgb, 3);
-            p = 0xFF000000u | static_cast<uint32_t>(rgb[0]) << 16 | static_cast<uint32_t>(rgb[1]) << 8 | rgb[2];
-        }
-        *width = w;
-        *height = h;
-        return b.ok();
-    }
-    return false;
+    return ConsoleBase::stateThumbnail(kStateFormat, state, pixels, width, height);
 }
 
 }  // namespace plumsg
