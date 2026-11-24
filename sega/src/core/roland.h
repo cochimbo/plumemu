@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "core/gm_sound.h"
 #include "loudness.h"
 
 namespace plumsg {
@@ -49,19 +50,8 @@ public:
     // What an instrument plays instead of its own sound. Every instrument is known by its
     // fingerprint: for FM, a hash of its operator settings (not its volume); for the PSG,
     // the tone channel or the noise setting.
-    struct Assignment {
-        int program = -1;    // General MIDI instrument 0-127
-        int drum = -1;       // or a piece of the GM drum kit (note 35-81), played on the drum channel
-        bool original = false;  // or none: it keeps its own sound from the chip
-        int octave = 0;      // -3..3, added to every note
-        int volume = 100;    // percent of the note's own loudness
-        bool operator==(const Assignment& o) const {
-            return program == o.program && drum == o.drum && original == o.original && octave == o.octave &&
-                   volume == o.volume;
-        }
-        bool operator!=(const Assignment& o) const { return !(*this == o); }
-    };
-    using Assignments = std::map<uint32_t, Assignment>;
+    using Assignment = gm::Assignment;  // core/gm_sound.h
+    using Assignments = gm::Assignments;
     // A YM2413 instrument is FM: one of its 15 built in (opllFingerprint) or a hash of
     // the game's own; its drums are Rhythm.
     enum class Kind : uint8_t { Fm, PsgTone, PsgNoise, Rhythm };
@@ -100,9 +90,9 @@ public:
     // 0..100 each.
     void setEffects(int reverb, int chorus);
     // The equalizer: a gain in dB (-kEqRange..kEqRange) for each band, from the bass up.
-    static constexpr int kEqBands = 5;
-    static constexpr int kEqRange = 12;
-    static constexpr double kEqFrequencies[kEqBands] = {100, 400, 1200, 3500, 9000};
+    static constexpr int kEqBands = gm::kEqBands;
+    static constexpr int kEqRange = gm::kEqRange;
+    static constexpr const double* kEqFrequencies = gm::kEqFrequencies;
     void setEqualizer(const std::array<int, kEqBands>& gains);
     void setVolume(int percent) { volume_ = percent; }
     // Whether the rules' instrument is tuned by comparing sounds: once an FM instrument
@@ -327,8 +317,7 @@ private:
     void render(int16_t* out, int frames);
     void updateLoudness(double seconds);
 
-    struct Synth;
-    std::unique_ptr<Synth> synth_;
+    std::unique_ptr<gm::Synth> synth_;
     std::array<Voice, kVoices> voices_{};
     std::array<Channel, 16> channels_{};
     std::array<uint8_t, 2> address_{};  // the register each YM2612 port points at

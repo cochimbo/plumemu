@@ -7,26 +7,7 @@
 
 #include "core/i18n.h"
 
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#pragma GCC diagnostic ignored "-Wunused-function"
-#pragma GCC diagnostic ignored "-Wsign-compare"
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
-#endif
-#if defined(_MSC_VER)
-#pragma warning(push, 0)
-#endif
-#define TSF_IMPLEMENTATION
-#define TSF_NO_STDIO
-#include "tsf.h"
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
+#include "core/gm_synth.h"
 
 namespace plumnin {
 
@@ -37,205 +18,6 @@ constexpr double kDyingHalf = 0.65;    // seconds: a note's envelope halving thi
 constexpr double kSettle = 0.02;       // seconds after its peak: past the attack and the fall to the sustain
 constexpr double kEffectHits = 0.035;  // seconds: noise struck again sooner goes on as one sound
 
-// A Schroeder reverb (four combs and two all-pass filters per side, Freeverb's
-// tunings) and a chorus (one delay line swept by a slow sine), like the SC-55's
-// own effects. Both are sends: a part of the dry sound goes in, the result is added.
-class Effects {
-public:
-    void setRate(double rate) {
-        if (rate == rate_) return;
-        rate_ = rate;
-        const double scale = rate / 44100.0;
-        static constexpr int kCombs[4] = {1116, 1188, 1277, 1356};
-        static constexpr int kAllPasses[2] = {556, 441};
-        for (int side = 0; side < 2; ++side) {
-            const int spread = side ? 23 : 0;
-            for (int i = 0; i < 4; ++i) combs_[side][i].assign(static_cast<size_t>((kCombs[i] + spread) * scale), 0.0f);
-            for (int i = 0; i < 2; ++i) allPasses_[side][i].assign(static_cast<size_t>((kAllPasses[i] + spread) * scale), 0.0f);
-        }
-        combPos_ = {};
-        allPassPos_ = {};
-        combFilter_ = {};
-        chorus_.assign(static_cast<size_t>(rate * 0.05) * 2, 0.0f);
-        chorusPos_ = 0;
-        phase_ = 0;
-    }
-    void setAmounts(int reverb, int chorus) {
-        reverb_ = std::clamp(reverb, 0, 100) / 100.0f;
-        chorusAmount_ = std::clamp(chorus, 0, 100) / 100.0f;
-    }
-
-    void process(float* buf, int frames) {
-        if (rate_ <= 0) return;
-        const size_t chorusLen = chorus_.size() / 2;
-        for (int i = 0; i < frames; ++i) {
-            float& l = buf[i * 2];
-            float& r = buf[i * 2 + 1];
-            // Chorus: a copy 10-20 ms late, its delay swaying at 0.6 Hz.
-            if (chorusAmount_ > 0 && chorusLen > 0) {
-                chorus_[chorusPos_ * 2] = l;
-                chorus_[chorusPos_ * 2 + 1] = r;
-                const double delay = rate_ * (0.015 + 0.005 * std::sin(phase_));
-                phase_ += 2 * 3.14159265358979 * 0.6 / rate_;
-                if (phase_ > 2 * 3.14159265358979) phase_ -= 2 * 3.14159265358979;
-                double at = static_cast<double>(chorusPos_) - delay;
-                while (at < 0) at += static_cast<double>(chorusLen);
-                const size_t a = static_cast<size_t>(at) % chorusLen, b = (a + 1) % chorusLen;
-                const float f = static_cast<float>(at - std::floor(at));
-                const float cl = chorus_[a * 2] + (chorus_[b * 2] - chorus_[a * 2]) * f;
-                const float cr = chorus_[a * 2 + 1] + (chorus_[b * 2 + 1] - chorus_[a * 2 + 1]) * f;
-                chorusPos_ = (chorusPos_ + 1) % chorusLen;
-                l += cr * chorusAmount_ * 0.5f;  // crossed, for width
-                r += cl * chorusAmount_ * 0.5f;
-            }
-            if (reverb_ <= 0) continue;
-            const float in = (l + r) * 0.015f * reverb_;
-            float out[2] = {0, 0};
-            for (int side = 0; side < 2; ++side) {
-                for (int c = 0; c < 4; ++c) {
-                    std::vector<float>& line = combs_[side][c];
-                    size_t& pos = combPos_[side][c];
-                    const float y = line[pos];
-                    float& filter = combFilter_[side][c];
-                    filter = y * 0.8f + filter * 0.2f;  // damping
-                    line[pos] = in + filter * 0.84f;     // room size
-                    pos = (pos + 1) % line.size();
-                    out[side] += y;
-                }
-                for (int a = 0; a < 2; ++a) {
-                    std::vector<float>& line = allPasses_[side][a];
-                    size_t& pos = allPassPos_[side][a];
-                    const float b = line[pos];
-                    line[pos] = out[side] + b * 0.5f;
-                    out[side] = b - out[side];
-                    pos = (pos + 1) % line.size();
-                }
-            }
-            l += out[0] * 3.0f;
-            r += out[1] * 3.0f;
-        }
-    }
-
-private:
-    double rate_ = 0;
-    float reverb_ = 0.4f, chorusAmount_ = 0.2f;
-    std::array<std::array<std::vector<float>, 4>, 2> combs_;
-    std::array<std::array<std::vector<float>, 2>, 2> allPasses_;
-    std::array<std::array<size_t, 4>, 2> combPos_{};
-    std::array<std::array<size_t, 2>, 2> allPassPos_{};
-    std::array<std::array<float, 4>, 2> combFilter_{};
-    std::vector<float> chorus_;
-    size_t chorusPos_ = 0;
-    double phase_ = 0;
-};
-
-// The equalizer: a low shelf, three peaks and a high shelf (RBJ's biquads), one gain
-// each in dB. A band at 0 dB is left out.
-class Equalizer {
-public:
-    void setRate(double rate) {
-        rate_ = rate;
-        design();
-    }
-    void setGains(const std::array<int, SynthMusic::kEqBands>& gains) {
-        if (gains == gains_) return;
-        gains_ = gains;
-        design();
-    }
-
-    void process(float* buf, int frames) {
-        for (int b = 0; b < SynthMusic::kEqBands; ++b) {
-            if (!gains_[static_cast<size_t>(b)] || rate_ <= 0) continue;
-            Band& f = bands_[static_cast<size_t>(b)];
-            for (int i = 0; i < frames; ++i)
-                for (int side = 0; side < 2; ++side) {
-                    float& x = buf[i * 2 + side];
-                    float* z = f.z[side];
-                    const float y = f.b0 * x + z[0];
-                    z[0] = f.b1 * x - f.a1 * y + z[1];
-                    z[1] = f.b2 * x - f.a2 * y;
-                    x = y;
-                }
-        }
-    }
-
-private:
-    struct Band {
-        float b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
-        float z[2][2] = {};
-    };
-    void design() {
-        if (rate_ <= 0) return;
-        for (int b = 0; b < SynthMusic::kEqBands; ++b) {
-            Band& f = bands_[static_cast<size_t>(b)];
-            const double gain = std::pow(10.0, gains_[static_cast<size_t>(b)] / 40.0);
-            const double w = 2 * 3.14159265358979 * std::min(SynthMusic::kEqFrequencies[b], rate_ * 0.45) / rate_;
-            const double cw = std::cos(w), sw = std::sin(w);
-            double b0, b1, b2, a0, a1, a2;
-            if (b == 0 || b == SynthMusic::kEqBands - 1) {  // shelves, slope 1
-                const double alpha = sw / 2 * std::sqrt(2.0), sq = 2 * std::sqrt(gain) * alpha;
-                const double sign = b == 0 ? 1 : -1;  // the high shelf is the low one with cos negated
-                b0 = gain * ((gain + 1) - sign * (gain - 1) * cw + sq);
-                b1 = 2 * sign * gain * ((gain - 1) - sign * (gain + 1) * cw);
-                b2 = gain * ((gain + 1) - sign * (gain - 1) * cw - sq);
-                a0 = (gain + 1) + sign * (gain - 1) * cw + sq;
-                a1 = -2 * sign * ((gain - 1) + sign * (gain + 1) * cw);
-                a2 = (gain + 1) + sign * (gain - 1) * cw - sq;
-            } else {  // peaks, Q 1: about an octave and a half wide
-                const double alpha = sw / 2;
-                b0 = 1 + alpha * gain;
-                b1 = -2 * cw;
-                b2 = 1 - alpha * gain;
-                a0 = 1 + alpha / gain;
-                a1 = -2 * cw;
-                a2 = 1 - alpha / gain;
-            }
-            f.b0 = static_cast<float>(b0 / a0);
-            f.b1 = static_cast<float>(b1 / a0);
-            f.b2 = static_cast<float>(b2 / a0);
-            f.a1 = static_cast<float>(a1 / a0);
-            f.a2 = static_cast<float>(a2 / a0);
-        }
-    }
-
-    double rate_ = 0;
-    std::array<int, SynthMusic::kEqBands> gains_{};
-    std::array<Band, SynthMusic::kEqBands> bands_{};
-};
-
-
-const char* const kPrograms[128] = {
-    N_("Piano de cola"), N_("Piano brillante"), N_("Piano eléctrico de cola"), N_("Piano de cantina"), N_("Piano eléctrico 1"),
-    N_("Piano eléctrico 2"), N_("Clavecín"), N_("Clavinet"), N_("Celesta"), N_("Glockenspiel"), N_("Caja de música"), N_("Vibráfono"),
-    N_("Marimba"), N_("Xilófono"), N_("Campanas tubulares"), N_("Dulcémele"), N_("Órgano de barras"), N_("Órgano de percusión"),
-    N_("Órgano de rock"), N_("Órgano de iglesia"), N_("Armonio"), N_("Acordeón"), N_("Armónica"), N_("Bandoneón"), N_("Guitarra de nailon"),
-    N_("Guitarra de acero"), N_("Guitarra eléctrica de jazz"), N_("Guitarra eléctrica limpia"), N_("Guitarra eléctrica apagada"),
-    N_("Guitarra saturada"), N_("Guitarra distorsionada"), N_("Armónicos de guitarra"), N_("Bajo acústico"), N_("Bajo eléctrico (dedo)"),
-    N_("Bajo eléctrico (púa)"), N_("Bajo sin trastes"), N_("Bajo slap 1"), N_("Bajo slap 2"), N_("Bajo sintetizado 1"),
-    N_("Bajo sintetizado 2"), N_("Violín"), N_("Viola"), N_("Violonchelo"), N_("Contrabajo"), N_("Cuerdas en trémolo"),
-    N_("Cuerdas en pizzicato"), N_("Arpa"), N_("Timbales"), N_("Cuerdas 1"), N_("Cuerdas 2"), N_("Cuerdas sintetizadas 1"),
-    N_("Cuerdas sintetizadas 2"), N_("Coro \"aah\""), N_("Voz \"ooh\""), N_("Voz sintetizada"), N_("Golpe de orquesta"), N_("Trompeta"),
-    N_("Trombón"), N_("Tuba"), N_("Trompeta con sordina"), N_("Trompa"), N_("Sección de metales"), N_("Metales sintetizados 1"),
-    N_("Metales sintetizados 2"), N_("Saxo soprano"), N_("Saxo alto"), N_("Saxo tenor"), N_("Saxo barítono"), N_("Oboe"), N_("Corno inglés"),
-    N_("Fagot"), N_("Clarinete"), N_("Flautín"), N_("Flauta"), N_("Flauta dulce"), N_("Flauta de pan"), N_("Botella soplada"), N_("Shakuhachi"),
-    N_("Silbido"), N_("Ocarina"), N_("Solista cuadrada"), N_("Solista diente de sierra"), N_("Solista calíope"), N_("Solista chiff"),
-    N_("Solista charango"), N_("Solista voz"), N_("Solista quintas"), N_("Solista bajo y melodía"), N_("Fondo new age"), N_("Fondo cálido"),
-    N_("Fondo polisintetizador"), N_("Fondo coro"), N_("Fondo arco"), N_("Fondo metálico"), N_("Fondo halo"), N_("Fondo barrido"),
-    N_("Efecto lluvia"), N_("Efecto banda sonora"), N_("Efecto cristal"), N_("Efecto atmósfera"), N_("Efecto brillo"),
-    N_("Efecto duendes"), N_("Efecto ecos"), N_("Efecto ciencia ficción"), N_("Sitar"), N_("Banjo"), N_("Shamisen"), N_("Koto"), N_("Kalimba"),
-    N_("Gaita"), N_("Violín celta"), N_("Shanai"), N_("Campanilla"), N_("Agogó"), N_("Tambores metálicos"), N_("Caja china"), N_("Taiko"),
-    N_("Tom melódico"), N_("Tambor sintetizado"), N_("Platillo al revés"), N_("Traste de guitarra"), N_("Respiración"), N_("Olas"),
-    N_("Pájaros"), N_("Teléfono"), N_("Helicóptero"), N_("Aplausos"), N_("Disparo")};
-
-const char* const kDrumNames[47] = {
-    N_("Bombo acústico"), N_("Bombo"), N_("Golpe de aro"), N_("Caja"), N_("Palmada"), N_("Caja eléctrica"), N_("Tom grave de suelo"),
-    N_("Charles cerrado"), N_("Tom agudo de suelo"), N_("Charles con pedal"), N_("Tom grave"), N_("Charles abierto"),
-    N_("Tom medio grave"), N_("Tom medio agudo"), N_("Platillo crash 1"), N_("Tom agudo"), N_("Platillo ride 1"), N_("Platillo chino"),
-    N_("Campana del ride"), N_("Pandereta"), N_("Platillo splash"), N_("Cencerro"), N_("Platillo crash 2"), N_("Vibraslap"),
-    N_("Platillo ride 2"), N_("Bongó agudo"), N_("Bongó grave"), N_("Conga aguda apagada"), N_("Conga aguda abierta"), N_("Conga grave"),
-    N_("Timbal agudo"), N_("Timbal grave"), N_("Agogó agudo"), N_("Agogó grave"), N_("Cabasa"), N_("Maracas"), N_("Silbato corto"),
-    N_("Silbato largo"), N_("Güiro corto"), N_("Güiro largo"), N_("Claves"), N_("Caja china aguda"), N_("Caja china grave"),
-    N_("Cuíca apagada"), N_("Cuíca abierta"), N_("Triángulo apagado"), N_("Triángulo abierto")};
 
 
 // The harmonics of a wave of 32 samples: how much of its energy is in the fundamental,
@@ -266,19 +48,8 @@ WaveShape waveShape(const std::array<uint8_t, 32>& wave) {
 
 }  // namespace
 
-struct SynthMusic::Synth {
-    tsf* font = nullptr;
-    int rate = 0;  // the rate tsf renders at, fixed once set
-    Effects effects;
-    Equalizer equalizer;
-    std::vector<float> buffer;
 
-    ~Synth() {
-        if (font) tsf_close(font);
-    }
-};
-
-SynthMusic::SynthMusic() : synth_(std::make_unique<Synth>()) {}
+SynthMusic::SynthMusic() : synth_(std::make_unique<gm::Synth>()) {}
 
 SynthMusic::~SynthMusic() = default;
 
@@ -324,9 +95,9 @@ void SynthMusic::setEqualizer(const std::array<int, kEqBands>& gains) {
     synth_->equalizer.setGains(clamped);
 }
 
-const char* SynthMusic::programName(int program) { return program >= 0 && program < 128 ? tr(kPrograms[program]) : ""; }
+const char* SynthMusic::programName(int program) { return gm::programName(program); }
 
-const char* SynthMusic::drumName(int note) { return note >= 35 && note <= 81 ? tr(kDrumNames[note - 35]) : nullptr; }
+const char* SynthMusic::drumName(int note) { return gm::drumName(note); }
 
 double SynthMusic::noteOf(double hz) { return hz > 0 ? 69.0 + 12.0 * std::log2(hz / 440.0) : 0; }
 
@@ -610,60 +381,13 @@ uint32_t SynthMusic::activeVoices() const {
     return mask;
 }
 
-SynthMusic::Assignments SynthMusic::parseAssignments(const std::string& text) {
-    Assignments out;
-    size_t pos = 0;
-    while (pos < text.size()) {
-        size_t end = text.find('\n', pos);
-        if (end == std::string::npos) end = text.size();
-        std::string line = text.substr(pos, end - pos);
-        pos = end + 1;
-        if (const size_t c = line.find(';'); c != std::string::npos) line.resize(c);
-        const size_t eq = line.find('=');
-        if (eq == std::string::npos) continue;
-        char* stop = nullptr;
-        const std::string key = line.substr(0, eq);
-        const unsigned long fp = std::strtoul(key.c_str(), &stop, 16);
-        if (stop == key.c_str() || fp == 0) continue;
-        char word[32] = "";
-        int a = 0, b = 0, c = 0;
-        const char* value = line.c_str() + eq + 1;
-        Assignment as;
-        if (std::sscanf(value, " %31s", word) != 1) continue;
-        if (std::string(word) == "original") {
-            as.original = true;
-        } else if (std::string(word) == "bateria") {
-            const int n = std::sscanf(value, " %*s %d %d %d", &a, &b, &c);
-            if (n < 1 || !drumName(a)) continue;
-            as.drum = a;
-            if (n >= 3) as.volume = std::clamp(c, 0, 200);
-        } else {
-            const int n = std::sscanf(value, " %d %d %d", &a, &b, &c);
-            if (n < 1 || a < 0 || a > 127) continue;
-            as.program = a;
-            if (n >= 2) as.octave = std::clamp(b, -3, 3);
-            if (n >= 3) as.volume = std::clamp(c, 0, 200);
-        }
-        out[static_cast<uint32_t>(fp)] = as;
-    }
-    return out;
-}
+SynthMusic::Assignments SynthMusic::parseAssignments(const std::string& text) { return gm::parseAssignments(text); }
 
 std::string SynthMusic::formatAssignments(const Assignments& assignments) {
-    std::string out =
-        "; Instrumentos del sintetizador: huella = instrumento GM (0-127) octava volumen,\n"
-        "; bateria nota 0 volumen (una pieza del kit, 35-81), u original.\n[instrumentos]\n";
-    for (const auto& [fp, a] : assignments) {
-        char line[160];
-        if (a.original)
-            std::snprintf(line, sizeof line, "%08x = original\n", fp);
-        else if (a.drum >= 0)
-            std::snprintf(line, sizeof line, "%08x = bateria %d 0 %d\n", fp, a.drum, a.volume);
-        else
-            std::snprintf(line, sizeof line, "%08x = %d %d %d\n", fp, a.program, a.octave, a.volume);
-        out += line;
-    }
-    return out;
+    return gm::formatAssignments(assignments,
+                                 "; Instrumentos del sintetizador: huella = instrumento GM (0-127) octava volumen,\n"
+                                 "; bateria nota 0 volumen (una pieza del kit, 35-81), u original.\n[instrumentos]\n",
+                                 false);
 }
 
 void SynthMusic::emit(uint64_t clock, Ev type, int channel, int value, int extra) {
@@ -1062,11 +786,7 @@ void SynthMusic::apply(const Event& e) {
             // go, and some of the SoundFont's pieces take seconds to die away once struck
             // (its toms), so struck every beat they piled up until the synth had no voices
             // left and the song went quiet (Jungle Hijinxs, after half a minute).
-            if (ch == kDrums)
-                for (int i = 0; i < f->voiceNum; ++i) {
-                    tsf_voice& v = f->voices[i];
-                    if (v.playingPreset != -1 && v.playingChannel == ch && v.playingKey == e.value) tsf_voice_endquick(f, &v);
-                }
+            if (ch == kDrums) gm::endKeyQuick(f, ch, e.value);
             tsf_channel_note_on(f, ch, e.value, static_cast<float>(e.extra) / 127.0f);
             break;
         case Ev::NoteOff: tsf_channel_note_off(f, ch, e.value); break;
@@ -1097,7 +817,7 @@ void SynthMusic::render(int16_t* out, int frames) {
 }
 
 void SynthMusic::endFrame(uint64_t clock, std::vector<int16_t>& out, size_t from, double rate) {
-    Synth& s = *synth_;
+    gm::Synth& s = *synth_;
     if (!s.font) {
         events_.clear();
         frameStart_ = clock;

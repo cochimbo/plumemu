@@ -38,6 +38,7 @@ endif()
 add_library(plum_common STATIC
   src/core/console_base.cpp
   src/core/vgm_format.cpp
+  src/core/gm_sound.cpp
   src/core/i18n.cpp
   src/core/recording.cpp
   src/core/rewind.cpp
@@ -45,6 +46,7 @@ add_library(plum_common STATIC
 )
 # Its headers are included as "core/i18n.h", "frontend/audio.h", "render/gl.h"...
 target_include_directories(plum_common PUBLIC src)
+target_include_directories(plum_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/tsf)
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
 target_include_directories(plum_common PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/stb)
 target_link_libraries(plum_common PUBLIC plum_miniz Threads::Threads)
