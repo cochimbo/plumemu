@@ -1,7 +1,9 @@
 # Translations
 
 Texts are written in Spanish in the code, and each language has its `.po` here
-(`en.po`, `fr.po`, `pt.po`), which is built into the executable.
+(`en.po`, `fr.po`, `pt.po`) with this program's own texts. The texts of the code both
+programs share (plumemu's `common/src`) are in `common/src/frontend/lang`; the program is
+built with both.
 
 ## When adding or changing a text
 
@@ -10,7 +12,7 @@ Texts are written in Spanish in the code, and each language has its `.po` here
      comes before `##` is translated).
    - `trf("Ranura %d", n)` when it has `%d`, `%s`...
    - `N_("...")` in tables or constants that are translated later with `tr(...)`.
-2. Run `python3 tools/i18n.py --update`: it adds the new texts to the `.po` files (with an
+2. Run `python3 tools/i18n.py --update` (from plumemu's root): it adds the new texts to the `.po` files (with an
    empty translation) and removes the ones that are gone.
 3. Fill in the `msgstr` in all three `.po` files (`python3 tools/i18n.py --missing` lists
    what is missing). Keep the `%d`/`%s` in the same order.
@@ -21,6 +23,6 @@ The `.po` files are kept sorted, so two branches that add different texts rarely
 
 ## Adding a language
 
-Add its code to `PLUMNIN_LANGUAGES` (CMakeLists.txt), to `LANGUAGES` (tools/i18n.py) and
+Add its code to `PLUMNIN_LANGUAGES` (CMakeLists.txt), to `LANGUAGES` (plumemu's tools/i18n.py) and
 to `kLanguages` (src/frontend/languages.cpp) with its name, and create the `.po` with
 `tools/i18n.py --update`.
