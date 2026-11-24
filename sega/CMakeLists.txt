@@ -232,7 +232,8 @@ target_include_directories(plumsg_imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURC
 target_link_libraries(plumsg_imgui PUBLIC ${PLUMSG_SDL2_TARGET})
 
 add_executable(plumsg WIN32
-  src/frontend/main.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/main.cpp
+  src/frontend/app_main.cpp
   ${PLUM_COMMON_DIR}/src/frontend/crash.cpp
   ${PLUM_COMMON_DIR}/src/frontend/input.cpp
   src/frontend/buttons.cpp

@@ -175,7 +175,8 @@ target_include_directories(plumnin_imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOUR
 target_link_libraries(plumnin_imgui PUBLIC ${PLUMNIN_SDL2_TARGET})
 
 add_executable(plumnin WIN32
-  src/frontend/main.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/main.cpp
+  src/frontend/app_main.cpp
   ${PLUM_COMMON_DIR}/src/frontend/crash.cpp
   ${PLUM_COMMON_DIR}/src/frontend/input.cpp
   src/frontend/buttons.cpp
