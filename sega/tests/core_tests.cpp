@@ -38,7 +38,7 @@
 #include "megacd/megacd_program.h"
 #include "megacd32x/megacd32x_program.h"
 #include "cd_image.h"
-#include "netplay.h"
+#include "core/netplay.h"
 #include "notation.h"
 #include "pad_test_rom.h"
 #include "sms_test_rom.h"
@@ -2544,8 +2544,8 @@ void testNetplay() {
     for (int i = 0; i < 30; ++i) a.runFrame();
     b.setPadType(0, PadType::ThreeButton);  // the host's pad types win
     std::vector<uint32_t> hashA(kFrames), hashB(kFrames);
-    host.onFrame = [&](uint32_t f, MegaDrive& md) { if (f < kFrames) hashA[f] = frameHash(md.frame()); };
-    guest.onFrame = [&](uint32_t f, MegaDrive& md) { if (f < kFrames) hashB[f] = frameHash(md.frame()); };
+    host.onFrame = [&](uint32_t f, ConsoleBase& md) { if (f < kFrames) hashA[f] = frameHash(md.frame()); };
+    guest.onFrame = [&](uint32_t f, ConsoleBase& md) { if (f < kFrames) hashB[f] = frameHash(md.frame()); };
     int rollbacks = 0, stalls = 0;
     uint32_t hostTicks = 0, guestTicks = 0;
     for (int step = 0; step < 40000; ++step) {

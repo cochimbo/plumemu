@@ -10,12 +10,10 @@
 #include <utility>
 #include <vector>
 
-#include "../core/pad.h"
+#include "core/pad_state.h"
+#include "plum.h"
 
-namespace plumnin {
-
-// The console buttons that can be bound: the Super Nintendo pad's, which has them all.
-enum class PadButton { Up, Down, Left, Right, A, B, X, Y, L, R, Select, Start, Count };
+namespace plum {
 
 // Emulator actions that can be bound like console buttons. Most fire once per press;
 // Rewind and FastForward last while held.
@@ -32,11 +30,23 @@ SDL_GameControllerButton padButtonFromName(const std::string& name);  // INVALID
 // The trigger a pad axis event pulls past halfway, or SDL_CONTROLLER_BUTTON_INVALID.
 SDL_GameControllerButton triggerPulled(const SDL_Event& e);
 
+// The program's pad as the bindings see it: its 12 buttons in padButtons()'s order (the
+// cross first: up, down, left, right), with their names in the .ini file and what they
+// are bound to by default. Each program defines it (frontend/buttons.cpp).
+struct PadLayout {
+    std::array<const char*, 12> names;
+    std::array<SDL_Scancode, 12> keys;
+    std::array<SDL_GameControllerButton, 12> pad;  // SDL_CONTROLLER_BUTTON_INVALID for none
+    // The pad button that switches the pseudo-3D view by default, INVALID for none.
+    SDL_GameControllerButton toggle3DPad;
+};
+const PadLayout& padLayout();
+
 // Keyboard and gamepad bindings, read from and written to a plain-text .ini file.
 // The keyboard can drive both players ([teclado] and [teclado2]); the first gamepad
 // is player 1 and the second player 2, both with the [mando] buttons.
 struct InputConfig {
-    static constexpr int kButtons = static_cast<int>(PadButton::Count);
+    static constexpr int kButtons = 12;
     static constexpr int kHotkeys = static_cast<int>(Hotkey::Count);
     std::array<std::vector<SDL_Scancode>, kButtons> keys;
     std::array<std::vector<SDL_Scancode>, kButtons> keys2;
@@ -87,7 +97,7 @@ public:
     // The left stick of the player's pad the same way, for a light gun's crosshair.
     void leftStick(int player, float* x, float* y) const;
 
-    // The general bindings, as in plumnin.ini.
+    // The general bindings, as in the program's .ini.
     const InputConfig& config() const { return config_; }
     void setConfig(InputConfig config) { config_ = std::move(config); }
     // A game's own console buttons, used instead of the general ones while it is loaded;
@@ -111,4 +121,4 @@ private:
     mutable std::array<std::array<bool, InputConfig::kButtons>, 2> ignored_{};
 };
 
-}  // namespace plumnin
+}  // namespace plum

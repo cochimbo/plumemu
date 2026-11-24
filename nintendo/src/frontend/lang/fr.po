@@ -1015,8 +1015,8 @@ msgstr "L'hôte n'a pas accepté la connexion."
 msgid "El anfitrión no responde. Comprueba la dirección y que tenga el puerto UDP abierto."
 msgstr "L'hôte ne répond pas. Vérifiez l'adresse et que son port UDP est ouvert."
 
-msgid "El anfitrión usa otra versión de plumnin: tenéis que usar la misma."
-msgstr "L'hôte utilise une autre version de plumnin : vous devez utiliser la même."
+msgid "El anfitrión usa otra versión de %s: tenéis que usar la misma."
+msgstr "L'hôte utilise une autre version de %s : vous devez utiliser la même."
 
 msgid "El histórico va del último juego al que has jugado al primero."
 msgstr "L'historique va du dernier jeu joué au premier."
@@ -1045,8 +1045,8 @@ msgstr "Le manuel n'a pas de pages."
 msgid "El otro jugador ha salido de la partida."
 msgstr "L'autre joueur a quitté la partie."
 
-msgid "El puerto %d está ocupado (¿hay otro plumnin alojando?)."
-msgstr "Le port %d est occupé (un autre plumnin héberge-t-il ?)."
+msgid "El puerto %d está ocupado (¿hay otro %s alojando?)."
+msgstr "Le port %d est occupé (un autre %s héberge-t-il ?)."
 
 msgid "El puerto de \"%s\" no es válido."
 msgstr "Le port de \"%s\" n'est pas valide."

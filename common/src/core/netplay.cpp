@@ -1,13 +1,14 @@
-#include "netplay.h"
+#include "core/netplay.h"
 
+#include "core/app_info.h"
 #include "core/i18n.h"
 
 #include <algorithm>
 #include <cstddef>
 
-#include "console.h"
+#include "core/console_base.h"
 
-namespace plumnin {
+namespace plum {
 
 namespace {
 
@@ -65,7 +66,7 @@ private:
 };
 
 // What both sides compare to see that they are still running the same game.
-uint32_t checksum(Console& md) { return md.checksum(); }
+uint32_t checksum(ConsoleBase& md) { return md.checksum(); }
 
 constexpr uint32_t kHelloEveryMs = 250;
 constexpr uint32_t kConnectTimeoutMs = 10000;
@@ -78,16 +79,16 @@ constexpr uint32_t kCheckEvery = 60;  // frames between checksums
 }  // namespace
 
 uint16_t packPad(const PadState& p) {
-    const bool bits[12] = {p.up, p.down, p.left, p.right, p.a, p.b, p.x, p.y, p.l, p.r, p.select, p.start};
+    const PadButtons& buttons = padButtons();
     uint16_t v = 0;
-    for (int i = 0; i < 12; ++i) v = static_cast<uint16_t>(v | (bits[i] ? 1 : 0) << i);
+    for (size_t i = 0; i < buttons.size(); ++i) v = static_cast<uint16_t>(v | (p.*buttons[i] ? 1 : 0) << i);
     return v;
 }
 
 PadState unpackPad(uint16_t v) {
     PadState p;
-    bool* bits[12] = {&p.up, &p.down, &p.left, &p.right, &p.a, &p.b, &p.x, &p.y, &p.l, &p.r, &p.select, &p.start};
-    for (int i = 0; i < 12; ++i) *bits[i] = (v >> i & 1) != 0;
+    const PadButtons& buttons = padButtons();
+    for (size_t i = 0; i < buttons.size(); ++i) p.*buttons[i] = (v >> i & 1) != 0;
     return p;
 }
 
@@ -120,12 +121,12 @@ void NetplaySession::end() {
     fail(tr("Has salido de la partida."));
 }
 
-void NetplaySession::poll(Console& md, uint32_t nowMs) {
+void NetplaySession::poll(ConsoleBase& md, uint32_t nowMs) {
     now_ = nowMs;
     if (!clockStarted_) {
         clockStarted_ = true;
         phaseStart_ = lastHeard_ = nowMs;
-        romCrc_ = md.romCrc();
+        romCrc_ = md.gameCrc();
     }
     std::vector<uint8_t> packet;
     while (transport_.receive(packet)) {
@@ -171,17 +172,17 @@ void NetplaySession::poll(Console& md, uint32_t nowMs) {
     localAdvantage_ = static_cast<int>(static_cast<double>(frame_) - theirNow);
 }
 
-void NetplaySession::handle(const std::vector<uint8_t>& p, Console& md, uint32_t nowMs) {
+void NetplaySession::handle(const std::vector<uint8_t>& p, ConsoleBase& md, uint32_t nowMs) {
     if (p.size() < 4 || p[0] != 'P' || p[1] != 'N') return;
     const Type type = static_cast<Type>(p[3]);
     if (p[2] != kProtocolVersion) {
-        // A different plumnin. Tell a guest why instead of letting it time out.
+        // A different version of the program. Tell a guest why instead of letting it time out.
         if (role_ == Role::Host && type == Hello && phase_ == Phase::Waiting) {
             std::vector<uint8_t> body;
             PacketWriter(body).u8(1);
             sendPacket(Reject, body);
         } else if (role_ == Role::Guest && phase_ == Phase::Connecting) {
-            fail(tr("El anfitrión usa otra versión de plumnin: tenéis que usar la misma."));
+            fail(trf("El anfitrión usa otra versión de %s: tenéis que usar la misma.", appInfo().name));
         }
         return;
     }
@@ -194,7 +195,7 @@ void NetplaySession::handle(const std::vector<uint8_t>& p, Console& md, uint32_t
             // Our Welcome was lost.
         } else if (phase_ != Phase::Waiting) {
             return;
-        } else if (crc != md.romCrc()) {
+        } else if (crc != md.gameCrc()) {
             std::vector<uint8_t> body;
             PacketWriter(body).u8(2);
             sendPacket(Reject, body);
@@ -229,7 +230,7 @@ void NetplaySession::handle(const std::vector<uint8_t>& p, Console& md, uint32_t
     if (role_ == Role::Guest && type == Reject && phase_ == Phase::Connecting) {
         const uint8_t why = r.u8();
         fail(why == 2 ? tr("El anfitrión está jugando a otro juego: abrid los dos el mismo (la misma ROM).")
-             : why == 1 ? tr("El anfitrión usa otra versión de plumnin: tenéis que usar la misma.")
+             : why == 1 ? trf("El anfitrión usa otra versión de %s: tenéis que usar la misma.", appInfo().name)
                         : tr("El anfitrión no ha aceptado la conexión."));
         return;
     }
@@ -411,7 +412,7 @@ void NetplaySession::addRemote(uint32_t f, uint16_t bits) {
     if (f < frame_ && ranFrame_[i] == f && guessed_[i] != bits) mismatch_ = std::min(mismatch_, f);
 }
 
-void NetplaySession::runFrame(Console& md, uint32_t f, bool saveFirst) {
+void NetplaySession::runFrame(ConsoleBase& md, uint32_t f, bool saveFirst) {
     const size_t i = ring(f);
     // Only a frame run on a guessed pad can need going back to; with the pads on time
     // (the input delay covering the ping) no savestate is taken at all.
@@ -427,7 +428,7 @@ void NetplaySession::runFrame(Console& md, uint32_t f, bool saveFirst) {
     if (onFrame) onFrame(f, md);
 }
 
-void NetplaySession::catchUp(Console& md) {
+void NetplaySession::catchUp(ConsoleBase& md) {
     if (phase_ != Phase::Playing) return;
     if (mismatch_ >= frame_) {
         mismatch_ = UINT32_MAX;
@@ -444,13 +445,13 @@ void NetplaySession::catchUp(Console& md) {
     }
     for (uint32_t f = from; f < frame_; ++f) {
         runFrame(md, f, f != from);
-        md.audio().clearSamples();  // already heard, with the guessed pads
+        md.clearAudio();  // already heard, with the guessed pads
     }
     lastRollback_ = static_cast<int>(frame_ - from);
     finalize();
 }
 
-bool NetplaySession::advance(Console& md, const PadState& local) {
+bool NetplaySession::advance(ConsoleBase& md, const PadState& local) {
     if (phase_ != Phase::Playing) return false;
     lastRollback_ = 0;
     catchUp(md);
@@ -499,4 +500,4 @@ bool NetplaySession::shouldWait() {
     return false;
 }
 
-}  // namespace plumnin
+}  // namespace plum

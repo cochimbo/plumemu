@@ -2,15 +2,12 @@
 
 #include <cstdint>
 
+#include "core/pad_state.h"
+
 namespace plumnin {
 
-// The buttons of one pad, true while held: the Super Nintendo's, which has them all.
-// The Game Boy and the NES only read the cross, A, B, Select and Start.
-struct PadState {
-    bool up = false, down = false, left = false, right = false;
-    bool a = false, b = false, x = false, y = false;
-    bool l = false, r = false, select = false, start = false;
-};
+// PadState (core/pad_state.h): the Super Nintendo's pad reads the cross, A, B, X, Y, L,
+// R, Select and Start; the Game Boy and the NES the cross, A, B, Select and Start.
 
 // What is plugged into a port: a pad or nothing. A console with no second port (the
 // Game Boy) ignores the second.

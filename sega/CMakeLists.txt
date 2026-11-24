@@ -198,7 +198,7 @@ add_library(plumsg_core STATIC
   src/core/music_track.cpp
   src/core/cd_image.cpp
   src/core/megacd.cpp
-  src/core/netplay.cpp
+  ${PLUM_COMMON_DIR}/src/core/netplay.cpp
   ${PLUM_COMMON_DIR}/src/render/profile3d.cpp
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
@@ -208,7 +208,7 @@ target_link_libraries(plumsg_core PUBLIC plum_common plum_miniz Threads::Threads
 target_compile_definitions(plumsg_core PUBLIC PLUM_APP_NAMESPACE=plumsg)
 
 # UDP sockets for netplay (the session itself is in the core).
-add_library(plumsg_net STATIC src/net/udp.cpp)
+add_library(plumsg_net STATIC ${PLUM_COMMON_DIR}/src/net/udp.cpp)
 target_link_libraries(plumsg_net PUBLIC plumsg_core)
 if(WIN32)
   target_link_libraries(plumsg_net PUBLIC ws2_32)
@@ -266,7 +266,8 @@ target_link_libraries(plumsg_imgui PUBLIC ${PLUMSG_SDL2_TARGET})
 add_executable(plumsg WIN32
   src/frontend/main.cpp
   ${PLUM_COMMON_DIR}/src/frontend/crash.cpp
-  src/frontend/input.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/input.cpp
+  src/frontend/buttons.cpp
   ${PLUM_COMMON_DIR}/src/frontend/audio.cpp
   src/frontend/settings.cpp
   src/frontend/game_options.cpp
@@ -422,7 +423,7 @@ if(PLUMSG_BUILD_TESTS)
 
   # The frontend's files (a game's own options and controls); needs SDL2 for the key names.
   if(PLUMSG_BUILD_FRONTEND)
-    add_executable(plumsg_frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp src/frontend/input.cpp
+    add_executable(plumsg_frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp ${PLUM_COMMON_DIR}/src/frontend/input.cpp src/frontend/buttons.cpp
                    src/frontend/settings.cpp ${PLUM_COMMON_DIR}/src/frontend/crash.cpp ${PLUM_COMMON_DIR}/src/frontend/handheld.cpp)
     set_target_properties(plumsg_frontend_tests PROPERTIES OUTPUT_NAME frontend_tests)
     target_link_libraries(plumsg_frontend_tests PRIVATE plumsg_core ${PLUMSG_SDL2_TARGET})

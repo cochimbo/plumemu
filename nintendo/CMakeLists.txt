@@ -142,7 +142,7 @@ add_library(plumnin_core STATIC
   src/core/songs_snes.cpp
   src/core/song_export.cpp
   src/core/cheats.cpp
-  src/core/netplay.cpp
+  ${PLUM_COMMON_DIR}/src/core/netplay.cpp
   ${PLUM_COMMON_DIR}/src/render/profile3d.cpp
 )
 # stb_image_write (public domain / MIT, vendored) encodes the JPEG frames of the AVI recordings.
@@ -152,7 +152,7 @@ target_link_libraries(plumnin_core PUBLIC plum_common plum_miniz plumnin_shine T
 target_compile_definitions(plumnin_core PUBLIC PLUM_APP_NAMESPACE=plumnin)
 
 # UDP sockets for netplay (the session itself is in the core).
-add_library(plumnin_net STATIC src/net/udp.cpp)
+add_library(plumnin_net STATIC ${PLUM_COMMON_DIR}/src/net/udp.cpp)
 target_link_libraries(plumnin_net PUBLIC plumnin_core)
 if(WIN32)
   target_link_libraries(plumnin_net PUBLIC ws2_32)
@@ -210,7 +210,8 @@ target_link_libraries(plumnin_imgui PUBLIC ${PLUMNIN_SDL2_TARGET})
 add_executable(plumnin WIN32
   src/frontend/main.cpp
   ${PLUM_COMMON_DIR}/src/frontend/crash.cpp
-  src/frontend/input.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/input.cpp
+  src/frontend/buttons.cpp
   ${PLUM_COMMON_DIR}/src/frontend/audio.cpp
   src/frontend/settings.cpp
   src/frontend/game_options.cpp
@@ -385,7 +386,7 @@ if(PLUMNIN_BUILD_TESTS)
 
   # The frontend's files (a game's own options and controls); needs SDL2 for the key names.
   if(PLUMNIN_BUILD_FRONTEND)
-    add_executable(plumnin_frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp src/frontend/input.cpp
+    add_executable(plumnin_frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp ${PLUM_COMMON_DIR}/src/frontend/input.cpp src/frontend/buttons.cpp
                    src/frontend/settings.cpp ${PLUM_COMMON_DIR}/src/frontend/crash.cpp ${PLUM_COMMON_DIR}/src/frontend/handheld.cpp)
     set_target_properties(plumnin_frontend_tests PROPERTIES OUTPUT_NAME frontend_tests)
     target_link_libraries(plumnin_frontend_tests PRIVATE plumnin_core ${PLUMNIN_SDL2_TARGET})

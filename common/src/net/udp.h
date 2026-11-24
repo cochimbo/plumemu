@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include "../core/netplay.h"
+#include "core/netplay.h"
 
-namespace plumsg {
+namespace plum {
 
 // A non-blocking IPv4 UDP socket that is a NetTransport: it sends to one peer and
 // receives from anyone until keepPeer() or setPeer(), then only from that peer. The
@@ -44,4 +44,4 @@ private:
     std::string error_;
 };
 
-}  // namespace plumsg
+}  // namespace plum

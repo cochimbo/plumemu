@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "input.h"
+#include "frontend/input.h"
 #include "settings.h"
 
 namespace plumsg {

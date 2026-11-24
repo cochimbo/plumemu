@@ -16,7 +16,7 @@
 #include "frontend/fps_counter.h"
 #include "game_info.h"
 #include "imgui.h"
-#include "input.h"
+#include "frontend/input.h"
 #include "instrument_editor.h"
 #include "score_view.h"
 #include "library.h"

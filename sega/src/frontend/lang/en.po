@@ -1098,8 +1098,8 @@ msgstr "The host did not accept the connection."
 msgid "El anfitrión no responde. Comprueba la dirección y que tenga el puerto UDP abierto."
 msgstr "The host does not answer. Check the address and that it has the UDP port open."
 
-msgid "El anfitrión usa otra versión de plumsg: tenéis que usar la misma."
-msgstr "The host uses another version of plumsg: you both need the same one."
+msgid "El anfitrión usa otra versión de %s: tenéis que usar la misma."
+msgstr "The host uses another version of %s: you both need the same one."
 
 msgid "El código Game Genie apunta a una dirección impar."
 msgstr "The Game Genie code points to an odd address."
@@ -1150,8 +1150,8 @@ msgstr "The manual has no pages."
 msgid "El otro jugador ha salido de la partida."
 msgstr "The other player has left the game."
 
-msgid "El puerto %d está ocupado (¿hay otro plumsg alojando?)."
-msgstr "Port %d is in use (is another plumsg hosting?)."
+msgid "El puerto %d está ocupado (¿hay otro %s alojando?)."
+msgstr "Port %d is in use (is another %s hosting?)."
 
 msgid "El puerto de \"%s\" no es válido."
 msgstr "The port in \"%s\" is not valid."

@@ -7,11 +7,12 @@
 #include <string>
 #include <vector>
 
-#include "pad.h"
+#include "core/pad_state.h"
+#include "plum.h"
 
-namespace plumnin {
+namespace plum {
 
-class Console;
+class ConsoleBase;
 
 // Where the session's packets go and come from: a UDP socket in the programs, a
 // simulated link in the tests. Packets may be lost, repeated or reordered; the
@@ -27,7 +28,7 @@ public:
     virtual void keepPeer() {}
 };
 
-// The two players' pads in 12 bits, for the packets.
+// The two players' pads in 12 bits, for the packets: padButtons(), in its order.
 uint16_t packPad(const PadState& p);
 PadState unpackPad(uint16_t bits);
 
@@ -65,14 +66,14 @@ public:
     // Reads and answers packets; call it often (every display tick at least). `nowMs`
     // is any millisecond clock. It may change `md`: the host takes its savestate here
     // when a guest arrives and the guest loads it.
-    void poll(Console& md, uint32_t nowMs);
+    void poll(ConsoleBase& md, uint32_t nowMs);
     // Runs the next frame with `local` as this player's pad, after going back and
     // running again any frames whose guessed pads were wrong. False when no frame ran:
     // not playing yet, or too far ahead of the other player. After a true, md.audio()
     // holds only the new frame's sound (that of the frames run again is dropped).
-    bool advance(Console& md, const PadState& local);
+    bool advance(ConsoleBase& md, const PadState& local);
     // Runs again the frames whose guessed pads were wrong, without a new frame.
-    void catchUp(Console& md);
+    void catchUp(ConsoleBase& md);
     // True when this side is ahead of the other and should let one display tick pass
     // without a frame, so the two stay level instead of one side waiting all the time.
     bool shouldWait();
@@ -99,20 +100,20 @@ public:
     // Called after each frame runs (again or for the first time), with its number, so
     // tests can record each frame's result: the last call for a frame is the one that
     // counts.
-    std::function<void(uint32_t frame, Console& md)> onFrame;
+    std::function<void(uint32_t frame, ConsoleBase& md)> onFrame;
 
 private:
     enum Type : uint8_t { Hello = 1, Welcome, Reject, Chunk, ChunkAck, Input, Bye };
     static constexpr size_t kChunkSize = 1024;
     static constexpr size_t kMaxInputsPerPacket = 200;
 
-    void handle(const std::vector<uint8_t>& p, Console& md, uint32_t nowMs);
+    void handle(const std::vector<uint8_t>& p, ConsoleBase& md, uint32_t nowMs);
     void sendPacket(Type type, const std::vector<uint8_t>& body);
     void sendInputs(uint32_t nowMs);
     void sendChunks(uint32_t nowMs);
     void fail(const std::string& reason);
     void startPlaying(uint32_t nowMs);
-    void runFrame(Console& md, uint32_t f, bool saveFirst);
+    void runFrame(ConsoleBase& md, uint32_t f, bool saveFirst);
     PadState remoteFor(uint32_t f) const;
     void addRemote(uint32_t f, uint16_t bits);
     void finalize();
@@ -166,4 +167,4 @@ private:
     int sinceWait_ = 0;
 };
 
-}  // namespace plumnin
+}  // namespace plum
