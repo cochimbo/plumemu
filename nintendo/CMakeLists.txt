@@ -141,7 +141,7 @@ add_library(plumnin_core STATIC
   src/core/songs.cpp
   src/core/songs_snes.cpp
   src/core/song_export.cpp
-  src/core/cheats.cpp
+  ${PLUM_COMMON_DIR}/src/core/cheat_list.cpp
   ${PLUM_COMMON_DIR}/src/core/netplay.cpp
   ${PLUM_COMMON_DIR}/src/render/profile3d.cpp
 )
@@ -231,7 +231,7 @@ add_executable(plumnin WIN32
   src/frontend/screenscraper.cpp
   ${PLUM_COMMON_DIR}/src/frontend/screenscraper_data.cpp
   src/frontend/ui_media.cpp
-  src/frontend/cheat_database.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/cheat_database.cpp
   ${PLUM_COMMON_DIR}/src/frontend/languages.cpp
   src/frontend/achievements_ui.cpp
   ${PLUM_COMMON_DIR}/src/render/gl.cpp

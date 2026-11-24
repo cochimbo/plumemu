@@ -1,11 +1,16 @@
 #pragma once
 
+// The cheat list both programs share: the codes as the user keeps them, the file they
+// live in and the RetroArch lists. What a code means is each console's (a CheatDecoder).
+
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
 
-namespace plumnin {
+#include "plum.h"
+
+namespace plum {
 
 // One write a cheat code asks for, in the console's own addresses. Where it lands is
 // the console's business: a Game Genie patches what the cartridge's ROM answers, a Pro
@@ -41,10 +46,11 @@ bool decodeCheatCodes(const std::string& code, const CheatDecoder& decode, std::
 std::string normalizeCheat(const std::string& code);
 
 // A game's cheat file: one line per code, "si" or "no", the code and an optional name.
+// Its first lines name the program and the codes it takes (appInfo().cheatCodes).
 std::string formatCheats(const std::vector<Cheat>& cheats);
 std::vector<Cheat> parseCheats(const std::string& text);
 // The cheats of a RetroArch .cht file (the libretro-database lists): each cheatN_code
 // with cheatN_desc as its name, all off. Entries with no code are left out.
 std::vector<Cheat> parseChtFile(const std::string& text);
 
-}  // namespace plumnin
+}  // namespace plum

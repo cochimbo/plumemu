@@ -11,7 +11,7 @@
 #include "../core/cheats.h"
 #include "../core/system.h"
 #include "achievements_ui.h"
-#include "cheat_database.h"
+#include "frontend/cheat_database.h"
 #include "frontend/file_dialog.h"
 #include "frontend/fps_counter.h"
 #include "game_info.h"

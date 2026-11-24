@@ -188,6 +188,7 @@ add_library(plumsg_core STATIC
   src/core/song_export.cpp
   src/core/megadrive.cpp
   src/core/cheats.cpp
+  ${PLUM_COMMON_DIR}/src/core/cheat_list.cpp
   src/core/sms.cpp
   src/core/vdp_sms.cpp
   src/core/system.cpp
@@ -289,7 +290,7 @@ add_executable(plumsg WIN32
   ${PLUM_COMMON_DIR}/src/frontend/screenscraper_data.cpp
   src/frontend/ui_media.cpp
   src/frontend/manual.cpp
-  src/frontend/cheat_database.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/cheat_database.cpp
   ${PLUM_COMMON_DIR}/src/frontend/languages.cpp
   src/frontend/achievements_ui.cpp
   ${PLUM_COMMON_DIR}/src/render/gl.cpp

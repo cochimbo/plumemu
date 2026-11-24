@@ -1296,6 +1296,9 @@ msgstr "This build of plumsg does not include the ScreenScraper developer accoun
 msgid "Esta compilación de plumsg no trae la cuenta de desarrollador de ScreenScraper."
 msgstr "This build of plumsg does not include the ScreenScraper developer account."
 
+msgid "Esta consola todavía no tiene trucos."
+msgstr "This console has no cheats yet."
+
 msgid "Estado"
 msgstr "State"
 
