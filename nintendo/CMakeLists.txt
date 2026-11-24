@@ -131,7 +131,8 @@ target_link_libraries(plumnin_achievements PUBLIC plumnin_core plumnin_rcheevos)
 target_include_directories(plumnin_achievements PRIVATE ${rcheevos_SOURCE_DIR}/src/rhash)
 
 # The emulator without a window, for tests, CI and reproducing bugs (see --help).
-add_executable(plumnin-headless src/headless/main.cpp ${PLUM_COMMON_DIR}/src/headless/headless_tools.cpp)
+add_executable(plumnin-headless src/headless/main.cpp ${PLUM_COMMON_DIR}/src/headless/headless_tools.cpp
+               ${PLUM_COMMON_DIR}/src/headless/headless_run.cpp)
 target_include_directories(plumnin-headless PRIVATE tests)
 target_link_libraries(plumnin-headless PRIVATE plumnin_core plumnin_net)
 
