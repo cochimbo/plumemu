@@ -15,4 +15,5 @@ When releasing a version, add its states (Master System and Game Gear exist sinc
 0.0.25).
 
 `carry_on.txt` has what those versions showed at frame 119, which the loaded states
-must show 30 frames after loading.
+must show 30 frames after loading. A version whose own run shows something else
+has its own line, `VERSION-SYSTEM`, which wins over the system's.

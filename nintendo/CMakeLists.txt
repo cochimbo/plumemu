@@ -389,7 +389,7 @@ if(PLUMNIN_BUILD_TESTS)
 
   # plumnin-headless end to end: hashes, savestates, input scripts and checks.
   add_test(NAME nintendo_headless COMMAND ${CMAKE_COMMAND} -DHEADLESS=$<TARGET_FILE:plumnin-headless>
-           -DWORK=${CMAKE_CURRENT_BINARY_DIR}/headless_test
+           -DWORK=${CMAKE_CURRENT_BINARY_DIR}/headless_test -DSTATES=${CMAKE_CURRENT_SOURCE_DIR}/tests/states
            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/headless_tests.cmake)
 
   # The frontend's files (a game's own options and controls); needs SDL2 for the key names.
