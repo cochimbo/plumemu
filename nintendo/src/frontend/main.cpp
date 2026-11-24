@@ -23,7 +23,7 @@
 #include "render/gl_renderers.h"
 #include "render/profile3d.h"
 #include "net/udp.h"
-#include "achievements.h"
+#include "frontend/achievements.h"
 #include "frontend/audio.h"
 #include "frontend/crash.h"
 #include "frontend/fps_counter.h"

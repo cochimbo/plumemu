@@ -6,14 +6,16 @@
 #include <string>
 #include <vector>
 
+#include "plum.h"
+
 struct rc_client_t;
 struct rc_client_event_t;
 struct rc_api_request_t;
 struct rc_api_server_response_t;
 
-namespace plumsg {
+namespace plum {
 
-class MegaDrive;
+class ConsoleBase;
 
 // RetroAchievements (retroachievements.org): the achievements, leaderboards and rich
 // presence of the game being played, through rcheevos' rc_client. It identifies the game
@@ -35,7 +37,7 @@ public:
     Achievements(const Achievements&) = delete;
     Achievements& operator=(const Achievements&) = delete;
 
-    // "plumsg/<version> rcheevos/<version>", the User-Agent of every request.
+    // "<program>/0.0 rcheevos/<version>" (appInfo().name), the User-Agent of every request.
     std::string userAgent() const;
 
     // Delivers the answers that arrived and lets the client retry, ping and so on. Call
@@ -60,7 +62,7 @@ public:
 
     // The game. `hash` is gameHash() of the console just loaded (before cheats change
     // its ROM). The game is identified after logging in, if that is still going on.
-    void loadGame(MegaDrive& console, const std::string& hash);
+    void loadGame(ConsoleBase& console, const std::string& hash);
     void unloadGame();
     bool gameLoaded() const;  // identified, with or without achievements
     bool loadingGame() const { return loadingGame_; }
@@ -70,19 +72,16 @@ public:
     void doFrame();
     void idle();
     // Savestates: the achievements' progress, kept next to the state. Restoring an empty
-    // one starts every achievement over (a state from before plumsg kept them).
+    // one starts every achievement over (a state from before the program kept them).
     std::vector<uint8_t> saveProgress();
     void loadProgress(const std::vector<uint8_t>& data);
 
-    // The console's ID for rcheevos, and the game's hash as RetroAchievements knows it:
-    // the MD5 of the cartridge's ROM, or of the first 512 bytes of a disc.
-    static uint32_t consoleId(const MegaDrive& console);
-    static std::string gameHash(MegaDrive& console);
-    // The console's memory as the achievements address it: the 68000's RAM first, then
-    // the 32X's or Mega CD's, then the cartridge's save RAM; the 68000's memory with the
-    // two bytes of each word swapped, as other emulators show it. Returns how many bytes
-    // could be read.
-    static uint32_t readMemory(MegaDrive& console, uint32_t address, uint8_t* buffer, uint32_t count);
+    // The game's hash as RetroAchievements knows it: the MD5 of the console's
+    // achievementsHashData() (the cartridge's ROM, or the first 512 bytes of a disc).
+    static std::string gameHash(ConsoleBase& console);
+    // The console's memory as the achievements address it (readAchievementsMemory()).
+    // Returns how many bytes could be read.
+    static uint32_t readMemory(ConsoleBase& console, uint32_t address, uint8_t* buffer, uint32_t count);
 
     // What to tell the user, in the order it happened.
     struct Notice {
@@ -152,7 +151,7 @@ private:
     std::shared_ptr<Shared> shared_;
     std::vector<std::unique_ptr<Request>> pending_;  // not threaded: made in the next poll()
     rc_client_t* client_ = nullptr;
-    MegaDrive* console_ = nullptr;
+    ConsoleBase* console_ = nullptr;
     std::string hash_;
     bool wantGame_ = false;  // a game is loaded, waiting for the login to be identified
     bool loggingIn_ = false;
@@ -165,4 +164,4 @@ private:
     std::vector<Indicator> trackers_;
 };
 
-}  // namespace plumsg
+}  // namespace plum

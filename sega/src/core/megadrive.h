@@ -162,6 +162,14 @@ public:
     void clearAudio() override { mixer_.clearSamples(); }
     // The 68000's work RAM (checksum, for netplay).
     uint32_t checksum() override;
+    // RetroAchievements: the Mega Drive, 32X, Mega CD, Master System or Game Gear; the
+    // cartridge's ROM, or the first 512 bytes of a disc; and the memory as the
+    // achievements address it: the 68000's RAM first, then the 32X's or Mega CD's, then
+    // the cartridge's save RAM; the 68000's memory with the two bytes of each word
+    // swapped, as other emulators show it.
+    uint32_t achievementsConsole() const override;
+    std::vector<uint8_t> achievementsHashData() override;
+    uint32_t readAchievementsMemory(uint32_t address, uint8_t* buffer, uint32_t count) override;
     // Sample rate for audio().samples(); the frontend nudges it to keep its queue level.
     void setSampleRate(double hz) override;
     double refreshRate() const override { return pal() ? 49.701459 : 59.922743; }

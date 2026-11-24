@@ -2074,8 +2074,8 @@ msgstr "Impossible de se connecter à RetroAchievements."
 msgid "No se puede grabar con ese tamaño"
 msgstr "Impossible d'enregistrer à cette taille"
 
-msgid "No se pueden conseguir en plumnin"
-msgstr "Impossibles à obtenir dans plumnin"
+msgid "No se pueden conseguir en %s"
+msgstr "Impossibles à obtenir dans %s"
 
 msgid "No vale"
 msgstr "Non valide"

@@ -2268,8 +2268,8 @@ msgstr "Cannot connect to RetroAchievements."
 msgid "No se puede grabar con ese tamaño"
 msgstr "Cannot record at that size"
 
-msgid "No se pueden conseguir en plumsg"
-msgstr "Cannot be unlocked in plumsg"
+msgid "No se pueden conseguir en %s"
+msgstr "Cannot be unlocked in %s"
 
 msgid "No vale"
 msgstr "Not valid"

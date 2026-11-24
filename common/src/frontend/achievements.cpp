@@ -1,22 +1,20 @@
-#include "achievements.h"
+#include "frontend/achievements.h"
 
 #include <cstdio>
 #include <mutex>
 #include <thread>
 #include <utility>
 
-#include "../core/cd_image.h"
 #include "core/i18n.h"
-#include "../core/megadrive.h"
+#include "core/app_info.h"
+#include "core/console_base.h"
 #include "md5.h"
 #include "rc_client.h"
 #include "rc_consoles.h"
 
-namespace plumsg {
+namespace plum {
 
 namespace {
-
-const char* const kPlumsgAgent = "plumsg/0.0";
 
 Achievements* owner(rc_client_t* client) { return static_cast<Achievements*>(rc_client_get_userdata(client)); }
 
@@ -34,7 +32,7 @@ struct Achievements::Request {
 };
 
 // What the worker threads share with poll(). It outlives the Achievements if a request
-// is still being made when plumsg closes.
+// is still being made when the program closes.
 struct Achievements::Shared {
     std::mutex mutex;
     std::vector<std::unique_ptr<Request>> done;
@@ -58,7 +56,7 @@ Achievements::~Achievements() {
 std::string Achievements::userAgent() const {
     char clause[64];
     rc_client_get_user_agent_clause(client_, clause, sizeof clause);
-    return std::string(kPlumsgAgent) + " " + clause;
+    return std::string(appInfo().name) + "/0.0 " + clause;
 }
 
 void Achievements::serverCall(const rc_api_request_t* request, void (*callback)(const rc_api_server_response_t*, void*),
@@ -166,7 +164,7 @@ bool Achievements::hardcore() const { return rc_client_get_hardcore_enabled(clie
 
 // The game.
 
-void Achievements::loadGame(MegaDrive& console, const std::string& hash) {
+void Achievements::loadGame(ConsoleBase& console, const std::string& hash) {
     unloadGame();
     console_ = &console;
     hash_ = hash;
@@ -248,30 +246,12 @@ void Achievements::loadProgress(const std::vector<uint8_t>& data) {
 
 // Identifying the game and reading its memory.
 
-uint32_t Achievements::consoleId(const MegaDrive& console) {
-    if (console.isMegaCd() && !console.hasMsuMd()) return RC_CONSOLE_SEGA_CD;  // the Mega CD 32X too
-    if (console.is32x()) return RC_CONSOLE_SEGA_32X;
-    if (console.isGameGear()) return RC_CONSOLE_GAME_GEAR;
-    if (console.isMasterSystem()) return RC_CONSOLE_MASTER_SYSTEM;
-    return RC_CONSOLE_MEGA_DRIVE;
-}
-
-std::string Achievements::gameHash(MegaDrive& console) {
+std::string Achievements::gameHash(ConsoleBase& console) {
+    const std::vector<uint8_t> data = console.achievementsHashData();
+    if (data.empty()) return {};
     md5_state_t md5;
     md5_init(&md5);
-    if (console.megaCd()) {
-        // A disc: its volume and ROM headers, the first 512 bytes of the first data sector.
-        CdImage* disc = console.disc();
-        const CdImage::Track* track = disc ? disc->track(disc->firstTrack()) : nullptr;
-        if (!track) return {};
-        uint8_t sector[2048];
-        disc->readData(track->start, sector);
-        md5_append(&md5, sector, 512);
-    } else {
-        const std::vector<uint8_t>& rom = console.cartridge().rom();
-        if (rom.empty()) return {};
-        md5_append(&md5, rom.data(), static_cast<int>(rom.size()));
-    }
+    md5_append(&md5, data.data(), static_cast<int>(data.size()));
     md5_byte_t digest[16];
     md5_finish(&md5, digest);
     char hex[33];
@@ -279,41 +259,8 @@ std::string Achievements::gameHash(MegaDrive& console) {
     return std::string(hex, 32);
 }
 
-uint32_t Achievements::readMemory(MegaDrive& console, uint32_t address, uint8_t* buffer, uint32_t count) {
-    const uint32_t system = consoleId(console);
-    // Where the cartridge's save RAM starts in the achievements' addresses.
-    const uint32_t saveStart = system == RC_CONSOLE_SEGA_32X ? 0x50000 : system == RC_CONSOLE_MEGA_DRIVE ? 0x10000 : 0;
-    const std::vector<uint8_t>& save = console.cartridge().saveRam();
-    if (system == RC_CONSOLE_MASTER_SYSTEM || system == RC_CONSOLE_GAME_GEAR) {
-        // 8 KB of RAM, then the cartridge's 32 KB.
-        for (uint32_t i = 0; i < count; ++i) {
-            const uint32_t a = address + i;
-            if (a < 0x2000) buffer[i] = console.z80Ram()[a];
-            else if (a < 0xA000 && a - 0x2000 < save.size()) buffer[i] = save[a - 0x2000];
-            else return i;
-        }
-        return count;
-    }
-    for (uint32_t i = 0; i < count; ++i) {
-        const uint32_t a = address + i;
-        if (a < 0x10000) {
-            buffer[i] = console.workRam()[a ^ 1];
-        } else if (system == RC_CONSOLE_SEGA_32X && a < 0x50000) {
-            buffer[i] = console.mars()->sdram()[(a - 0x10000) ^ 1];
-        } else if (system == RC_CONSOLE_SEGA_CD && a < 0x90000) {
-            buffer[i] = console.megaCd()->programRam()[(a - 0x10000) ^ 1];
-        } else if (system == RC_CONSOLE_SEGA_CD && a < 0xB0000) {
-            // Word RAM, as in its 2 Mbit mode: 256 KB in the order the 68000 sees them.
-            const uint32_t offset = (a - 0x90000) ^ 1;
-            const uint16_t word = console.megaCd()->wordRam()[offset >> 1];
-            buffer[i] = static_cast<uint8_t>(offset & 1 ? word : word >> 8);
-        } else if (saveStart && a >= saveStart && a - saveStart < save.size() && a - saveStart < 0x10000) {
-            buffer[i] = save[a - saveStart];
-        } else {
-            return i;
-        }
-    }
-    return count;
+uint32_t Achievements::readMemory(ConsoleBase& console, uint32_t address, uint8_t* buffer, uint32_t count) {
+    return console.readAchievementsMemory(address, buffer, count);
 }
 
 uint32_t Achievements::readMemoryCallback(uint32_t address, uint8_t* buffer, uint32_t count, rc_client_t* client) {
@@ -437,7 +384,7 @@ std::vector<Achievements::Group> Achievements::achievementList() {
         switch (bucket.bucket_type) {
             case RC_CLIENT_ACHIEVEMENT_BUCKET_LOCKED: g.label = tr("Por conseguir"); break;
             case RC_CLIENT_ACHIEVEMENT_BUCKET_UNLOCKED: g.label = tr("Conseguidos"); break;
-            case RC_CLIENT_ACHIEVEMENT_BUCKET_UNSUPPORTED: g.label = tr("No se pueden conseguir en plumsg"); break;
+            case RC_CLIENT_ACHIEVEMENT_BUCKET_UNSUPPORTED: g.label = trf("No se pueden conseguir en %s", appInfo().name); break;
             case RC_CLIENT_ACHIEVEMENT_BUCKET_UNOFFICIAL: g.label = tr("No oficiales"); break;
             case RC_CLIENT_ACHIEVEMENT_BUCKET_RECENTLY_UNLOCKED: g.label = tr("Recién conseguidos"); break;
             case RC_CLIENT_ACHIEVEMENT_BUCKET_ACTIVE_CHALLENGE: g.label = tr("A punto (reto en marcha)"); break;
@@ -493,4 +440,4 @@ std::string Achievements::richPresence() {
     return buffer;
 }
 
-}  // namespace plumsg
+}  // namespace plum

@@ -116,6 +116,36 @@ uint32_t Console::checksum() {
     return h;
 }
 
+std::vector<uint8_t> Console::achievementsHashData() {
+    const std::vector<uint8_t>& data = rom();
+    if (data.empty()) return {};
+    // What RetroAchievements hashes: the cartridge without the headers that dumps add,
+    // the 16 bytes of the NES's iNES header and the 512 of a SNES copier's.
+    size_t skip = 0;
+    if (system() == ConsoleSystem::Nes && data.size() > 16 && data[0] == 'N' && data[1] == 'E' && data[2] == 'S' &&
+        data[3] == 0x1A)
+        skip = 16;
+    if (system() == ConsoleSystem::Snes && data.size() % 1024 == 512) skip = 512;
+    return std::vector<uint8_t>(data.begin() + static_cast<std::ptrdiff_t>(skip), data.end());
+}
+
+uint32_t Console::readAchievementsMemory(uint32_t address, uint8_t* buffer, uint32_t count) {
+    // The console lays its memory out in RetroAchievements' order; the gaps read as nothing.
+    const std::vector<MemoryRegion> map = memoryMap();
+    for (uint32_t i = 0; i < count; ++i) {
+        const uint32_t a = address + i;
+        bool found = false;
+        for (const MemoryRegion& m : map)
+            if (a >= m.address && a - m.address < m.size) {
+                buffer[i] = m.data[a - m.address];
+                found = true;
+                break;
+            }
+        if (!found) return i;
+    }
+    return count;
+}
+
 bool Console::stateThumbnail(const std::vector<uint8_t>& state, std::vector<uint32_t>& pixels, int* width,
                              int* height) {
     return plum::ConsoleBase::stateThumbnail(kStateFormat, state, pixels, width, height);

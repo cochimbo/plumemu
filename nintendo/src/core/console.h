@@ -123,8 +123,10 @@ public:
 
     // The memory RetroAchievements reads, in the order of its address map.
     virtual std::vector<MemoryRegion> memoryMap() { return {}; }
-    // RetroAchievements' number for the console (RC_CONSOLE_*), 0 if it has none.
-    virtual uint32_t achievementsConsole() const { return 0; }
+    // RetroAchievements (achievementsConsole: each console): the cartridge without the
+    // headers that dumps add, and the memory of memoryMap().
+    std::vector<uint8_t> achievementsHashData() override;
+    uint32_t readAchievementsMemory(uint32_t address, uint8_t* buffer, uint32_t count) override;
     // The memory the achievements read (checksum, for netplay).
     uint32_t checksum() override;
 

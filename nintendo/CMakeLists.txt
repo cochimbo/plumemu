@@ -160,7 +160,7 @@ endif()
 
 # RetroAchievements: the game's hash, its memory as the achievements see it, and the
 # rcheevos client with its requests made on worker threads.
-add_library(plumnin_achievements STATIC src/frontend/achievements.cpp)
+add_library(plumnin_achievements STATIC ${PLUM_COMMON_DIR}/src/frontend/achievements.cpp)
 target_link_libraries(plumnin_achievements PUBLIC plumnin_core plumnin_rcheevos)
 target_include_directories(plumnin_achievements PRIVATE ${rcheevos_SOURCE_DIR}/src/rhash)
 
