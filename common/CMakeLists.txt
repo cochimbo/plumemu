@@ -37,6 +37,7 @@ endif()
 
 add_library(plum_common STATIC
   src/core/console_base.cpp
+  src/core/vgm_format.cpp
   src/core/i18n.cpp
   src/core/recording.cpp
   src/core/rewind.cpp
