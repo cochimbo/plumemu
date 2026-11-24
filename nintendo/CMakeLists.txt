@@ -180,6 +180,7 @@ add_executable(plumnin WIN32
   src/frontend/buttons.cpp
   ${PLUM_COMMON_DIR}/src/frontend/audio.cpp
   src/frontend/settings.cpp
+  ${PLUM_COMMON_DIR}/src/frontend/settings_ini.cpp
   src/frontend/game_options.cpp
   ${PLUM_COMMON_DIR}/src/frontend/file_dialog.cpp
   src/frontend/ui.cpp
@@ -354,7 +355,7 @@ if(PLUMNIN_BUILD_TESTS)
   # The frontend's files (a game's own options and controls); needs SDL2 for the key names.
   if(PLUMNIN_BUILD_FRONTEND)
     add_executable(plumnin_frontend_tests tests/frontend_tests.cpp src/frontend/game_options.cpp ${PLUM_COMMON_DIR}/src/frontend/input.cpp src/frontend/buttons.cpp
-                   src/frontend/settings.cpp ${PLUM_COMMON_DIR}/src/frontend/crash.cpp ${PLUM_COMMON_DIR}/src/frontend/handheld.cpp)
+                   src/frontend/settings.cpp ${PLUM_COMMON_DIR}/src/frontend/settings_ini.cpp ${PLUM_COMMON_DIR}/src/frontend/crash.cpp ${PLUM_COMMON_DIR}/src/frontend/handheld.cpp)
     set_target_properties(plumnin_frontend_tests PROPERTIES OUTPUT_NAME frontend_tests)
     target_link_libraries(plumnin_frontend_tests PRIVATE plumnin_core ${PLUMNIN_SDL2_TARGET})
     add_test(NAME nintendo_frontend_tests COMMAND plumnin_frontend_tests)
