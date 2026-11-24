@@ -19,7 +19,7 @@
   #define OutputDir "..\dist-installer"
 #endif
 #define AppPublisher "cochimbo"
-#define AppURL "https://github.com/cochimbo/plumsg"
+#define AppURL "https://github.com/cochimbo/plumemu"
 
 [Setup]
 ; AppId identifica la instalación para actualizaciones y desinstalación: no cambiar.

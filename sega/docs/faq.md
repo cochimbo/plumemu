@@ -35,7 +35,7 @@ and game details.
 ### A game does not start or looks wrong
 
 Check the [compatibility list](compatibility.md). If it is not there, or it is listed as
-working, [report the bug](https://github.com/cochimbo/plumsg/issues/new/choose) with the
+working, [report the bug](https://github.com/cochimbo/plumemu/issues/new/choose) with the
 exact file name and what happens. First try:
 
 - **Console > Region**: some games only start in their own region (and European ones run
@@ -113,5 +113,5 @@ netplay window: fewer jumps in exchange for a little delay when pressing.
 ### plumsg closed suddenly
 
 It leaves a report in `crash-reports\` (in the settings folder) and tells you where it is the
-next time you open it. [Report the bug](https://github.com/cochimbo/plumsg/issues/new/choose)
+next time you open it. [Report the bug](https://github.com/cochimbo/plumemu/issues/new/choose)
 and attach the `.txt` and, on Windows, the `.dmp` with the same name.

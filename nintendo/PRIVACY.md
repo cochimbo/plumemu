@@ -50,9 +50,9 @@ plumnin does not knowingly collect information from anyone, including children.
 ## Changes
 
 Changes to this policy are published in this file in the
-[plumnin repository](https://github.com/cochimbo/plumnin), where its history is public.
+[plumemu repository](https://github.com/cochimbo/plumemu) (folder `nintendo/`), where its history is public.
 
 ## Contact
 
 Questions about privacy can be raised as an issue at
-<https://github.com/cochimbo/plumnin/issues>.
+<https://github.com/cochimbo/plumemu/issues>.

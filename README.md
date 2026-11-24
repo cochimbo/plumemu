@@ -8,13 +8,21 @@ los dos emuladores que antes vivían aparte, con toda su historia:
 | [`sega/`](sega/README.md) | plumsg | Mega Drive, 32X, Mega CD, Master System y Game Gear | [cochimbo/plumsg](https://github.com/cochimbo/plumsg) |
 | [`nintendo/`](nintendo/README.md) | plumnin | Game Boy, Game Boy Color, NES y Super Nintendo | [cochimbo/plumnin](https://github.com/cochimbo/plumnin) |
 
-Por ahora siguen siendo dos programas, cada uno con su instalador, sus ajustes y sus
-carpetas de datos de siempre (`plumsg/plumsg` y `plumnin/plumnin`). El código que
-comparten va pasando a [`common/`](common/CMakeLists.txt) (namespace `plum`): textos y
-traducciones, rebobinado, grabaciones, audio, informes de fallo, la vista 3D de la
-habitación, OpenGL... Lo que cada programa pone de suyo (nombre, versión, carpeta de
-datos) lo dice su `AppInfo` (`sega/src/app_info.cpp`, `nintendo/src/app_info.cpp`).
-Las bibliotecas de terceros que usan los dos están en `third_party/`.
+Siguen siendo dos programas, cada uno con su instalador, sus ajustes y sus carpetas de
+datos de siempre (`plumsg/plumsg` y `plumnin/plumnin`), pero el código que comparten
+está una sola vez en [`common/`](common/CMakeLists.txt) (namespace `plum`): la ventana y
+su bucle (`common/src/frontend/main.cpp`), buena parte de la interfaz, los ajustes, la
+red, los logros, el sonido General MIDI, las grabaciones, el rebobinado, la vista 3D,
+los textos y sus traducciones, y el runner headless con sus tests (`tests/common`).
+
+En `sega/` y `nintendo/` queda lo de cada uno: los núcleos de sus consolas, su consola
+para la ventana (`frontend/app_console.h`) y lo que solo él hace en ella
+(`frontend/app_main.cpp`: el sonido Roland, la Partitura y las pistolas de plumsg; el
+sintetizador y el firmware de plumnin), su biblioteca con ScreenScraper, su editor de
+instrumentos y sus textos propios. Lo que cada programa pone de suyo (nombre, versión,
+carpeta de datos) lo dice su `AppInfo` (`sega/src/app_info.cpp`,
+`nintendo/src/app_info.cpp`). Las bibliotecas de terceros que usan los dos están en
+`third_party/`.
 
 ## Compilar
 
