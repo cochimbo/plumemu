@@ -103,12 +103,6 @@ msgstr "3 boutons"
 msgid "6 botones"
 msgstr "6 boutons"
 
-msgid "<< No se puede rebobinar más"
-msgstr "<< Impossible de rembobiner plus"
-
-msgid "<< Rebobinando"
-msgstr "<< Rembobinage"
-
 msgid "A: abrir"
 msgstr "A : ouvrir"
 
@@ -141,9 +135,6 @@ msgstr "Bas"
 
 msgid "Abre el juego; luego pulsa Grabar del juego aquí."
 msgstr "Ouvre le jeu ; appuyez ensuite ici sur Enregistrer depuis le jeu."
-
-msgid "Abre primero el juego: los dos tenéis que tener abierto el mismo."
-msgstr "Ouvrez d'abord le jeu : vous devez tous les deux avoir le même ouvert."
 
 msgid "Abre una ROM para guardarle su propia pantalla ancha."
 msgstr "Ouvrez une ROM pour lui enregistrer son propre écran large."
@@ -412,12 +403,6 @@ msgstr "Connecté avec le compte « %s »."
 msgid "Conectado con la cuenta «%s»: %d de %d peticiones usadas hoy."
 msgstr "Connecté avec le compte « %s » : %d requêtes sur %d utilisées aujourd’hui."
 
-msgid "Conectando con %s"
-msgstr "Connexion à %s"
-
-msgid "Conectando con %s..."
-msgstr "Connexion à %s..."
-
 msgid "Conjuntos"
 msgstr "Ensembles"
 
@@ -426,12 +411,6 @@ msgstr "Compteur d'IPS"
 
 msgid "Contador de FPS (F)"
 msgstr "Compteur d'IPS (F)"
-
-msgid "Contador de FPS activado"
-msgstr "Compteur d'IPS activé"
-
-msgid "Contador de FPS desactivado"
-msgstr "Compteur d'IPS désactivé"
 
 msgid "Controles..."
 msgstr "Commandes..."
@@ -465,12 +444,6 @@ msgstr "Cordes"
 
 msgid "Cuánto se oye además la música original del YM2612 y el PSG."
 msgstr "Combien la musique originale du YM2612 et du PSG s'entend en plus."
-
-msgid "Cámara lenta %d%%"
-msgstr "Ralenti %d%%"
-
-msgid "Cámara lenta (%d%%)"
-msgstr "Ralenti (%d%%)"
 
 msgid "Cámara viva"
 msgstr "Caméra vivante"
@@ -549,12 +522,6 @@ msgstr "Éditeur d'instruments..."
 msgid "Efecto 3D"
 msgstr "Effet 3D"
 
-msgid "Efecto 3D activado"
-msgstr "Effet 3D activé"
-
-msgid "Efecto 3D desactivado"
-msgstr "Effet 3D désactivé"
-
 msgid "Efectos de sonido"
 msgstr "Effets sonores"
 
@@ -563,9 +530,6 @@ msgstr "Effets sonores d'origine"
 
 msgid "Efectos sintetizados"
 msgstr "Effets synthé"
-
-msgid "El 3D se guarda ahora solo para %s"
-msgstr "La 3D est désormais gardée rien que pour %s"
 
 msgid "El Mega CD necesita la BIOS de la consola para arrancar los discos, y plumsg no la incluye. Indica dónde tienes la de cada región (un archivo de 128 KB, como bios_CD_U.bin); cada disco usa la de su región."
 msgstr "Le Mega CD a besoin du BIOS de la console pour démarrer les disques, et plumsg ne l'inclut pas. Indiquez où vous avez celui de chaque région (un fichier de 128 Ko, comme bios_CD_U.bin) ; chaque disque utilise celui de sa région."
@@ -590,12 +554,6 @@ msgstr "L'historique va du dernier jeu joué au premier."
 
 msgid "El juego responde a las peticiones, pero ninguna ha sonado como una canción."
 msgstr "Le jeu répond aux demandes, mais aucune n'a sonné comme un morceau."
-
-msgid "El juego vuelve a usar el 3D general"
-msgstr "Le jeu utilise de nouveau la 3D générale"
-
-msgid "El juego vuelve a usar la pantalla ancha general"
-msgstr "Le jeu reprend l'écran large général"
 
 msgid ""
 "El mando de rueda de la Master System japonesa (Paddle Control HPD-200): Woody Pop,\n"
@@ -638,9 +596,6 @@ msgstr "Choisissez le dossier où se trouvent vos jeux Mega Drive, 32X ou Mega C
 msgid "Elige un juego para ver sus datos."
 msgstr "Choisissez un jeu pour voir ses informations."
 
-msgid "Emulación parada"
-msgstr "Émulation arrêtée"
-
 msgid "En directo"
 msgstr "En direct"
 
@@ -652,9 +607,6 @@ msgstr "Dans les favoris"
 
 msgid "En las cajas 3D los juegos van por consola y, en cada una, por título."
 msgstr "Dans les boîtes 3D, les jeux sont classés par console puis, dans chacune, par titre."
-
-msgid "En modo hardcore no se pueden cargar estados"
-msgstr "Impossible de charger des états en mode hardcore"
 
 msgid "En pausa"
 msgstr "En pause"
@@ -678,9 +630,6 @@ msgstr ""
 "du niveau ne sont pas dessinés ou des choses cachées se voient : retirez alors des colonnes de ce côté.\n"
 "Le jeu ne s'en aperçoit pas : ni le jeu en réseau, ni les succès, ni les états ne sont affectés."
 
-msgid "Enviando la partida al otro jugador..."
-msgstr "Envoi de la partie à l'autre joueur..."
-
 msgid "Esa imagen no es una portada completa (contraportada, lomo y portada): se usa como portada."
 msgstr "Cette image n'est pas une jaquette complète (dos, tranche et face) : elle sert de jaquette."
 
@@ -696,12 +645,6 @@ msgstr "Échelle entière"
 msgid "Escuchar solo este"
 msgstr "N'écouter que celui-ci"
 
-msgid "Esperando al otro jugador en el puerto %d"
-msgstr "En attente de l'autre joueur sur le port %d"
-
-msgid "Esperando al otro jugador en el puerto %d. Mientras, puedes seguir jugando: la partida empezará donde estés."
-msgstr "En attente de l'autre joueur sur le port %d. En attendant, vous pouvez continuer à jouer : la partie commencera là où vous serez."
-
 msgid "Esperando notas... (la batería no se escribe: no tiene notas)"
 msgstr "En attente de notes... (la batterie ne s'écrit pas : elle n'a pas de notes)"
 
@@ -710,12 +653,6 @@ msgstr "Cette chanson (%s)"
 
 msgid "Estado"
 msgstr "État"
-
-msgid "Estado cargado de la ranura %d"
-msgstr "État chargé depuis l'emplacement %d"
-
-msgid "Estado guardado en la ranura %d"
-msgstr "État sauvegardé dans l'emplacement %d"
 
 msgid "Este juego no tiene trucos todavía."
 msgstr "Ce jeu n'a pas encore de codes."
@@ -786,9 +723,6 @@ msgstr "Il manque le BIOS du Mega CD européen : choisissez-le dans Console > BI
 msgid "Falta la BIOS del Mega CD de Japón: elígela en Consola > BIOS del Mega CD."
 msgstr "Il manque le BIOS du Mega CD japonais : choisissez-le dans Console > BIOS du Mega CD."
 
-msgid "Falta la función %s"
-msgstr "Il manque la fonction %s"
-
 msgid "Favoritos"
 msgstr "Favoris"
 
@@ -823,9 +757,6 @@ msgstr "Nappes synthé"
 
 msgid "Fuente: ScreenScraper"
 msgstr "Source : ScreenScraper"
-
-msgid "GIF guardado en %s"
-msgstr "GIF enregistré dans %s"
 
 msgid "General"
 msgstr "Général"
@@ -862,12 +793,6 @@ msgstr "Enregistrement %s"
 
 msgid "Grabando %s"
 msgstr "Enregistrement %s"
-
-msgid "Grabando un GIF (Ctrl+G para pararlo)"
-msgstr "Enregistrement d'un GIF (Ctrl+G pour l'arrêter)"
-
-msgid "Grabando vídeo (Ctrl+R para pararlo)"
-msgstr "Enregistrement vidéo (Ctrl+R pour l'arrêter)"
 
 msgid "Grabar"
 msgstr "Enregistrer"
@@ -929,9 +854,6 @@ msgstr ""
 "peuvent aller trop vite ou planter : dans ce cas, désactivez-le pour ce jeu. En réseau, c'est\n"
 "celui de l'hôte qui compte, et en mode hardcore il reste désactivé."
 
-msgid "Has salido de la partida en red"
-msgstr "Vous avez quitté la partie en réseau"
-
 msgid "He exportado %d canciones a MP3."
 msgstr "%d chansons exportées en MP3."
 
@@ -989,13 +911,6 @@ msgstr "Jeu"
 msgid "Juego: %s"
 msgstr "Jeu : %s"
 
-msgid ""
-"Jugando en red como jugador %d.\n"
-"Ping: %d ms. Retardo de los mandos: %d fotogramas. Vuelta atrás: %d fotogramas."
-msgstr ""
-"Partie en réseau en tant que joueur %d.\n"
-"Ping : %d ms. Retard des manettes : %d images. Retour en arrière : %d images."
-
 msgid "Jugar"
 msgstr "Jouer"
 
@@ -1044,9 +959,6 @@ msgstr "La musique de Paprium n'est pas dans la ROM : mettez ses pistes (.ogg, .
 msgid "La música en CD de este juego (MSU-MD) necesita una BIOS del Mega CD: elígela en Consola > BIOS del Mega CD."
 msgstr "La musique CD de ce jeu (MSU-MD) a besoin d'un BIOS du Mega CD : choisissez-le dans Console > BIOS du Mega CD."
 
-msgid "La pantalla ancha se guarda ahora solo para %s"
-msgstr "L'écran large est maintenant enregistré seulement pour %s"
-
 msgid ""
 "La pistola de luz de la Master System (Light Phaser), en lugar del mando: Safari Hunt,\n"
 "Shooting Gallery, Operation Wolf, Rambo III, Wanted... Se apunta con una mira en pantalla,\n"
@@ -1059,9 +971,6 @@ msgstr ""
 "déplacé avec la souris ou avec le stick gauche (ou la croix) de la manette de ce joueur.\n"
 "Gâchette : clic gauche ou A. Les jeux qui en ont besoin l'ont déjà dans le port 1 s'il y\n"
 "a une manette. Jeux Master System uniquement ; en partie en réseau, une manette est branchée."
-
-msgid "La ranura %d está vacía"
-msgstr "L'emplacement %d est vide"
 
 msgid "La unidad FM (YM2413) venía en las Master System japonesas; con esto está también en las demás regiones, para los juegos que la usan si la encuentran."
 msgstr "L'unité FM (YM2413) équipait les Master System japonaises ; avec ceci elle est aussi présente dans les autres régions, pour les jeux qui s'en servent s'ils la trouvent."
@@ -1081,9 +990,6 @@ msgstr "Les boîtes des jeux en 3D : ouvrez-en une et portez la cartouche à la 
 
 msgid "Las canciones de los discos de Mega CD van en pistas de audio del disco, no en el chip."
 msgstr "Les morceaux des disques Mega CD sont des pistes audio du disque, pas dans la puce."
-
-msgid "Las dos consolas se han descompasado (fotograma %d): lo que veis ya no es lo mismo. Salid y volved a empezar."
-msgstr "Les deux consoles se sont désynchronisées (image %d) : vous ne voyez plus la même chose. Quittez et recommencez."
 
 msgid ""
 "Las notas de la música en pentagramas, un instrumento en cada uno, mientras suena:\n"
@@ -1330,17 +1236,11 @@ msgstr ""
 "Impossible d'ouvrir la SoundFont %s.\n"
 "Le son d'origine est joué."
 
-msgid "No se pudo cargar el estado: %s. La partida sigue como estaba."
-msgstr "Impossible de charger l'état : %s. La partie continue comme avant."
-
 msgid "No se pudo conectar con ScreenScraper. ¿Hay conexión a internet?"
 msgstr "Impossible de se connecter à ScreenScraper. Y a-t-il une connexion Internet ?"
 
 msgid "No se pudo guardar %s"
 msgstr "Impossible d'enregistrer %s"
-
-msgid "No se pudo guardar el estado en %s: ¿falta espacio en el disco?"
-msgstr "Impossible d'enregistrer l'état dans %s : le disque est-il plein ?"
 
 msgid "No se pudo guardar en %s"
 msgstr "Impossible d'enregistrer dans %s"
@@ -1374,12 +1274,6 @@ msgstr "Options"
 
 msgid "Opciones de este juego..."
 msgstr "Options de ce jeu..."
-
-msgid "Opciones propias de %s"
-msgstr "Options propres à %s"
-
-msgid "Opción desconocida: %s"
-msgstr "Option inconnue : %s"
 
 msgid "Original"
 msgstr "Original"
@@ -1587,12 +1481,6 @@ msgstr "Que télécharger..."
 msgid "Quítalo para no oír este instrumento (también en la Partitura)."
 msgstr "Décochez-la pour ne plus entendre cet instrument (dans la Partition aussi)."
 
-msgid "Ranura %d (%s)"
-msgstr "Emplacement %d (%s)"
-
-msgid "Ranura %d (vacía)"
-msgstr "Emplacement %d (vide)"
-
 msgid "Ranura (F6 / F7)"
 msgstr "Emplacement (F6 / F7)"
 
@@ -1614,26 +1502,11 @@ msgstr "Rembobiner (maintenir)"
 msgid "Rebobinar: mantén Retroceso (o el gatillo izquierdo)"
 msgstr "Rembobiner : maintenez Retour arrière (ou la gâchette gauche)"
 
-msgid "Recibiendo la partida del anfitrión..."
-msgstr "Réception de la partie de l'hôte..."
-
 msgid "Recientes"
 msgstr "Récents"
 
 msgid "Red"
 msgstr "Réseau"
-
-msgid "Red %d ms"
-msgstr "Réseau %d ms"
-
-msgid "Red: conectando"
-msgstr "Réseau : connexion"
-
-msgid "Red: preparando la partida"
-msgstr "Réseau : préparation de la partie"
-
-msgid "Red: ¡descompasados!"
-msgstr "Réseau : désynchronisés !"
 
 msgid "Reescalado (experimental):"
 msgstr "Mise à l'échelle (expérimentale) :"
@@ -1667,9 +1540,6 @@ msgstr "Bruit périodique %s"
 
 msgid "Run-ahead"
 msgstr "Run-ahead"
-
-msgid "Run-ahead desactivado: no se pudo volver al fotograma actual."
-msgstr "Run-ahead désactivé : impossible de revenir à l'image actuelle."
 
 msgid "Saca las canciones de la ROM del juego (Sacar canciones), graba un trozo del juego (abre el juego, pulsa Grabar y juega hasta que suene la música que quieres probar) o abre un .vgm con su música, de vgmrips.net por ejemplo. Aquí saldrán sus instrumentos."
 msgstr "Extrayez les morceaux de la ROM du jeu (Extraire les morceaux), enregistrez un bout du jeu (ouvrez le jeu, appuyez sur Enregistrer et jouez jusqu'à entendre la musique à essayer) ou ouvrez un .vgm avec sa musique, de vgmrips.net par exemple. Ses instruments apparaîtront ici."
@@ -1823,17 +1693,11 @@ msgstr "Ombre des sprites"
 msgid "Sonido FM de la Master System"
 msgstr "Son FM de la Master System"
 
-msgid "Sonido activado"
-msgstr "Son activé"
-
 msgid "Sonido original"
 msgstr "Son d'origine"
 
 msgid "Sonido original mezclado"
 msgstr "Son d'origine mélangé"
-
-msgid "Sonido silenciado"
-msgstr "Son coupé"
 
 msgid "SoundFont"
 msgstr "SoundFont"
@@ -1944,17 +1808,11 @@ msgstr "Utilise la valeur générale"
 msgid "Valores por defecto"
 msgstr "Valeurs par défaut"
 
-msgid "Velocidad normal"
-msgstr "Vitesse normale"
-
 msgid "Ventana"
 msgstr "Fenêtre"
 
 msgid "Versión %s"
 msgstr "Version %s"
-
-msgid "Vista: %s"
-msgstr "Vue : %s"
 
 msgid "Volver a buscar"
 msgstr "Chercher à nouveau"
@@ -1973,9 +1831,6 @@ msgstr "Revenir à celui du jeu"
 
 msgid "Volver a oír este instrumento"
 msgstr "Entendre à nouveau cet instrument"
-
-msgid "Vídeo guardado en %s"
-msgstr "Vidéo enregistrée dans %s"
 
 msgid "Vídeo..."
 msgstr "Vidéo..."
@@ -2183,21 +2038,8 @@ msgstr ""
 "Le plein écran et la région donnés ici ne valent que pour cette fois. Les options en\n"
 "espagnol des versions précédentes (--pantalla-completa, --biblioteca...) marchent toujours."
 
-msgid "plumsg necesita una tarjeta gráfica con OpenGL 3.3 y sus drivers actualizados."
-msgstr "plumsg a besoin d'une carte graphique avec OpenGL 3.3 et des pilotes à jour."
-
-msgid ""
-"plumsg se cerró por un fallo la última vez.\n"
-"El informe está en %s"
-msgstr ""
-"plumsg s'est fermé à cause d'une erreur la dernière fois.\n"
-"Le rapport se trouve dans %s"
-
 msgid "plumsg, emulador de Sega Mega Drive / Genesis con efecto pseudo-3D."
 msgstr "plumsg, émulateur de Sega Mega Drive / Genesis avec effet pseudo-3D."
-
-msgid "¡Conectados! Eres el jugador %d"
-msgstr "Connectés ! Vous êtes le joueur %d"
 
 msgid "«%s»: %d archivo descargado."
 msgstr "« %s » : %d fichier téléchargé."

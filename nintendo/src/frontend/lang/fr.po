@@ -79,12 +79,6 @@ msgstr ""
 "vert, fenêtre cyan, sprites rouge, fond gris ; jaunâtre s'il a\n"
 "la priorité haute) ; ce ne sont pas les couleurs du jeu."
 
-msgid "<< No se puede rebobinar más"
-msgstr "<< Impossible de rembobiner plus"
-
-msgid "<< Rebobinando"
-msgstr "<< Rembobinage"
-
 msgid "A: abrir"
 msgstr "A : ouvrir"
 
@@ -117,9 +111,6 @@ msgstr "Bas"
 
 msgid "Abre el juego; luego pulsa Grabar del juego aquí."
 msgstr "Ouvre le jeu ; appuyez ensuite ici sur Enregistrer depuis le jeu."
-
-msgid "Abre primero el juego: los dos tenéis que tener abierto el mismo."
-msgstr "Ouvrez d'abord le jeu : vous devez tous les deux avoir le même ouvert."
 
 msgid "Abre una ROM para guardarle su propia pantalla ancha."
 msgstr "Ouvrez une ROM pour lui enregistrer son propre écran large."
@@ -353,12 +344,6 @@ msgstr "Connecté avec le compte « %s »."
 msgid "Conectado con la cuenta «%s»: %d de %d peticiones usadas hoy."
 msgstr "Connecté avec le compte « %s » : %d requêtes sur %d utilisées aujourd’hui."
 
-msgid "Conectando con %s"
-msgstr "Connexion à %s"
-
-msgid "Conectando con %s..."
-msgstr "Connexion à %s..."
-
 msgid "Conjuntos"
 msgstr "Ensembles"
 
@@ -367,12 +352,6 @@ msgstr "Compteur d'IPS"
 
 msgid "Contador de FPS (F)"
 msgstr "Compteur d'IPS (F)"
-
-msgid "Contador de FPS activado"
-msgstr "Compteur d'IPS activé"
-
-msgid "Contador de FPS desactivado"
-msgstr "Compteur d'IPS désactivé"
 
 msgid "Controles..."
 msgstr "Commandes..."
@@ -394,12 +373,6 @@ msgstr "Cordes"
 
 msgid "Cuánto se oye además la música original del chip."
 msgstr "Combien on entend aussi la musique d'origine de la puce."
-
-msgid "Cámara lenta %d%%"
-msgstr "Ralenti %d%%"
-
-msgid "Cámara lenta (%d%%)"
-msgstr "Ralenti (%d%%)"
 
 msgid "Cámara viva"
 msgstr "Caméra vivante"
@@ -469,12 +442,6 @@ msgstr "Éditeur d'instruments..."
 msgid "Efecto 3D"
 msgstr "Effet 3D"
 
-msgid "Efecto 3D activado"
-msgstr "Effet 3D activé"
-
-msgid "Efecto 3D desactivado"
-msgstr "Effet 3D désactivé"
-
 msgid "Efectos de sonido"
 msgstr "Effets sonores"
 
@@ -483,9 +450,6 @@ msgstr "Effets sonores d'origine"
 
 msgid "Efectos sintetizados"
 msgstr "Effets synthé"
-
-msgid "El 3D se guarda ahora solo para %s"
-msgstr "La 3D est désormais gardée rien que pour %s"
 
 msgid "El SoundFont del sintetizador"
 msgstr "La SoundFont du synthétiseur"
@@ -498,12 +462,6 @@ msgstr "L'historique va du dernier jeu joué au premier."
 
 msgid "El juego no ha tocado música en el tiempo que se ha mirado."
 msgstr "Le jeu n'a joué aucune musique pendant le temps observé."
-
-msgid "El juego vuelve a usar el 3D general"
-msgstr "Le jeu utilise de nouveau la 3D générale"
-
-msgid "El juego vuelve a usar la pantalla ancha general"
-msgstr "Le jeu reprend l'écran large général"
 
 msgid "El sonido del chip de la consola, tal cual."
 msgstr "Le son de la puce de la console, tel quel."
@@ -523,9 +481,6 @@ msgstr "Choisissez le dossier où vous gardez vos jeux Game Boy, Game Boy Color,
 msgid "Elige un juego para ver sus datos."
 msgstr "Choisissez un jeu pour voir ses informations."
 
-msgid "Emulación parada"
-msgstr "Émulation arrêtée"
-
 msgid "En esta pista no suena música."
 msgstr "Aucune musique ne joue dans cette piste."
 
@@ -534,9 +489,6 @@ msgstr "Dans les favoris"
 
 msgid "En las cajas 3D los juegos van por consola y, en cada una, por título."
 msgstr "Dans les boîtes 3D, les jeux sont classés par console puis, dans chacune, par titre."
-
-msgid "En modo hardcore no se pueden cargar estados"
-msgstr "Impossible de charger des états en mode hardcore"
 
 msgid "En una partida en red no se puede pausar ni reiniciar."
 msgstr "Dans une partie en réseau, on ne peut ni mettre en pause ni réinitialiser."
@@ -554,9 +506,6 @@ msgstr ""
 "du niveau ne sont pas dessinés ou des choses cachées se voient : retirez alors des colonnes de ce côté.\n"
 "Le jeu ne s'en aperçoit pas : ni le jeu en réseau, ni les succès, ni les états ne sont affectés."
 
-msgid "Enviando la partida al otro jugador..."
-msgstr "Envoi de la partie à l'autre joueur..."
-
 msgid "Es un efecto de sonido del juego."
 msgstr "C'est un effet sonore du jeu."
 
@@ -572,23 +521,11 @@ msgstr "Échelle entière"
 msgid "Escuchar solo este"
 msgstr "N'écouter que celui-ci"
 
-msgid "Esperando al otro jugador en el puerto %d"
-msgstr "En attente de l'autre joueur sur le port %d"
-
-msgid "Esperando al otro jugador en el puerto %d. Mientras, puedes seguir jugando: la partida empezará donde estés."
-msgstr "En attente de l'autre joueur sur le port %d. En attendant, vous pouvez continuer à jouer : la partie commencera là où vous serez."
-
 msgid "Esta canción (%s)"
 msgstr "Ce morceau (%s)"
 
 msgid "Estado"
 msgstr "État"
-
-msgid "Estado cargado de la ranura %d"
-msgstr "État chargé depuis l'emplacement %d"
-
-msgid "Estado guardado en la ranura %d"
-msgstr "État sauvegardé dans l'emplacement %d"
 
 msgid "Este juego necesita el programa del chip %s (el archivo %s), que no viene con plumnin: ponlo junto al juego o en la carpeta «firmware» de plumnin."
 msgstr "Ce jeu a besoin du programme de la puce %s (le fichier %s), qui n'est pas fourni avec plumnin : placez-le à côté du jeu ou dans le dossier « firmware » de plumnin."
@@ -644,9 +581,6 @@ msgstr "Fa"
 msgid "Fa#"
 msgstr "Fa#"
 
-msgid "Falta la función %s"
-msgstr "Il manque la fonction %s"
-
 msgid "Favoritos"
 msgstr "Favoris"
 
@@ -681,9 +615,6 @@ msgstr "Nappes synthé"
 
 msgid "Fuente: ScreenScraper"
 msgstr "Source : ScreenScraper"
-
-msgid "GIF guardado en %s"
-msgstr "GIF enregistré dans %s"
 
 msgid "Game Genie (ABC-DEF-GHI) o GameShark (01FF34C1)"
 msgstr "Game Genie (ABC-DEF-GHI) ou GameShark (01FF34C1)"
@@ -725,12 +656,6 @@ msgstr "Enregistré en jouant avec plumnin"
 
 msgid "Grabando %s"
 msgstr "Enregistrement %s"
-
-msgid "Grabando un GIF (Ctrl+G para pararlo)"
-msgstr "Enregistrement d'un GIF (Ctrl+G pour l'arrêter)"
-
-msgid "Grabando vídeo (Ctrl+R para pararlo)"
-msgstr "Enregistrement vidéo (Ctrl+R pour l'arrêter)"
 
 msgid "Grabar"
 msgstr "Enregistrer"
@@ -790,9 +715,6 @@ msgstr ""
 "vite ou planter : dans ce cas, désactivez-le pour ce jeu. En réseau, c'est celui de\n"
 "l'hôte qui compte, et en mode hardcore il reste désactivé."
 
-msgid "Has salido de la partida en red"
-msgstr "Vous avez quitté la partie en réseau"
-
 msgid "He exportado %d canciones a MP3."
 msgstr "%d morceaux exportés en MP3."
 
@@ -849,13 +771,6 @@ msgstr "Jeu"
 
 msgid "Juego: %s"
 msgstr "Jeu : %s"
-
-msgid ""
-"Jugando en red como jugador %d.\n"
-"Ping: %d ms. Retardo de los mandos: %d fotogramas. Vuelta atrás: %d fotogramas."
-msgstr ""
-"Partie en réseau en tant que joueur %d.\n"
-"Ping : %d ms. Retard des manettes : %d images. Retour en arrière : %d images."
 
 msgid "Jugar"
 msgstr "Jouer"
@@ -929,12 +844,6 @@ msgstr ""
 "échantillon du jeu devient un instrument selon sa note, sa tenue et son timbre, et\n"
 "ceux sans note deviennent des éléments de la batterie."
 
-msgid "La pantalla ancha se guarda ahora solo para %s"
-msgstr "L'écran large est maintenant enregistré seulement pour %s"
-
-msgid "La ranura %d está vacía"
-msgstr "L'emplacement %d est vide"
-
 msgid "La#"
 msgstr "La#"
 
@@ -947,9 +856,6 @@ msgid ""
 msgstr ""
 "Les chansons du jeu et leurs instruments, avec ce qui joue sur le synthétiseur :\n"
 "choisis un autre instrument General MIDI, un élément de la batterie ou son son d'origine."
-
-msgid "Las dos consolas se han descompasado (fotograma %d): lo que veis ya no es lo mismo. Salid y volved a empezar."
-msgstr "Les deux consoles se sont désynchronisées (image %d) : vous ne voyez plus la même chose. Quittez et recommencez."
 
 msgid "Latencia"
 msgstr "Latence"
@@ -1136,17 +1042,11 @@ msgstr "Impossible d'ouvrir %s : il ne contient aucun .vgm, .vgz ni .spc."
 msgid "No se pudo abrir el SoundFont %s: la música suena original."
 msgstr "Impossible d'ouvrir la SoundFont %s : la musique reste d'origine."
 
-msgid "No se pudo cargar el estado: %s. La partida sigue como estaba."
-msgstr "Impossible de charger l'état : %s. La partie continue comme avant."
-
 msgid "No se pudo conectar con ScreenScraper. ¿Hay conexión a internet?"
 msgstr "Impossible de se connecter à ScreenScraper. Y a-t-il une connexion Internet ?"
 
 msgid "No se pudo guardar %s"
 msgstr "Impossible d'enregistrer %s"
-
-msgid "No se pudo guardar el estado en %s: ¿falta espacio en el disco?"
-msgstr "Impossible d'enregistrer l'état dans %s : le disque est-il plein ?"
 
 msgid "No se pudo guardar en %s"
 msgstr "Impossible d'enregistrer dans %s"
@@ -1186,12 +1086,6 @@ msgstr "Options"
 
 msgid "Opciones de este juego..."
 msgstr "Options de ce jeu..."
-
-msgid "Opciones propias de %s"
-msgstr "Options propres à %s"
-
-msgid "Opción desconocida: %s"
-msgstr "Option inconnue : %s"
 
 msgid "Original"
 msgstr "Original"
@@ -1366,12 +1260,6 @@ msgstr "Que télécharger..."
 msgid "Quítalo para no oír este instrumento."
 msgstr "Décoche-le pour ne plus entendre cet instrument."
 
-msgid "Ranura %d (%s)"
-msgstr "Emplacement %d (%s)"
-
-msgid "Ranura %d (vacía)"
-msgstr "Emplacement %d (vide)"
-
 msgid "Ranura (F6 / F7)"
 msgstr "Emplacement (F6 / F7)"
 
@@ -1393,26 +1281,11 @@ msgstr "Rembobiner (maintenir)"
 msgid "Rebobinar: mantén Retroceso (o el gatillo izquierdo)"
 msgstr "Rembobiner : maintenez Retour arrière (ou la gâchette gauche)"
 
-msgid "Recibiendo la partida del anfitrión..."
-msgstr "Réception de la partie de l'hôte..."
-
 msgid "Recientes"
 msgstr "Récents"
 
 msgid "Red"
 msgstr "Réseau"
-
-msgid "Red %d ms"
-msgstr "Réseau %d ms"
-
-msgid "Red: conectando"
-msgstr "Réseau : connexion"
-
-msgid "Red: preparando la partida"
-msgstr "Réseau : préparation de la partie"
-
-msgid "Red: ¡descompasados!"
-msgstr "Réseau : désynchronisés !"
 
 msgid "Reescalado (experimental):"
 msgstr "Mise à l'échelle (expérimentale) :"
@@ -1440,9 +1313,6 @@ msgstr "Bruit"
 
 msgid "Run-ahead"
 msgstr "Run-ahead"
-
-msgid "Run-ahead desactivado: no se pudo volver al fotograma actual."
-msgstr "Run-ahead désactivé : impossible de revenir à l'image actuelle."
 
 msgid "Saca las canciones de la ROM del juego (Sacar canciones), graba un trozo del juego (Grabar del juego, y juega hasta que suene la música que quieres probar) o abre un .vgm con su música, de vgmrips.net por ejemplo. Aquí saldrán sus instrumentos; también los que suenan mientras juegas con el sintetizador puesto."
 msgstr "Extrais les chansons de la ROM du jeu (Extraire les morceaux), enregistre un morceau du jeu (Enregistrer depuis le jeu, puis joue jusqu'à ce que la musique que tu veux essayer se fasse entendre) ou ouvre un .vgm avec sa musique, de vgmrips.net par exemple. Ses instruments apparaîtront ici ; aussi ceux qui jouent pendant que tu joues avec le synthétiseur activé."
@@ -1565,14 +1435,8 @@ msgstr "Cette chanson seulement"
 msgid "Sombra de los sprites"
 msgstr "Ombre des sprites"
 
-msgid "Sonido activado"
-msgstr "Son activé"
-
 msgid "Sonido original"
 msgstr "Son d'origine"
-
-msgid "Sonido silenciado"
-msgstr "Son coupé"
 
 msgid "SoundFont"
 msgstr "SoundFont"
@@ -1646,17 +1510,11 @@ msgstr "Utilise la valeur générale"
 msgid "Valores por defecto"
 msgstr "Valeurs par défaut"
 
-msgid "Velocidad normal"
-msgstr "Vitesse normale"
-
 msgid "Ventana"
 msgstr "Fenêtre"
 
 msgid "Versión %s"
 msgstr "Version %s"
-
-msgid "Vista: %s"
-msgstr "Vue : %s"
 
 msgid "Volver a buscar"
 msgstr "Chercher à nouveau"
@@ -1675,9 +1533,6 @@ msgstr "Revenir à celui du jeu"
 
 msgid "Voz %d"
 msgstr "Voix %d"
-
-msgid "Vídeo guardado en %s"
-msgstr "Vidéo enregistrée dans %s"
 
 msgid "Vídeo..."
 msgstr "Vidéo..."
@@ -1834,16 +1689,6 @@ msgstr ""
 "\n"
 "Le plein écran et la région donnés ici ne valent que pour cette fois."
 
-msgid "plumnin necesita una tarjeta gráfica con OpenGL 3.3 y sus drivers actualizados."
-msgstr "plumnin a besoin d'une carte graphique avec OpenGL 3.3 et des pilotes à jour."
-
-msgid ""
-"plumnin se cerró por un fallo la última vez.\n"
-"El informe está en %s"
-msgstr ""
-"plumnin s'est fermé à cause d'une erreur la dernière fois.\n"
-"Le rapport se trouve dans %s"
-
 msgid "plumnin todavía no emula la %s."
 msgstr "plumnin n'émule pas encore la %s."
 
@@ -1870,9 +1715,6 @@ msgstr "un code NES est un Game Genie de 6 ou 8 lettres ou un Pro Action Replay 
 
 msgid "un código de Super Nintendo es un Game Genie (DD62-3B1D) o un Pro Action Replay (7E0DBF09)"
 msgstr "un code Super Nintendo est un Game Genie (DD62-3B1D) ou un Pro Action Replay (7E0DBF09)"
-
-msgid "¡Conectados! Eres el jugador %d"
-msgstr "Connectés ! Vous êtes le joueur %d"
 
 msgid "«%s»: %d archivo descargado."
 msgstr "« %s » : %d fichier téléchargé."

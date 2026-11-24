@@ -27,6 +27,16 @@ msgstr "%d cheat on"
 msgid "%d trucos activos"
 msgstr "%d cheats on"
 
+msgid "%s necesita una tarjeta gráfica con OpenGL 3.3 y sus drivers actualizados."
+msgstr "%s needs a graphics card with OpenGL 3.3 and up-to-date drivers."
+
+msgid ""
+"%s se cerró por un fallo la última vez.\n"
+"El informe está en %s"
+msgstr ""
+"%s closed because of a crash last time.\n"
+"The report is in %s"
+
 msgid "%s, %u puntos"
 msgstr "%s, %u points"
 
@@ -44,6 +54,12 @@ msgstr ". Hardcore mode"
 
 msgid "1 fotograma"
 msgstr "1 frame"
+
+msgid "<< No se puede rebobinar más"
+msgstr "<< Cannot rewind any further"
+
+msgid "<< Rebobinando"
+msgstr "<< Rewinding"
 
 msgid "A / Intro: abrir   B / Retroceso: subir   Esc: cerrar"
 msgstr "A / Enter: open   B / Backspace: up   Esc: close"
@@ -72,6 +88,9 @@ msgstr "Bottom left"
 
 msgid "Abre primero el juego."
 msgstr "Open the game first."
+
+msgid "Abre primero el juego: los dos tenéis que tener abierto el mismo."
+msgstr "Open the game first: both of you need the same one open."
 
 msgid "Abre un juego, o elige uno en la biblioteca con el botón derecho."
 msgstr "Open a game, or pick one in the library with the right button."
@@ -331,6 +350,12 @@ msgstr "Clavinet"
 msgid "Composición"
 msgstr "Composite"
 
+msgid "Conectando con %s"
+msgstr "Connecting to %s"
+
+msgid "Conectando con %s..."
+msgstr "Connecting to %s..."
+
 msgid "Conexión recuperada: logros enviados."
 msgstr "Connection back: achievements sent."
 
@@ -351,6 +376,12 @@ msgstr "Unlocked, not sent yet"
 
 msgid "Consola"
 msgstr "Console"
+
+msgid "Contador de FPS activado"
+msgstr "FPS counter on"
+
+msgid "Contador de FPS desactivado"
+msgstr "FPS counter off"
 
 msgid "Contrabajo"
 msgstr "Contrabass"
@@ -417,6 +448,12 @@ msgstr "Muted cuica"
 
 msgid "Cámara lenta"
 msgstr "Slow motion"
+
+msgid "Cámara lenta %d%%"
+msgstr "Slow motion %d%%"
+
+msgid "Cámara lenta (%d%%)"
+msgstr "Slow motion (%d%%)"
 
 msgid "Deja de usar estos y vuelve a los de Opciones > Controles"
 msgstr "Stops using these and goes back to the ones in Options > Controls"
@@ -491,6 +528,12 @@ msgstr "USA (NTSC)"
 msgid "Educativo"
 msgstr "Educational"
 
+msgid "Efecto 3D activado"
+msgstr "3D effect on"
+
+msgid "Efecto 3D desactivado"
+msgstr "3D effect off"
+
 msgid "Efecto atmósfera"
 msgstr "FX atmosphere"
 
@@ -515,6 +558,9 @@ msgstr "FX echoes"
 msgid "Efecto lluvia"
 msgstr "FX rain"
 
+msgid "El 3D se guarda ahora solo para %s"
+msgstr "The 3D is now saved just for %s"
+
 msgid "El VGM está cortado."
 msgstr "The VGM is cut short."
 
@@ -535,6 +581,12 @@ msgstr "The open game has its own buttons (in This game's options); here you cha
 
 msgid "El juego vuelve a empezar: así se juega en hardcore."
 msgstr "The game starts over: that is how hardcore is played."
+
+msgid "El juego vuelve a usar el 3D general"
+msgstr "The game uses the general 3D again"
+
+msgid "El juego vuelve a usar la pantalla ancha general"
+msgstr "The game goes back to the general widescreen"
 
 msgid "El manual no es un PDF que se pueda abrir."
 msgstr "The manual is not a PDF that can be opened."
@@ -563,14 +615,23 @@ msgstr "Choose image"
 msgid "Emulación"
 msgstr "Emulation"
 
+msgid "Emulación parada"
+msgstr "Emulation stopped"
+
 msgid "En ScreenScraper: «%s»"
 msgstr "On ScreenScraper: “%s”"
 
 msgid "En casa, tu amigo se une a %s:%d."
 msgstr "At home, your friend joins %s:%d."
 
+msgid "En modo hardcore no se pueden cargar estados"
+msgstr "States cannot be loaded in hardcore mode"
+
 msgid "En una partida en red no se pueden cambiar."
 msgstr "They cannot be changed in a netplay game."
+
+msgid "Enviando la partida al otro jugador..."
+msgstr "Sending the game to the other player..."
 
 msgid "Error del servidor: %s"
 msgstr "Server error: %s"
@@ -587,6 +648,12 @@ msgstr "Type a code."
 msgid "Espacio"
 msgstr "Space"
 
+msgid "Esperando al otro jugador en el puerto %d"
+msgstr "Waiting for the other player on port %d"
+
+msgid "Esperando al otro jugador en el puerto %d. Mientras, puedes seguir jugando: la partida empezará donde estés."
+msgstr "Waiting for the other player on port %d. Meanwhile you can keep playing: the game will start wherever you are."
+
 msgid "Esta compilación de %s no trae la cuenta de desarrollador de ScreenScraper, así que no puede descargar nada. Los instaladores publicados sí la traen."
 msgstr "This build of %s does not include the ScreenScraper developer account, so it cannot download anything. The published installers do include it."
 
@@ -595,6 +662,12 @@ msgstr "This build of %s does not include the ScreenScraper developer account."
 
 msgid "Esta consola todavía no tiene trucos."
 msgstr "This console has no cheats yet."
+
+msgid "Estado cargado de la ranura %d"
+msgstr "State loaded from slot %d"
+
+msgid "Estado guardado en la ranura %d"
+msgstr "State saved to slot %d"
 
 msgid "Estados"
 msgstr "States"
@@ -616,6 +689,9 @@ msgstr "Europe (PAL)"
 
 msgid "Fagot"
 msgstr "Bassoon"
+
+msgid "Falta la función %s"
+msgstr "The function %s is missing"
 
 msgid "Falta pdfium.dll junto a %s: sin ella no se pueden leer los manuales."
 msgstr "pdfium.dll is missing next to %s: without it manuals cannot be read."
@@ -665,6 +741,9 @@ msgstr "Pad new age"
 msgid "Fondo polisintetizador"
 msgstr "Pad polysynth"
 
+msgid "GIF guardado en %s"
+msgstr "GIF saved to %s"
+
 msgid "Gaita"
 msgstr "Bagpipe"
 
@@ -676,6 +755,12 @@ msgstr "Side stick"
 
 msgid "Golpe de orquesta"
 msgstr "Orchestra hit"
+
+msgid "Grabando un GIF (Ctrl+G para pararlo)"
+msgstr "Recording a GIF (Ctrl+G to stop)"
+
+msgid "Grabando vídeo (Ctrl+R para pararlo)"
+msgstr "Recording video (Ctrl+R to stop)"
 
 msgid "Guitarra de acero"
 msgstr "Steel guitar"
@@ -706,6 +791,9 @@ msgstr "Short guiro"
 
 msgid "Güiro largo"
 msgstr "Long guiro"
+
+msgid "Has salido de la partida en red"
+msgstr "You left the netplay game"
 
 msgid "Has salido de la partida."
 msgstr "You left the game."
@@ -752,6 +840,13 @@ msgstr "Players"
 msgid "Jugadores: %s"
 msgstr "Players: %s"
 
+msgid ""
+"Jugando en red como jugador %d.\n"
+"Ping: %d ms. Retardo de los mandos: %d fotogramas. Vuelta atrás: %d fotogramas."
+msgstr ""
+"Playing online as player %d.\n"
+"Ping: %d ms. Input delay: %d frames. Rollback: %d frames."
+
 msgid "Jugar en hardcore"
 msgstr "Play in hardcore"
 
@@ -773,11 +868,20 @@ msgstr "libretro's cheat database has no lists for this game."
 msgid "La contraseña no se guarda: %s guarda la sesión que te da el servidor."
 msgstr "The password is not saved: %s keeps the session the server gives you."
 
+msgid "La pantalla ancha se guarda ahora solo para %s"
+msgstr "The widescreen is now saved only for %s"
+
 msgid "La partida se ha descompasado y no se puede recuperar."
 msgstr "The game went out of sync and cannot be recovered."
 
+msgid "La ranura %d está vacía"
+msgstr "Slot %d is empty"
+
 msgid "La sesión ha caducado: vuelve a escribir la contraseña."
 msgstr "The session has expired: type the password again."
+
+msgid "Las dos consolas se han descompasado (fotograma %d): lo que veis ya no es lo mismo. Salid y volved a empezar."
+msgstr "The two consoles went out of sync (frame %d): you no longer see the same thing. Leave and start again."
 
 msgid "Lo que se descarga de cada juego. Los vídeos y los manuales ocupan mucho, así que no se descargan si no los marcas (cada juego los puede descargar aparte)."
 msgstr "What is downloaded for each game. Videos and manuals take a lot of space, so they are not downloaded unless you tick them (each game can download them separately)."
@@ -877,6 +981,9 @@ msgstr "\"%s\" cannot be found."
 msgid "No se pudieron cargar los logros: %s"
 msgstr "Could not load the achievements: %s"
 
+msgid "No se pudo cargar el estado: %s. La partida sigue como estaba."
+msgstr "The state could not be loaded: %s. The game carries on as it was."
+
 msgid "No se pudo cargar la partida del anfitrión: %s"
 msgstr "The host's game could not be loaded: %s"
 
@@ -894,6 +1001,9 @@ msgstr "The cheat list could not be downloaded. Is there an internet connection?
 
 msgid "No se pudo escribir %s: ¿falta espacio en el disco?"
 msgstr "Could not write %s: is the disk full?"
+
+msgid "No se pudo guardar el estado en %s: ¿falta espacio en el disco?"
+msgstr "The state could not be saved to %s: is the disk full?"
 
 msgid "No se pudo iniciar la red."
 msgstr "The network could not be started."
@@ -940,8 +1050,14 @@ msgstr "Seashore"
 msgid "Opciones de este juego"
 msgstr "Options for this game"
 
+msgid "Opciones propias de %s"
+msgstr "Own options of %s"
+
 msgid "Opciones propias de %s. Pon una opción en Propio para que este juego use su propio valor; las que dejes en General siguen a las generales."
 msgstr "Own options of %s. Set an option to Own for this game to use its own value; the ones left on General follow the general ones."
+
+msgid "Opción desconocida: %s"
+msgstr "Unknown option: %s"
 
 msgid "PDF"
 msgstr "PDF"
@@ -1060,11 +1176,32 @@ msgstr "Slot %d"
 msgid "Ranura %d  (actual)"
 msgstr "Slot %d  (current)"
 
+msgid "Ranura %d (%s)"
+msgstr "Slot %d (%s)"
+
+msgid "Ranura %d (vacía)"
+msgstr "Slot %d (empty)"
+
+msgid "Recibiendo la partida del anfitrión..."
+msgstr "Receiving the host's game..."
+
 msgid "Recién conseguidos"
 msgstr "Recently unlocked"
 
 msgid "Recopilatorio"
 msgstr "Compilation"
+
+msgid "Red %d ms"
+msgstr "Network %d ms"
+
+msgid "Red: conectando"
+msgstr "Network: connecting"
+
+msgid "Red: preparando la partida"
+msgstr "Network: preparing the game"
+
+msgid "Red: ¡descompasados!"
+msgstr "Network: out of sync!"
 
 msgid "Reescalado (experimental)"
 msgstr "Upscaling (experimental)"
@@ -1092,6 +1229,9 @@ msgstr "Role-playing (RPG)"
 
 msgid "Run-ahead (menos latencia)"
 msgstr "Run-ahead (less latency)"
+
+msgid "Run-ahead desactivado: no se pudo volver al fotograma actual."
+msgstr "Run-ahead turned off: could not go back to the current frame."
 
 msgid "Salir de la partida"
 msgstr "Leave the game"
@@ -1209,6 +1349,12 @@ msgstr "Lead voice"
 
 msgid "Sonido"
 msgstr "Sound"
+
+msgid "Sonido activado"
+msgstr "Sound on"
+
+msgid "Sonido silenciado"
+msgstr "Sound muted"
 
 msgid "Suavizado"
 msgstr "Smoothing"
@@ -1360,6 +1506,9 @@ msgstr "Various"
 msgid "Velocidad"
 msgstr "Speed"
 
+msgid "Velocidad normal"
+msgstr "Normal speed"
+
 msgid "Ver en screenscraper.fr"
 msgstr "See on screenscraper.fr"
 
@@ -1384,6 +1533,9 @@ msgstr "Fiddle"
 msgid "Vista"
 msgstr "View"
 
+msgid "Vista: %s"
+msgstr "View: %s"
+
 msgid "Volumen"
 msgstr "Volume"
 
@@ -1402,6 +1554,9 @@ msgstr "Synth voice"
 msgid "Vídeo"
 msgstr "Video"
 
+msgid "Vídeo guardado en %s"
+msgstr "Video saved to %s"
+
 msgid "Xilófono"
 msgstr "Xylophone"
 
@@ -1419,6 +1574,9 @@ msgstr "screen"
 
 msgid "vacía"
 msgstr "empty"
+
+msgid "¡Conectados! Eres el jugador %d"
+msgstr "Connected! You are player %d"
 
 msgid "¡Enhorabuena!"
 msgstr "Congratulations!"
