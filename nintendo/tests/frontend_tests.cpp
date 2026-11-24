@@ -7,6 +7,7 @@
 #include <string>
 
 #include "frontend/crash.h"
+#include "frontend/buttons.h"
 #include "frontend/game_options.h"
 #include "frontend/handheld.h"
 

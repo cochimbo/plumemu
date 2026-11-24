@@ -1,5 +1,6 @@
-#include "input.h"
+#include "frontend/input.h"
 
+#include "core/app_info.h"
 #include "core/i18n.h"
 #include "core/ini_names.h"
 
@@ -9,14 +10,12 @@
 #include <fstream>
 #include <sstream>
 
-namespace plumsg {
+namespace plum {
 
 namespace {
 
-// Names used in the [keyboard] / [gamepad] sections of the .ini file (iniName() reads the
-// Spanish ones older versions wrote).
-constexpr const char* kButtonNames[InputConfig::kButtons] = {"up", "down", "left", "right", "a", "b",
-                                                             "c", "start", "x", "y", "z", "mode"};
+// The cross: the first four buttons of every PadLayout.
+constexpr int kUp = 0, kDown = 1, kLeft = 2, kRight = 3;
 constexpr const char* kHotkeyNames[InputConfig::kHotkeys] = {
     "pseudo_3d", "save_state", "load_state", "previous_slot", "next_slot",
     "states_menu", "rewind", "fast_forward", "slow_motion", "library", "stop", "fps_counter"};
@@ -42,7 +41,7 @@ std::string lower(std::string s) {
 
 int buttonIndex(const std::string& name) {
     for (int i = 0; i < InputConfig::kButtons; ++i)
-        if (name == kButtonNames[i]) return i;
+        if (name == padLayout().names[static_cast<size_t>(i)]) return i;
     return -1;
 }
 
@@ -88,24 +87,14 @@ SDL_GameControllerButton triggerPulled(const SDL_Event& e) {
 
 InputConfig InputConfig::defaults() {
     InputConfig c;
-    auto set = [&](MdButton b, std::vector<SDL_Scancode> k, std::vector<SDL_GameControllerButton> p) {
-        c.keys[static_cast<int>(b)] = std::move(k);
-        c.pad[static_cast<int>(b)] = std::move(p);
-    };
-    set(MdButton::Up, {SDL_SCANCODE_UP}, {SDL_CONTROLLER_BUTTON_DPAD_UP});
-    set(MdButton::Down, {SDL_SCANCODE_DOWN}, {SDL_CONTROLLER_BUTTON_DPAD_DOWN});
-    set(MdButton::Left, {SDL_SCANCODE_LEFT}, {SDL_CONTROLLER_BUTTON_DPAD_LEFT});
-    set(MdButton::Right, {SDL_SCANCODE_RIGHT}, {SDL_CONTROLLER_BUTTON_DPAD_RIGHT});
-    set(MdButton::A, {SDL_SCANCODE_A}, {SDL_CONTROLLER_BUTTON_X});
-    set(MdButton::B, {SDL_SCANCODE_S}, {SDL_CONTROLLER_BUTTON_A});
-    set(MdButton::C, {SDL_SCANCODE_D}, {SDL_CONTROLLER_BUTTON_B});
-    set(MdButton::Start, {SDL_SCANCODE_RETURN}, {SDL_CONTROLLER_BUTTON_START});
-    set(MdButton::X, {SDL_SCANCODE_Q}, {SDL_CONTROLLER_BUTTON_LEFTSHOULDER});
-    set(MdButton::Y, {SDL_SCANCODE_W}, {SDL_CONTROLLER_BUTTON_Y});
-    set(MdButton::Z, {SDL_SCANCODE_E}, {SDL_CONTROLLER_BUTTON_RIGHTSHOULDER});
-    set(MdButton::Mode, {SDL_SCANCODE_RSHIFT}, {});
+    const PadLayout& layout = padLayout();
+    for (size_t b = 0; b < layout.keys.size(); ++b) {
+        c.keys[b] = {layout.keys[b]};
+        if (layout.pad[b] != SDL_CONTROLLER_BUTTON_INVALID) c.pad[b] = {layout.pad[b]};
+    }
     c.hotkeyKeys[static_cast<int>(Hotkey::Toggle3D)] = {SDL_SCANCODE_F3};
-    c.hotkeyPad[static_cast<int>(Hotkey::Toggle3D)] = {SDL_CONTROLLER_BUTTON_BACK};
+    if (layout.toggle3DPad != SDL_CONTROLLER_BUTTON_INVALID)
+        c.hotkeyPad[static_cast<int>(Hotkey::Toggle3D)] = {layout.toggle3DPad};
     c.hotkeyKeys[static_cast<int>(Hotkey::SaveState)] = {SDL_SCANCODE_F5};
     c.hotkeyKeys[static_cast<int>(Hotkey::LoadState)] = {SDL_SCANCODE_F8};
     c.hotkeyKeys[static_cast<int>(Hotkey::PrevSlot)] = {SDL_SCANCODE_F6};
@@ -214,11 +203,11 @@ void writePadList(std::ostream& out, const char* name, const std::vector<SDL_Gam
 
 void InputConfig::writeButtons(std::ostream& out) const {
     out << "[keyboard]\n";
-    for (int i = 0; i < kButtons; ++i) writeKeyList(out, kButtonNames[i], keys[i]);
+    for (int i = 0; i < kButtons; ++i) writeKeyList(out, padLayout().names[static_cast<size_t>(i)], keys[i]);
     out << "\n[keyboard2]\n";
-    for (int i = 0; i < kButtons; ++i) writeKeyList(out, kButtonNames[i], keys2[i]);
+    for (int i = 0; i < kButtons; ++i) writeKeyList(out, padLayout().names[static_cast<size_t>(i)], keys2[i]);
     out << "\n[gamepad]\n";
-    for (int i = 0; i < kButtons; ++i) writePadList(out, kButtonNames[i], pad[i]);
+    for (int i = 0; i < kButtons; ++i) writePadList(out, padLayout().names[static_cast<size_t>(i)], pad[i]);
 }
 
 void InputConfig::copyButtons(const InputConfig& from) {
@@ -232,7 +221,7 @@ void InputConfig::write(std::ostream& out) const {
     auto padList = [&](const char* name, const std::vector<SDL_GameControllerButton>& list) {
         writePadList(out, name, list);
     };
-    out << "# plumsg controls. You can give several keys or buttons separated by commas.\n"
+    out << "# " << appInfo().name << " controls. You can give several keys or buttons separated by commas.\n"
            "# [keyboard] is player 1 and [keyboard2] player 2; the first gamepad is player 1\n"
            "# and the second, player 2.\n"
            "# Keys: SDL names (Up, Down, Left, Right, A, S, Return, Space, Right Shift...).\n"
@@ -243,12 +232,12 @@ void InputConfig::write(std::ostream& out) const {
            "# load with the gamepad. rewind and fast_forward work while held; slow_motion turns it on\n"
            "# and off. library opens the game list with its covers. stop closes the game and goes\n"
            "# back to the start screen (or the library). fps_counter shows the FPS counter.\n\n[keyboard]\n";
-    for (int i = 0; i < kButtons; ++i) keyList(kButtonNames[i], keys[i]);
+    for (int i = 0; i < kButtons; ++i) keyList(padLayout().names[static_cast<size_t>(i)], keys[i]);
     for (int i = 0; i < kHotkeys; ++i) keyList(kHotkeyNames[i], hotkeyKeys[i]);
     out << "\n[keyboard2]\n";
-    for (int i = 0; i < kButtons; ++i) keyList(kButtonNames[i], keys2[i]);
+    for (int i = 0; i < kButtons; ++i) keyList(padLayout().names[static_cast<size_t>(i)], keys2[i]);
     out << "\n[gamepad]\n";
-    for (int i = 0; i < kButtons; ++i) padList(kButtonNames[i], pad[i]);
+    for (int i = 0; i < kButtons; ++i) padList(padLayout().names[static_cast<size_t>(i)], pad[i]);
     for (int i = 0; i < kHotkeys; ++i) padList(kHotkeyNames[i], hotkeyPad[i]);
     out << "stick_as_dpad = " << (stickAsDpad ? "yes" : "no") << "\n";
     out << "deadzone = " << stickDeadzone << "\n";
@@ -382,10 +371,10 @@ std::array<bool, InputConfig::kButtons> Input::buttonsDown(int player, bool useK
     if (config_.stickAsDpad && pad) {
         const int x = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTX);
         const int y = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY);
-        down[static_cast<int>(MdButton::Left)] |= x < -config_.stickDeadzone;
-        down[static_cast<int>(MdButton::Right)] |= x > config_.stickDeadzone;
-        down[static_cast<int>(MdButton::Up)] |= y < -config_.stickDeadzone;
-        down[static_cast<int>(MdButton::Down)] |= y > config_.stickDeadzone;
+        down[kLeft] |= x < -config_.stickDeadzone;
+        down[kRight] |= x > config_.stickDeadzone;
+        down[kUp] |= y < -config_.stickDeadzone;
+        down[kDown] |= y > config_.stickDeadzone;
     }
     return down;
 }
@@ -406,21 +395,10 @@ PadState Input::poll(int player, bool useKeyboard) const {
             down[b] = down[b] && !ignored[b];
         }
     }
-    auto is = [&](MdButton b) { return down[static_cast<int>(b)]; };
+    const PadButtons& buttons = padButtons();
     PadState out;
-    out.up = is(MdButton::Up);
-    out.down = is(MdButton::Down);
-    out.left = is(MdButton::Left);
-    out.right = is(MdButton::Right);
-    out.a = is(MdButton::A);
-    out.b = is(MdButton::B);
-    out.c = is(MdButton::C);
-    out.start = is(MdButton::Start);
-    out.x = is(MdButton::X);
-    out.y = is(MdButton::Y);
-    out.z = is(MdButton::Z);
-    out.mode = is(MdButton::Mode);
+    for (size_t b = 0; b < buttons.size(); ++b) out.*buttons[b] = down[b];
     return out;
 }
 
-}  // namespace plumsg
+}  // namespace plum

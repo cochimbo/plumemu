@@ -9,7 +9,7 @@
 #include "../core/pad.h"
 #include "../core/system.h"
 #include "render/renderer.h"
-#include "input.h"
+#include "frontend/input.h"
 
 namespace plumnin {
 

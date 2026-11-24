@@ -31,7 +31,7 @@
 #include "frontend/handheld.h"
 #include "frontend/http.h"
 #include "frontend/languages.h"
-#include "input.h"
+#include "frontend/input.h"
 #include "miniz.h"
 #include "settings.h"
 #include "ui.h"
