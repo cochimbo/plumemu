@@ -217,7 +217,7 @@ endif()
 
 # RetroAchievements: the game's hash, its memory as the achievements see it, and the
 # rcheevos client with its requests made on worker threads.
-add_library(plumsg_achievements STATIC src/frontend/achievements.cpp)
+add_library(plumsg_achievements STATIC ${PLUM_COMMON_DIR}/src/frontend/achievements.cpp)
 target_link_libraries(plumsg_achievements PUBLIC plumsg_core plumsg_rcheevos)
 target_include_directories(plumsg_achievements PRIVATE ${rcheevos_SOURCE_DIR}/src/rhash)
 

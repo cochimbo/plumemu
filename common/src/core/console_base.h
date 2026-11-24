@@ -48,6 +48,13 @@ public:
     // hash of the memory where games keep what matters.
     virtual uint32_t checksum() = 0;
 
+    // RetroAchievements: its number for the console (RC_CONSOLE_*, 0 if it has none), the
+    // bytes whose MD5 it knows the game by (empty if none), and the console's memory as
+    // its achievements address it (returns how many bytes could be read).
+    virtual uint32_t achievementsConsole() const { return 0; }
+    virtual std::vector<uint8_t> achievementsHashData() { return {}; }
+    virtual uint32_t readAchievementsMemory(uint32_t /*address*/, uint8_t* /*buffer*/, uint32_t /*count*/) { return 0; }
+
     // Savestates: only between frames. A file is a 12-byte header (magic, version, size
     // of the body) and the body deflated; the body is the game's CRC-32, a few bytes of
     // the console's own (its region...), the frame count and then blocks with a

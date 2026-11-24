@@ -7,6 +7,7 @@
 #include <filesystem>
 
 #include "miniz.h"
+#include "cd_image.h"
 #include "core/state_io.h"
 #include "system.h"
 
@@ -1489,6 +1490,68 @@ void MegaDrive::afterLoad() {
 bool MegaDrive::stateThumbnail(const std::vector<uint8_t>& state, std::vector<uint32_t>& pixels, int* width,
                                int* height) {
     return ConsoleBase::stateThumbnail(kStateFormat, state, pixels, width, height);
+}
+
+// RetroAchievements' numbers for the consoles (rcheevos' RC_CONSOLE_*).
+namespace {
+constexpr uint32_t kRaMegaDrive = 1, kRaSegaCd = 9, kRaSega32x = 10, kRaMasterSystem = 11, kRaGameGear = 15;
+}  // namespace
+
+uint32_t MegaDrive::achievementsConsole() const {
+    if (isMegaCd() && !hasMsuMd()) return kRaSegaCd;  // the Mega CD 32X too
+    if (is32x()) return kRaSega32x;
+    if (isGameGear()) return kRaGameGear;
+    if (isMasterSystem()) return kRaMasterSystem;
+    return kRaMegaDrive;
+}
+
+std::vector<uint8_t> MegaDrive::achievementsHashData() {
+    if (mcd_) {
+        // A disc: its volume and ROM headers, the first 512 bytes of the first data sector.
+        const CdImage::Track* track = disc_ ? disc_->track(disc_->firstTrack()) : nullptr;
+        if (!track) return {};
+        uint8_t sector[2048];
+        disc_->readData(track->start, sector);
+        return std::vector<uint8_t>(sector, sector + 512);
+    }
+    return cart_.rom();
+}
+
+uint32_t MegaDrive::readAchievementsMemory(uint32_t address, uint8_t* buffer, uint32_t count) {
+    const uint32_t system = achievementsConsole();
+    // Where the cartridge's save RAM starts in the achievements' addresses.
+    const uint32_t saveStart = system == kRaSega32x ? 0x50000 : system == kRaMegaDrive ? 0x10000 : 0;
+    const std::vector<uint8_t>& save = cart_.saveRam();
+    if (system == kRaMasterSystem || system == kRaGameGear) {
+        // 8 KB of RAM, then the cartridge's 32 KB.
+        for (uint32_t i = 0; i < count; ++i) {
+            const uint32_t a = address + i;
+            if (a < 0x2000) buffer[i] = zram_[a];
+            else if (a < 0xA000 && a - 0x2000 < save.size()) buffer[i] = save[a - 0x2000];
+            else return i;
+        }
+        return count;
+    }
+    for (uint32_t i = 0; i < count; ++i) {
+        const uint32_t a = address + i;
+        if (a < 0x10000) {
+            buffer[i] = ram_[a ^ 1];
+        } else if (system == kRaSega32x && a < 0x50000) {
+            buffer[i] = mars_->sdram()[(a - 0x10000) ^ 1];
+        } else if (system == kRaSegaCd && a < 0x90000) {
+            buffer[i] = mcd_->programRam()[(a - 0x10000) ^ 1];
+        } else if (system == kRaSegaCd && a < 0xB0000) {
+            // Word RAM, as in its 2 Mbit mode: 256 KB in the order the 68000 sees them.
+            const uint32_t offset = (a - 0x90000) ^ 1;
+            const uint16_t word = mcd_->wordRam()[offset >> 1];
+            buffer[i] = static_cast<uint8_t>(offset & 1 ? word : word >> 8);
+        } else if (saveStart && a >= saveStart && a - saveStart < save.size() && a - saveStart < 0x10000) {
+            buffer[i] = save[a - saveStart];
+        } else {
+            return i;
+        }
+    }
+    return count;
 }
 
 }  // namespace plumsg
