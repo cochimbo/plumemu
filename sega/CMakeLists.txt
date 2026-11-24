@@ -295,7 +295,8 @@ add_executable(plumsg WIN32
   src/frontend/achievements_ui.cpp
   ${PLUM_COMMON_DIR}/src/render/gl.cpp
   ${PLUM_COMMON_DIR}/src/render/gl_renderers.cpp
-  src/render/box_shelf.cpp
+  ${PLUM_COMMON_DIR}/src/render/box_shelf.cpp
+  src/render/shelf_consoles.cpp
   ${PLUM_COMMON_DIR}/src/render/room.cpp
   src/render/console_models.cpp
   ${PLUM_COMMON_DIR}/src/render/gltf_model.cpp

@@ -26,7 +26,7 @@
 #include "core/i18n.h"
 #include "../core/system.h"
 #include "net/udp.h"
-#include "../render/box_shelf.h"
+#include "render/box_shelf.h"
 #include "render/gl.h"
 
 #define STBI_NO_STDIO

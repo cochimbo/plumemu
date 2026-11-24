@@ -1,27 +1,15 @@
-#include "box_shelf.h"
+#include "render/box_shelf.h"
 
-#include "console_models.h"
+#include "render/box_shelf_draw.h"
 
 #include <algorithm>
 #include <cmath>
 
-namespace plumsg {
+namespace plum {
+
+using namespace shelf;
 
 namespace {
-
-constexpr float kPi = 3.14159265f;
-constexpr float kRad = kPi / 180.0f;
-
-// A Mega Drive case: 13.5 x 19 x 2.5 cm, with 13.5 cm as 1.
-constexpr float kBoxW = 1.0f, kBoxH = 1.4f, kBoxD = 0.2f, kWall = 0.02f;
-constexpr float kFloorY = -kBoxH / 2;   // the boxes stand on the floor
-constexpr float kConsoleZ = 1.6f;       // the console sits on the floor in front of them
-constexpr float kLidOpen = 165.0f;      // degrees, all the way open
-constexpr float kFov = 34.0f;           // degrees, top to bottom
-// The shelf behind: the boxes' middle, their spacing, and its boards.
-constexpr float kShelfZ = -1.6f, kSpacing = kBoxD + 0.012f;
-constexpr float kBoard = 0.045f, kPlinth = 0.09f, kSide = 0.05f, kRowH = kBoxH + 0.1f + kBoard;
-const float kBackground[3] = {0.035f, 0.037f, 0.045f};
 
 // Each vertex: position, normal, texture coordinates, the face it belongs to and its colour.
 constexpr int kFloats = kConsoleVertexFloats;
@@ -72,6 +60,7 @@ uniform int uLabelTurn;  // quarter turns of the label in the model's texture
 uniform vec3 uColour;
 uniform int uTexFaces;
 uniform vec4 uTexRect;
+uniform int uMask;        // the texture's see-through parts are holes
 uniform float uGlow;
 uniform float uShine;
 uniform vec3 uEye;
@@ -103,7 +92,9 @@ void main() {
     // What is still under the floor (the console rising) reflects nothing.
     if (uMirror == 1 && vWorld.y > uFloorY) discard;
     bool textured = ((uTexFaces >> vFace) & 1) != 0;
-    vec3 base = textured ? texture(uImage, mix(uTexRect.xy, uTexRect.zw, vUv)).rgb * vColour : uColour * vColour;
+    vec4 image = textured ? texture(uImage, mix(uTexRect.xy, uTexRect.zw, vUv)) : vec4(1.0);
+    if (uMask == 1 && image.a < 0.5) discard;
+    vec3 base = textured ? image.rgb * vColour : uColour * vColour;
     // A game's label printed over a cartridge model's own.
     if (uHasLabel == 1 && all(greaterThanEqual(vUv, uLabelArea.xy)) && all(lessThanEqual(vUv, uLabelArea.zw))) {
         vec2 t = (vUv - uLabelArea.xy) / (uLabelArea.zw - uLabelArea.xy);
@@ -137,109 +128,6 @@ void main() {
     outColor = vec4(c, 1.0);
 }
 )";
-
-}  // namespace
-
-// Column-major 4x4 matrices, as OpenGL expects them.
-namespace {
-
-using Mat4 = std::array<float, 16>;
-
-Mat4 identity() { return {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}; }
-
-Mat4 operator*(const Mat4& a, const Mat4& b) {
-    Mat4 r{};
-    for (int c = 0; c < 4; ++c)
-        for (int row = 0; row < 4; ++row)
-            for (int k = 0; k < 4; ++k) r[c * 4 + row] += a[k * 4 + row] * b[c * 4 + k];
-    return r;
-}
-
-Mat4 translate(float x, float y, float z) { return {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1}; }
-Mat4 scale(float x, float y, float z) { return {x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1}; }
-
-// Turns +z towards +x for positive degrees.
-Mat4 rotateY(float degrees) {
-    const float c = std::cos(degrees * kRad), s = std::sin(degrees * kRad);
-    return {c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1};
-}
-
-// Turns +z towards -y for positive degrees (so -90 lays a face looking at the viewer on its back).
-Mat4 rotateX(float degrees) {
-    const float c = std::cos(degrees * kRad), s = std::sin(degrees * kRad);
-    return {1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1};
-}
-
-// Turns +x towards +y for positive degrees.
-Mat4 rotateZ(float degrees) {
-    const float c = std::cos(degrees * kRad), s = std::sin(degrees * kRad);
-    return {c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-}
-
-// Turns as unit quaternions (w, x, y, z), the same ways as rotateX and rotateY.
-using Quat = std::array<float, 4>;
-constexpr Quat kNoTurn{1, 0, 0, 0};
-
-Quat operator*(const Quat& a, const Quat& b) {
-    return {a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3], a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
-            a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1], a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]};
-}
-
-Quat normalized(const Quat& q) {
-    const float n = std::sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
-    return n > 0 ? Quat{q[0] / n, q[1] / n, q[2] / n, q[3] / n} : kNoTurn;
-}
-
-Quat quatX(float degrees) { return {std::cos(degrees * kRad / 2), std::sin(degrees * kRad / 2), 0, 0}; }
-Quat quatY(float degrees) { return {std::cos(degrees * kRad / 2), 0, std::sin(degrees * kRad / 2), 0}; }
-
-// From `a` (t = 0) to `b` (t = 1) the short way round.
-Quat towards(const Quat& a, Quat b, float t) {
-    if (a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3] < 0) b = {-b[0], -b[1], -b[2], -b[3]};
-    return normalized({a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t});
-}
-
-Mat4 rotation(const Quat& q) {
-    const float w = q[0], x = q[1], y = q[2], z = q[3];
-    return {1 - 2 * (y * y + z * z), 2 * (x * y + w * z),     2 * (x * z - w * y),     0,
-            2 * (x * y - w * z),     1 - 2 * (x * x + z * z), 2 * (y * z + w * x),     0,
-            2 * (x * z + w * y),     2 * (y * z - w * x),     1 - 2 * (x * x + y * y), 0,
-            0,                       0,                       0,                       1};
-}
-
-Mat4 perspective(float fovY, float aspect, float zNear, float zFar) {
-    const float f = 1.0f / std::tan(fovY / 2);
-    Mat4 m{};
-    m[0] = f / aspect;
-    m[5] = f;
-    m[10] = (zFar + zNear) / (zNear - zFar);
-    m[11] = -1;
-    m[14] = 2 * zFar * zNear / (zNear - zFar);
-    return m;
-}
-
-// The inverse of a matrix that only turns, scales and moves.
-Mat4 affineInverse(const Mat4& m) {
-    const float a = m[0], b = m[4], c = m[8], d = m[1], e = m[5], f = m[9], g = m[2], h = m[6], i = m[10];
-    const float A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g;
-    const float det = a * A + b * B + c * C;
-    if (std::fabs(det) < 1e-12f) return identity();
-    const float k = 1.0f / det;
-    // Rows of the inverse of the 3x3 part.
-    const float r00 = A * k, r01 = -(b * i - c * h) * k, r02 = (b * f - c * e) * k;
-    const float r10 = B * k, r11 = (a * i - c * g) * k, r12 = -(a * f - c * d) * k;
-    const float r20 = C * k, r21 = -(a * h - b * g) * k, r22 = (a * e - b * d) * k;
-    const float tx = m[12], ty = m[13], tz = m[14];
-    return {r00, r10, r20, 0, r01, r11, r21, 0, r02, r12, r22, 0,
-            -(r00 * tx + r01 * ty + r02 * tz), -(r10 * tx + r11 * ty + r12 * tz), -(r20 * tx + r21 * ty + r22 * tz), 1};
-}
-
-float smooth(float t) {
-    t = std::clamp(t, 0.0f, 1.0f);
-    return t * t * (3 - 2 * t);
-}
-
-float lerp(float a, float b, float t) { return a + (b - a) * t; }
 
 }  // namespace
 
@@ -291,7 +179,7 @@ BoxShelf::BoxShelf() {
     for (int m = 0; m < kMeshes; ++m) {
         meshFirst_[m] = static_cast<int>(v.size()) / kFloats;
         if (m < static_cast<int>(ConsoleModel::Count)) buildConsoleModel(static_cast<ConsoleModel>(m), v);
-        else if (m - kCartMeshes != static_cast<int>(ConsoleSystem::MegaCD))
+        else
             buildCartridgeModel(static_cast<ConsoleSystem>(m - kCartMeshes), v);
         meshCount_[m] = static_cast<int>(v.size()) / kFloats - meshFirst_[m];
     }
@@ -384,128 +272,9 @@ void BoxShelf::setConsoleModel(ConsoleModel which, const GltfModel& model, float
     }
 }
 
-namespace {
-
-// The models that come with plumsg (or the user's own of the same consoles): how they are
-// turned and where their slots are, once standing centred on the floor.
-struct ModelFile {
-    ConsoleModel model;
-    const char* file;
-    float width, turn;  // 13.5 cm = 1
-    float slot[3];
-    const float* led;   // its power light, if the model shows where (and its tilt)
-    float ledTilt;
-    const float* box;   // the console's own bounds in the file, when it has more (its pads)
-};
-const float kMegaDriveLed[3] = {0.206f, 0.415f, 0.42f};
-// The Master System by dark_igorek, CC BY 4.0, with its two pads plugged in in front (in metres).
-const float kMasterSystemBox[6] = {-0.184f, 0.0f, -0.091f, 0.184f, 0.07f, 0.085f};
-// plumsg's own Game Gear (tools/models/gamegear.py): its bounds, its power light on the
-// glass left of the screen, its screen (middle and size) and its slot's top.
-const float kGameGearBox[6] = {-0.105f, 0.0f, -0.02f, 0.105f, 0.11f, 0.02f};
-const float kGameGearLed[3] = {-47.5f / 135.0f, 77.4f / 135.0f, 17.75f / 135.0f};
-const float kGameGearScreen[4] = {69.8f / 135.0f, 17.75f / 135.0f, 67.0f / 135.0f, 50.9f / 135.0f};
-const float kGameGearSlotY = 110.0f / 135.0f;
-// plumsg's own Mega-CD (tools/models/megacd.py), 280 mm wide like the Mega Drive on it:
-// its body's bounds (the cover at its right stands out of them), also the tray's, which
-// is saved closed in the same place.
-const float kMegaCdBox[6] = {-0.14f, 0.0f, -0.10733f, 0.14f, 0.0672f, 0.10733f};
-// plumsg's own 32X (tools/models/mega32x.py): its origin is where it meets the Mega
-// Drive's slot, under the middle of its own slot, whose mouth is 65 mm over it.
-const float kMega32xBox[6] = {-0.105f, 0.0f, -0.06f, 0.105f, 0.068f, 0.06f};
-const ModelFile kModelFiles[] = {
-    // The Mega Drive by synthetic worlds (Jon Blenky), CC BY 4.0: its slot is behind the
-    // dome, its power light on the plate in front of it.
-    {ConsoleModel::MegaDrive, "megadrive.glb", 278.0f / 135.0f, 0.0f, {0.206f, 0.43f, -0.306f}, kMegaDriveLed, 12.9f, nullptr},
-    {ConsoleModel::MasterSystem, "mastersystem.glb", 365.0f / 135.0f, 0.0f, {ConsoleLayout::kSmsSlotX, ConsoleLayout::kSmsSlotY,
-     ConsoleLayout::kSmsSlotZ}, nullptr, 0.0f, kMasterSystemBox},
-    {ConsoleModel::GameGear, "gamegear.glb", 210.0f / 135.0f, 0.0f, {0.0f, kGameGearSlotY, ConsoleLayout::kGgSlotZ},
-     kGameGearLed, 90.0f, kGameGearBox},
-    {ConsoleModel::Mega32X, "mega32x.glb", 210.0f / 135.0f, 0.0f, {0, 65.0f / 135.0f, 0}, nullptr, 0.0f, kMega32xBox},
-    {ConsoleModel::MegaCD, "megacd.glb", 280.0f / 135.0f, 0.0f, {0, 0, 0}, nullptr, 0.0f, kMegaCdBox},
-    {ConsoleModel::MegaCDTray, "megacd-tray.glb", 280.0f / 135.0f, 0.0f, {0, 0, 0}, nullptr, 0.0f, kMegaCdBox},
-};
-
-// Where things are on plumsg's own Mega-CD, in the millimetres megacd.py measures in
-// (scaled by kOwnCd to the real size, 13.5 cm = 1): its height, where the Mega Drive stands
-// on it (flat on its top, its right side in the cover at the right), how far the tray comes
-// out, where the disc lies on it, closed, and its READY and ACCESS windows (middle, size).
-constexpr float kOwnCd = 280.0f / 300.0f / 135.0f;
-constexpr float kOwnCdHeight = 72.0f * kOwnCd;
-constexpr float kOwnCdMdX = -0.5f * kOwnCd, kOwnCdMdZ = -4.0f * kOwnCd;
-constexpr float kOwnTrayTravel = 140.0f * kOwnCd;
-constexpr float kOwnDisc[3] = {-44.0f * kOwnCd, 38.0f * kOwnCd, 26.5f * kOwnCd};
-constexpr float kOwnReady[4] = {56.2f * kOwnCd, 38.85f * kOwnCd, 23.0f * kOwnCd, 6.3f * kOwnCd};
-constexpr float kOwnAccess[4] = {103.95f * kOwnCd, 38.85f * kOwnCd, 23.9f * kOwnCd, 6.3f * kOwnCd};
-constexpr float kOwnLightsZ = 114.9f * kOwnCd;
-
-// The cartridges' models: how to turn them to stand with the label to the front, where
-// their texture has the label (which a scan replaces) and the picture in it (which a
-// cover replaces), the label's quarter turns in the texture and the picture's shape.
-struct CartridgeFile {
-    ConsoleSystem system;
-    const char* file;
-    float turnX, turnZ;
-    float label[4], picture[4];
-    int labelTurn;
-    float pictureAspect;  // width / height
-    float pictureMiddle;  // how far down the cover the part shown on it is centred
-    float turnY = 0;      // first, to straighten a model that comes turned in its file
-};
-const CartridgeFile kCartridgeFiles[] = {
-    // The Mega Drive's by Naser, CC BY 4.0: the picture and title above the "MEGA DRIVE"
-    // band of its European label.
-    {ConsoleSystem::MegaDrive, "megadrive-cartridge.glb", 0, 0, {0.125f, 0.617f, 0.623f, 0.967f}, {0.125f, 0.662f, 0.623f, 0.967f}, 0, 1.8f, 0.45f},
-    // The Master System's, from dark_igorek's model: lying on its back, its label (R-Type's)
-    // turned on its side in the texture (whose coordinates there run from 1 to 2). The
-    // label is a strip along the top, where a cover's title goes. The file has it turned
-    // 7.8 degrees, which would leave it crooked in its box.
-    {ConsoleSystem::MasterSystem, "mastersystem-cartridge.glb", 90, 0, {1.473f, 0.0f, 1.552f, 0.40f}, {1.473f, 0.0f, 1.552f, 0.40f}, 1, 4.5f, 0.12f, -7.8f},
-    // The Game Gear's, plumsg's own: standing, its label (55.6 x 38.4 mm) the whole texture.
-    {ConsoleSystem::GameGear, "gamegear-cartridge.glb", 0, 0, {0, 0, 1, 1}, {0, 0, 1, 1}, 0, 1.45f, 0.45f},
-};
-
-}  // namespace
-
-void BoxShelf::loadConsoleModels(const std::vector<std::string>& folders) {
-    for (const CartridgeFile& f : kCartridgeFiles) {
-        for (const std::string& folder : folders) {
-            GltfModel model;
-            std::string error;
-            if (!loadGltf(folder + f.file, model, &error)) continue;
-            setCartridgeModel(f.system, model, f.turnX, f.turnZ, f.label, f.picture, f.labelTurn, f.pictureAspect, f.pictureMiddle, f.turnY);
-            break;
-        }
-    }
-    // The room's television, stood on its foot and scaled to its real width.
-    for (const std::string& folder : folders) {
-        GltfModel model;
-        std::string error;
-        if (!loadGltf(folder + "television.glb", model, &error)) continue;
-        Custom& c = custom_[kRoomCustom];
-        upload(c, model);
-        const float cx = (model.min[0] + model.max[0]) / 2, cz = (model.min[2] + model.max[2]) / 2;
-        const float k = model.max[0] > model.min[0] ? kTelevisionWidth / (model.max[0] - model.min[0]) : 1;
-        c.fit = scale(k, k, k) * translate(-cx, -model.min[1], -cz);
-        break;
-    }
-    for (const ModelFile& m : kModelFiles) {
-        for (const std::string& folder : folders) {
-            GltfModel model;
-            std::string error;
-            if (!loadGltf(folder + m.file, model, &error)) continue;
-            if (m.box) {
-                std::copy(m.box, m.box + 3, model.min);
-                std::copy(m.box + 3, m.box + 6, model.max);
-            }
-            setConsoleModel(m.model, model, m.width, m.turn, m.slot, m.led, m.ledTilt);
-            break;
-        }
-    }
-}
-
 void BoxShelf::setCartridgeModel(ConsoleSystem system, const GltfModel& model, float turnX, float turnZ, const float labelArea[4],
-                                 const float pictureArea[4], int labelTurn, float pictureAspect, float pictureMiddle, float turnY) {
+                                 const float pictureArea[4], int labelTurn, float pictureAspect, float pictureMiddle, float turnY,
+                                 int labelImage) {
     Custom& c = custom_[kCartCustom + static_cast<int>(system)];
     upload(c, model);
     // Turned to stand, then centred and stretched to the cartridge's real size.
@@ -532,6 +301,7 @@ void BoxShelf::setCartridgeModel(ConsoleSystem system, const GltfModel& model, f
     std::copy(labelArea, labelArea + 4, c.labelArea);
     std::copy(pictureArea, pictureArea + 4, c.pictureArea);
     c.labelTurn = labelTurn;
+    c.labelImage = labelImage;
     c.pictureAspect = pictureAspect;
     c.pictureMiddle = pictureMiddle;
 }
@@ -677,7 +447,7 @@ void BoxShelf::setManual(std::vector<Page> pages) {
 }
 
 void BoxShelf::manualPages(int* first, int* last) const {
-    // The cover for the lid; around the pages open, the next ones and those before.
+    // The cover for the box; around the pages open, the next ones and those before.
     if (state_ != State::ManualOut && state_ != State::Reading && state_ != State::ManualBack) {
         *first = 0;
         *last = 0;
@@ -851,14 +621,8 @@ void BoxShelf::camera(Vec3* eye, Vec3* target) const {
     const float e = state_ == State::Inserted ? 1.0f : state_ == State::Ejecting ? smooth(eject_ / 0.45f) : 0.0f;
     const float x = stageX_;
     // The shelf, the box out, its cartridge out and the console: each framed for its size.
-    Vec3 consoleEye{0.3f, 0.9f, 4.9f}, consoleTarget{0.1f, -0.35f, 1.5f};
-    switch (system_) {
-        case ConsoleSystem::Mega32X: consoleEye = {0.35f, 1.3f, 5.5f}, consoleTarget = {0.1f, -0.05f, 1.4f}; break;
-        case ConsoleSystem::MegaCD: consoleEye = {0.5f, 1.2f, 5.9f}, consoleTarget = {0.0f, -0.25f, 1.9f}; break;
-        case ConsoleSystem::MasterSystem: consoleEye = {0.4f, 1.0f, 5.5f}, consoleTarget = {0.2f, -0.35f, 1.4f}; break;
-        case ConsoleSystem::GameGear: consoleEye = {0.15f, 0.5f, 4.3f}, consoleTarget = {0.0f, -0.12f, 1.6f}; break;
-        default: break;
-    }
+    Vec3 consoleEye, consoleTarget;
+    consoleView(system_, &consoleEye, &consoleTarget);
     const Vec3 shelfTarget = look_, shelfEye{look_.x, look_.y + distance_ * 0.1f, look_.z + distance_};
     Vec3 eyes[3] = {{x, 0.3f, 3.4f}, {x - 0.2f, 0.35f, 3.6f}, {x + consoleEye.x, consoleEye.y, consoleEye.z}};
     const Vec3 targets[3] = {{x, 0.05f, 0}, {x - 0.2f, 0.0f, 0.3f}, {x + consoleTarget.x, consoleTarget.y, consoleTarget.z}};
@@ -894,7 +658,7 @@ void BoxShelf::camera(Vec3* eye, Vec3* target) const {
 
 void BoxShelf::manualSize(float* w, float* h) const {
     *h = held_.h * 0.88f;
-    // As its pages are once they are known; until then, as the lid.
+    // As its pages are once they are known; until then, as the box.
     float aspect = held_.w * 0.86f / *h;
     if (!pages_.empty() && pages_[0].width > 0 && pages_[0].height > 0)
         aspect = std::clamp(static_cast<float>(pages_[0].width) / static_cast<float>(pages_[0].height), 0.4f, 2.0f);
@@ -918,115 +682,13 @@ BoxShelf::Vec3 BoxShelf::shelfSpot(int index) const {
     return {x, kFloorY + kPlinth + static_cast<float>(rows_ - 1 - r) * kRowH + h / 2 + 0.002f, kShelfZ};
 }
 
-BoxShelf::Size BoxShelf::boxSize(const Item& item) {
-    Size s;
-    if (item.system != ConsoleSystem::MegaCD || !item.texture || item.width <= 0 || item.height <= 0) return s;
-    // The front's shape, from the cover (half of a whole sleeve, less the spine).
-    const float w = static_cast<float>(item.width), h = static_cast<float>(item.height);
-    const float f = coverFront(item.width, item.height, item.system);
-    const float aspect = (f > 0 ? w * (1 - f) : w) / h;
-    if (aspect < 0.85f) return s;  // the tall box, as a Mega Drive's
-    // A jewel case: 14.2 x 12.5 x 1 cm.
-    s.h = 12.5f / 13.5f;
-    s.w = std::clamp(aspect * s.h, 0.8f, 1.25f);
-    s.d = 0.075f;
-    return s;
-}
-
-BoxShelf::Mat4 BoxShelf::heldBox() const {
-    // Out of the shelf towards the viewer, then over to the front, turning to show its
-    // cover; aside to the left once its cartridge is out.
-    const Vec3 s = shelfSpot(selected_);
-    const float t1 = smooth(take_ / 0.4f), t2 = smooth((take_ - 0.3f) / 0.7f);
-    const Vec3 out{s.x, s.y, kShelfZ + 1.1f}, front{stageX_ - 0.35f * smooth(open_), 0.1f, 0};
-    const Vec3 a{lerp(s.x, out.x, t1), lerp(s.y, out.y, t1), lerp(s.z, out.z, t1)};
-    const Vec3 p{lerp(a.x, front.x, t2), lerp(a.y, front.y, t2), lerp(a.z, front.z, t2)};
-    return translate(p.x, p.y, p.z) * rotateY(90 * (1 - t2)) * rotation(boxTurn_);
-}
-
-BoxShelf::Mat4 BoxShelf::heldCartridge() const {
-    // Lifted out of the box and up in front of it, facing the viewer.
-    const Mat4 in = cartridgeInBox(heldBox(), system_, held_);
-    const float s = smooth((open_ - 0.35f) / 0.65f);
-    if (s <= 0) return in;
-    const Vec3 out{stageX_ + 0.45f, 0.1f, 1.3f};
-    const Vec3 p{lerp(in[12], out.x, s), lerp(in[13], out.y, s) + std::sin(s * kPi) * 0.25f, lerp(in[14], out.z, s)};
-    return translate(p.x, p.y, p.z) * rotation(towards(kNoTurn, cartTurn_, s));
-}
-
-BoxShelf::Mat4 BoxShelf::cartridgeInBox(const Mat4& box, ConsoleSystem s, const Size& size) const {
-    // The disc on its hub in the upper half (in the middle of a jewel case); a cartridge
-    // lies in the lower half, its label to the front and its contacts down, as in the console.
-    if (s == ConsoleSystem::MegaCD) return box * translate(0, size.h > 1.2f ? 0.16f : 0.0f, -size.d / 2 + kWall + 0.02f);
-    const CartridgeShape c = cartridgeShape(s);
-    return box * translate(0, -size.h / 2 + kWall + 0.1f + c.h / 2, -size.d / 2 + kWall + 0.006f + c.d / 2);
-}
-
-float BoxShelf::coverFront(int width, int height, ConsoleSystem system) {
-    if (width <= 0 || height <= 0) return 0;
-    const float w = static_cast<float>(width), h = static_cast<float>(height);
-    if (system == ConsoleSystem::MegaCD) {
-        // A jewel case's front is about as wide as tall, so a sleeve is told by being well
-        // wider; its front is half of it but for the spine (about an eighth of its height).
-        if (w < h * 1.35f) return 0;
-        return std::clamp(1 - (w - 0.12f * h) / 2 / w, 0.0f, 0.9f);
-    }
-    if (width < height * 6 / 5) return 0;
-    return std::clamp(1 - kBoxW / kBoxH * h / w, 0.0f, 0.9f);
-}
-
-namespace {
-
-// The front, spine and back of a cover as texture rectangles; the back and spine are
-// empty (u1 <= u0) on a cover that is only the front.
-struct Sleeve {
-    std::array<float, 4> front{0, 0, 1, 1}, spine{0, 0, 0, 1}, back{0, 0, 0, 1};
-};
-
-Sleeve sleeve(int width, int height, ConsoleSystem system) {
-    Sleeve s;
-    const float f = BoxShelf::coverFront(width, height, system);
-    if (f <= 0) return s;
-    const float side = 1 - f;  // the front's width, and the back's
-    s.front = {f, 0, 1, 1};
-    s.back = {0, 0, side, 1};
-    s.spine = {side, 0, f, 1};
-    return s;
-}
-
-}  // namespace
-
 void BoxShelf::addCartridge(const Item& item, const Mat4& place) {
     Part p;
     p.cartridge = true;
     // Its own label, or else the cover's front.
     const unsigned int art = item.label ? item.label : item.texture;
     p.texRect = item.label ? std::array<float, 4>{0, 0, 1, 1} : sleeve(item.width, item.height, item.system).front;
-    if (item.system == ConsoleSystem::MegaCD) {
-        // A 12 cm disc, 1.2 mm thick, its label printed with the cover; the hole in the middle.
-        // A jewel case's square front shows a whole disc's worth of it.
-        if (!item.label && boxSize(item).h < 1.2f) {
-            std::array<float, 4>& r = p.texRect;
-            const float fw = (r[2] - r[0]) * static_cast<float>(item.width), fh = static_cast<float>(item.height);
-            if (fw > fh) {
-                const float cut = (1 - fh / fw) * (r[2] - r[0]) / 2;
-                r[0] += cut, r[2] -= cut;
-            }
-        }
-        p.model = place * scale(0.889f, 0.889f, 0.009f);
-        p.colour = {0.78f, 0.79f, 0.84f};
-        p.shine = 1.0f;
-        p.cylinder = true;
-        p.texture = art;
-        p.texFaces = art ? 1 << 4 : 0;
-        parts_.push_back(p);
-        p.model = place * scale(0.111f, 0.111f, 0.0095f);
-        p.colour = {kBackground[0], kBackground[1], kBackground[2]};
-        p.texFaces = 0;
-        p.shine = 0;
-        parts_.push_back(p);
-        return;
-    }
+    if (addDisc(item, p, place)) return;
     const CartridgeShape c = cartridgeShape(item.system);
     // A cartridge's own model, with the game's label over the one it has.
     const int ownIndex = kCartCustom + static_cast<int>(item.system);
@@ -1073,188 +735,14 @@ void BoxShelf::addCartridge(const Item& item, const Mat4& place) {
     parts_.push_back(p);
 }
 
-BoxShelf::Mat4 BoxShelf::addBox(const std::vector<Item>& items, int index, const Mat4& place, float lid, bool withManual) {
-    const Item& item = items[static_cast<size_t>(index)];
-    const Size S = boxSize(item);
-    const float bw = S.w, bh = S.h, bd = S.d;  // this box's own
-    auto add = [&](const Mat4& m, Vec3 colour, float shine, int texFaces = 0) {
-        Part p;
-        p.model = place * m;
-        p.colour = colour;
-        p.shine = shine;
-        p.texture = item.texture;
-        p.texFaces = item.texture ? texFaces : 0;
-        p.box = index;
-        parts_.push_back(p);
-    };
-    const Vec3 plastic{0.045f, 0.045f, 0.055f};
-    const float inner = bd - kWall;
-    // With a whole sleeve its back and spine go round the tray.
-    const Sleeve cover = sleeve(item.width, item.height, item.system);
-    const bool wrap = cover.spine[2] > cover.spine[0];
-    // The tray: its back and four walls, open at the front.
-    add(translate(0, 0, -bd / 2 + kWall / 2) * scale(bw, bh, kWall), plastic, 0.6f, wrap ? 1 << 5 : 0);
-    parts_.back().texRect = cover.back;
-    add(translate(-bw / 2 + kWall / 2, 0, -kWall / 2) * scale(kWall, bh, inner), plastic, 0.6f, wrap ? 1 << 1 : 0);
-    parts_.back().texRect = cover.spine;
-    add(translate(bw / 2 - kWall / 2, 0, -kWall / 2) * scale(kWall, bh, inner), plastic, 0.6f);
-    add(translate(0, bh / 2 - kWall / 2, -kWall / 2) * scale(bw - 2 * kWall, kWall, inner), plastic, 0.6f);
-    add(translate(0, -bh / 2 + kWall / 2, -kWall / 2) * scale(bw - 2 * kWall, kWall, inner), plastic, 0.6f);
-    // Without a cover the lid takes the console's colour.
-    Vec3 lidColour{0.16f, 0.17f, 0.2f};
-    switch (item.system) {
-        case ConsoleSystem::Mega32X: lidColour = {0.45f, 0.1f, 0.08f}; break;
-        case ConsoleSystem::MasterSystem: lidColour = {0.85f, 0.85f, 0.85f}; break;
-        case ConsoleSystem::GameGear: lidColour = {0.25f, 0.12f, 0.35f}; break;
-        case ConsoleSystem::MegaCD: lidColour = {0.1f, 0.2f, 0.4f}; break;
-        default: break;
-    }
-    const Mat4 hinge = translate(-bw / 2, 0, bd / 2 - kWall / 2) * rotateY(-lid * kLidOpen);
-    add(hinge * translate(bw / 2, 0, 0) * scale(bw, bh, kWall), item.texture ? plastic : lidColour, 0.7f, 1 << 4);
-    parts_.back().texRect = cover.front;
-    const Mat4 manual = hinge * translate(bw / 2, 0, -kWall / 2 - 0.004f);
-    if (lid <= 0.001f) return place * manual;
-    // Inside: the manual on the lid (its own cover once it is drawn), the holder and the game.
-    if (withManual) {
-        add(manual * scale(bw * 0.86f, bh * 0.88f, 0.006f), {0.86f, 0.84f, 0.78f}, 0.1f, 1 << 5);
-        parts_.back().texRect = cover.front;
-        if (item.manual && index == selected_) {
-            parts_.back().manual = true;
-            if (!pages_.empty() && pages_[0].texture) {
-                parts_.back().texture = pages_[0].texture;
-                parts_.back().texFaces = 1 << 5;
-                parts_.back().texRect = {0, 0, 1, 1};
-                parts_.back().colour = {1, 1, 1};
-            }
-        }
-    }
-    add(translate(0, 0, -bd / 2 + kWall + 0.003f) * scale(bw - 2 * kWall, bh - 2 * kWall, 0.006f),
-        {0.11f, 0.11f, 0.13f}, 0.3f);
-    return place * manual;
-}
-
-BoxShelf::Mat4 BoxShelf::addConsole(const Item& item, float light, float rise, float tray) {
-    using L = ConsoleLayout;
-    const ConsoleSystem s = item.system;
-    const Mat4 base = translate(stageX_, kFloorY + rise, kConsoleZ);
-    // The console's own model when it was given one, else the built-in.
-    auto mesh = [&](ConsoleModel m, const Mat4& at) {
-        Part p;
-        p.colour = {1, 1, 1};
-        p.shine = 0.45f;
-        const Custom& c = custom_[static_cast<int>(m)];
-        if (c.vao) {
-            p.model = base * at * c.fit;
-            p.custom = static_cast<int>(m);
-        } else {
-            p.model = base * at;
-            p.mesh = static_cast<int>(m);
-        }
-        parts_.push_back(p);
-        // Its own power light, lit (the model shows it off).
-        if (c.vao && c.hasLed && light > 0) {
-            Part l;
-            l.model = base * at * translate(c.led[0], c.led[1], c.led[2]) * rotateX(c.ledTilt - 90) * scale(0.022f, 0.022f, 0.002f);
-            l.colour = {1.0f, 0.12f, 0.08f};
-            l.glow = 1.6f;
-            l.cylinder = true;
-            parts_.push_back(l);
-        }
-    };
-    // Where its slot is: the given model's, or the built-in's.
-    auto slotOf = [&](ConsoleModel m, float x, float y, float z) {
-        const Custom& c = custom_[static_cast<int>(m)];
-        return c.vao ? Vec3{c.slot[0], c.slot[1], c.slot[2]} : Vec3{x, y, z};
-    };
-    // The power light: dark red, lit once the game is in.
-    auto led = [&](const float* at, bool front) {
-        Part p;
-        p.model = base * translate(at[0], at[1], at[2]) * (front ? scale(0.03f, 0.03f, 0.006f) : scale(0.035f, 0.006f, 0.035f));
-        p.colour = light > 0 ? Vec3{1.0f, 0.12f, 0.08f} : Vec3{0.22f, 0.03f, 0.03f};
-        p.glow = light > 0 ? 1.6f : 0.0f;
-        p.shine = 0.6f;
-        parts_.push_back(p);
-    };
-    const CartridgeShape c = cartridgeShape(s);
-    switch (s) {
-        case ConsoleSystem::GameGear: {
-            mesh(ConsoleModel::GameGear, identity());
-            // Its own model's screen and slot, or the built-in's.
-            const bool own = custom_[static_cast<int>(ConsoleModel::GameGear)].vao != 0;
-            if (!own) led(L::kGgLed, true);
-            const float sy = own ? kGameGearScreen[0] : L::kGgScreenY, sz = own ? kGameGearScreen[1] : L::kGgScreenZ;
-            const float sw = own ? kGameGearScreen[2] : L::kGgScreenW, sh = own ? kGameGearScreen[3] : L::kGgScreenH;
-            // The screen shows the game's cover once it is on.
-            Part screen;
-            screen.model = base * translate(0, sy, sz) * scale(sw, sh, 0.002f);
-            screen.colour = {0.05f, 0.07f, 0.06f};
-            screen.shine = 1.0f;
-            if (light > 0 && item.texture) {
-                screen.texture = item.texture;
-                screen.texFaces = 1 << 4;
-                screen.texRect = sleeve(item.width, item.height, item.system).front;
-                screen.glow = 0.6f;
-            }
-            parts_.push_back(screen);
-            const float slotY = own ? kGameGearSlotY : L::kGgSlotY;
-            return translate(0, kFloorY + slotY + c.h / 2 - c.insert, kConsoleZ + L::kGgSlotZ);
-        }
-        case ConsoleSystem::MasterSystem:
-            mesh(ConsoleModel::MasterSystem, identity());
-            if (!custom_[static_cast<int>(ConsoleModel::MasterSystem)].vao) led(L::kSmsLed, false);
-            return translate(L::kSmsSlotX, kFloorY + L::kSmsSlotY + c.h / 2 - c.insert, kConsoleZ + L::kSmsSlotZ);
-        case ConsoleSystem::MegaCD: {
-            // The Mega-CD under the Mega Drive, its tray sliding out of the front.
-            if (custom_[static_cast<int>(ConsoleModel::MegaCD)].vao && custom_[static_cast<int>(ConsoleModel::MegaCDTray)].vao) {
-                mesh(ConsoleModel::MegaCD, identity());
-                mesh(ConsoleModel::MegaDrive, translate(kOwnCdMdX, kOwnCdHeight, kOwnCdMdZ));
-                const float out = kOwnTrayTravel * tray;
-                mesh(ConsoleModel::MegaCDTray, translate(0, 0, out));
-                // READY lights green once the disc is in, ACCESS red while it is read.
-                if (light > 0) {
-                    for (const float* w : {kOwnReady, kOwnAccess}) {
-                        Part p;
-                        p.model = base * translate(w[0], w[1], kOwnLightsZ) * scale(w[2], w[3], 0.002f);
-                        p.colour = w == kOwnReady ? Vec3{0.45f, 0.8f, 0.55f} : Vec3{0.9f, 0.5f, 0.35f};
-                        p.glow = 0.12f * light;
-                        p.shine = 0.6f;
-                        parts_.push_back(p);
-                    }
-                }
-                return translate(kOwnDisc[0], kFloorY + kOwnDisc[1] + 0.006f, kConsoleZ + kOwnDisc[2] + out) * rotateX(-90);
-            }
-            mesh(ConsoleModel::MegaCD, identity());
-            mesh(ConsoleModel::MegaDrive, translate(L::kCdMdX, L::kCdHeight, L::kCdMdZ));
-            led(L::kCdLed, true);
-            const float z = L::kTrayZ + L::kTrayTravel * tray;
-            mesh(ConsoleModel::MegaCDTray, translate(L::kTrayX, L::kTrayY, z));
-            return translate(L::kTrayX, kFloorY + L::kTrayY + 0.006f, kConsoleZ + z) * rotateX(-90);
-        }
-        case ConsoleSystem::Mega32X: {
-            mesh(ConsoleModel::MegaDrive, identity());
-            const Vec3 md = slotOf(ConsoleModel::MegaDrive, L::kMdSlotX, L::kMdSlotY, L::kMdSlotZ);
-            mesh(ConsoleModel::Mega32X, translate(md.x, md.y, md.z));
-            if (!custom_[static_cast<int>(ConsoleModel::MegaDrive)].vao) led(L::kMdLed, false);
-            const Vec3 x = slotOf(ConsoleModel::Mega32X, 0, L::k32xSlotY, 0);
-            return translate(md.x + x.x, kFloorY + md.y + x.y + c.h / 2 - c.insert, kConsoleZ + md.z + x.z);
-        }
-        default: {
-            mesh(ConsoleModel::MegaDrive, identity());
-            if (!custom_[static_cast<int>(ConsoleModel::MegaDrive)].vao) led(L::kMdLed, false);
-            const Vec3 md = slotOf(ConsoleModel::MegaDrive, L::kMdSlotX, L::kMdSlotY, L::kMdSlotZ);
-            return translate(md.x, kFloorY + md.y + c.h / 2 - c.insert, kConsoleZ + md.z);
-        }
-    }
-}
-
 void BoxShelf::addShelfBox(const Item& item, int index, const Mat4& place) {
     // Closed, only its spine shows: the sleeve's, or the edge of the cover next to it.
     Part p;
     const Size S = index < static_cast<int>(sizes_.size()) ? sizes_[static_cast<size_t>(index)] : Size{};
     const float bw = S.w, bd = S.d;
     p.model = place * scale(S.w, S.h, S.d);
-    p.colour = {0.045f, 0.045f, 0.055f};
-    p.shine = 0.6f;
+    p.colour = boxColour(item.system);
+    p.shine = kBoxShine;
     p.box = index;
     if (item.texture) {
         const Sleeve cover = sleeve(item.width, item.height, item.system);
@@ -1324,47 +812,24 @@ void BoxShelf::build(const std::vector<Item>& items, int selected) {
     if (state_ == State::Browse || selected < 0 || selected >= count_) return;
     const Item& item = items[static_cast<size_t>(selected)];
     const Mat4 box = heldBox();
-    const float lid = smooth(open_ / 0.6f);
     const bool reading = state_ == State::ManualOut || state_ == State::Reading || state_ == State::ManualBack;
-    const Mat4 lidManual = addBox(items, selected, box, lid, !reading);
+    const float opening = boxOpening();
+    const Mat4 boxManual = addBox(items, selected, box, opening, !reading);
     const bool ejecting = state_ == State::Ejecting || state_ == State::Inserted;
     if (!ejecting) {
-        if (lid > 0.001f) addCartridge(item, heldCartridge());
-        if (reading) addManual(item, lidManual);
+        if (opening > 0.001f) addCartridge(item, heldCartridge());
+        if (reading) addManual(item, boxManual);
         return;
     }
-    // The console comes up through the floor while the cartridge leaves the box.
+    // The console comes up through the floor while the cartridge leaves the box, and goes
+    // into it.
     const float light = state_ == State::Inserted ? 1.0f : 0.0f;
     const float t = state_ == State::Inserted ? 1.0f : eject_;
     const float rise = -1.6f * (1 - smooth(t / 0.3f));
-    // The Mega-CD's tray opens for the disc and closes with it.
-    const float tray = smooth((t - 0.1f) / 0.2f) * (1 - smooth((t - 0.84f) / 0.14f));
-    const Mat4 inConsole = translate(stageX_, 0, 0) * addConsole(item, light, rise, tray);
-    // The cartridge's way: up from where it was held, over to above the slot in an arc,
-    // then down into it. A disc turns to lie flat on the way.
-    const Mat4 start = heldCartridge();
-    const Vec3 p0{start[12], start[13], start[14]}, p1{p0.x, p0.y + 0.15f, p0.z};
-    const float above = system_ == ConsoleSystem::MegaCD ? 0.3f : cartridgeShape(system_).insert + 0.12f;
-    const Vec3 p3{inConsole[12], inConsole[13], inConsole[14]}, p2{p3.x, p3.y + above, p3.z};
-    Vec3 p;
-    if (t < 0.25f) {
-        const float s = smooth(t / 0.25f);
-        p = {lerp(p0.x, p1.x, s), lerp(p0.y, p1.y, s), lerp(p0.z, p1.z, s)};
-    } else if (t < 0.75f) {
-        const float s = smooth((t - 0.25f) / 0.5f);
-        p = {lerp(p1.x, p2.x, s), lerp(p1.y, p2.y, s) + std::sin(s * kPi) * 0.2f, lerp(p1.z, p2.z, s)};
-    } else {
-        // Into the slot; the disc drops onto the tray and rides in on it.
-        const float s = smooth((t - 0.75f) / (system_ == ConsoleSystem::MegaCD ? 0.08f : 0.25f));
-        p = {p3.x, lerp(p2.y, p3.y, s), p3.z};
-    }
-    const float turn = system_ == ConsoleSystem::MegaCD ? -90.0f * smooth((t - 0.25f) / 0.5f) : 0.0f;
-    // A Game Gear's cartridge goes in with its label to the back, the top of it showing.
-    const float spin = system_ == ConsoleSystem::GameGear ? 180.0f * smooth((t - 0.25f) / 0.5f) : 0.0f;
-    addCartridge(item, translate(p.x, p.y, p.z) * rotateY(spin) * rotation(cartTurn_) * rotateX(turn));
+    addInsertion(item, light, rise, t);
 }
 
-void BoxShelf::addManual(const Item& item, const Mat4& lidManual) {
+void BoxShelf::addManual(const Item& item, const Mat4& boxManual) {
     float pw, ph;
     manualSize(&pw, &ph);
     const Vec3 b = manualSpot();
@@ -1386,16 +851,16 @@ void BoxShelf::addManual(const Item& item, const Mat4& lidManual) {
     };
     const float r = smooth(read_);
     if (state_ != State::Reading) {
-        // Closed, from the lid to the right of where its spine will be, its cover to the front.
+        // Closed, from the box to the right of where its spine will be, its cover to the front.
         const float lw = held_.w * 0.86f, lh = held_.h * 0.88f;
         const Vec3 to{b.x + pw / 2, b.y, b.z};
-        const Vec3 p{lerp(lidManual[12], to.x, r), lerp(lidManual[13], to.y, r) + std::sin(r * kPi) * 0.15f,
-                     lerp(lidManual[14], to.z, r)};
-        const Mat4 m = translate(p.x, p.y, p.z) * rotateY(lerp(-kLidOpen, -180.0f, r)) *
+        const Vec3 p{lerp(boxManual[12], to.x, r), lerp(boxManual[13], to.y, r) + std::sin(r * kPi) * 0.15f,
+                     lerp(boxManual[14], to.z, r)};
+        const Mat4 m = translate(p.x, p.y, p.z) * rotateY(lerp(kManualTurn, -180.0f, r)) *
                        scale(lerp(lw, pw, r), lerp(lh, ph, r), 0.006f);
         if (page(0).texture) sheet(m, 0, 5);
         else {
-            // Not drawn yet: as it looked in the lid.
+            // Not drawn yet: as it looked in the box.
             Part p;
             p.model = m;
             p.manual = true;
@@ -1485,11 +950,11 @@ unsigned int BoxShelf::render(const std::vector<Item>& items, int selected, int 
             if (take_ <= 0) state_ = State::Browse;
             break;
         case State::Opening:
-            open_ = std::min(1.0f, open_ + dt / 0.9f);
+            open_ = std::min(1.0f, open_ + dt / kOpenTime);
             if (open_ >= 1) state_ = State::Open;
             break;
         case State::Closing:
-            open_ = std::max(0.0f, open_ - dt / 0.7f);
+            open_ = std::max(0.0f, open_ - dt / kCloseTime);
             if (open_ <= 0) state_ = State::Held;
             break;
         case State::Ejecting:
@@ -1605,6 +1070,8 @@ unsigned int BoxShelf::render(const std::vector<Item>& items, int selected, int 
     const gl::GLint uLabelRect = gl::GetUniformLocation(program_, "uLabelRect");
     const gl::GLint uLabelTurn = gl::GetUniformLocation(program_, "uLabelTurn");
     const gl::GLint uHasNormals = gl::GetUniformLocation(program_, "uHasNormals");
+    const gl::GLint uMask = gl::GetUniformLocation(program_, "uMask");
+    gl::Uniform1i(uMask, 0);
     gl::UniformMatrix4fv(gl::GetUniformLocation(program_, "uViewProj"), 1, gl::FALSE_, viewProj_.data());
     gl::Uniform3f(gl::GetUniformLocation(program_, "uEye"), eye_.x, eye_.y, eye_.z);
     gl::Uniform1f(gl::GetUniformLocation(program_, "uFloorY"), kFloorY);
@@ -1651,6 +1118,8 @@ unsigned int BoxShelf::render(const std::vector<Item>& items, int selected, int 
                 const bool textured = b.image >= 0 && b.image < images, bumped = b.normals >= 0 && b.normals < images;
                 gl::Uniform1i(uTexFaces, textured ? 1 << kGltfFace : 0);
                 if (textured) gl::BindTexture(gl::TEXTURE_2D, c.textures[static_cast<size_t>(b.image)]);
+                gl::Uniform1i(uMask, textured && b.mask ? 1 : 0);
+                if (p.label) gl::Uniform1i(uHasLabel, c.labelImage < 0 || c.labelImage == b.image ? 1 : 0);
                 gl::Uniform1i(uHasNormals, bumped ? 1 : 0);
                 if (bumped) {
                     gl::ActiveTexture(gl::TEXTURE0 + 1);
@@ -1661,6 +1130,7 @@ unsigned int BoxShelf::render(const std::vector<Item>& items, int selected, int 
             }
             gl::Uniform1i(uHasNormals, 0);
             gl::Uniform1i(uHasLabel, 0);
+            gl::Uniform1i(uMask, 0);
             gl::BindVertexArray(vao_);
         } else if (p.mesh >= 0) gl::DrawArrays(gl::TRIANGLES, meshFirst_[p.mesh], meshCount_[p.mesh]);
         else if (p.cylinder) gl::DrawArrays(gl::TRIANGLES, cylinderFirst_, cylinderCount_);
@@ -1699,4 +1169,4 @@ unsigned int BoxShelf::render(const std::vector<Item>& items, int selected, int 
     return colour_;
 }
 
-}  // namespace plumsg
+}  // namespace plum

@@ -375,6 +375,7 @@ CartridgeShape cartridgeShape(ConsoleSystem s) {
 }
 
 void buildCartridgeModel(ConsoleSystem s, std::vector<float>& out) {
+    if (s == ConsoleSystem::MegaCD) return;  // its games are discs (BoxShelf::addDisc)
     Builder b(out);
     const CartridgeShape c = cartridgeShape(s);
     const float t = c.d / 2;

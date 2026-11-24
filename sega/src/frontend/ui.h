@@ -26,9 +26,12 @@
 #include "screenscraper.h"
 #include "settings.h"
 
+namespace plum {
+class BoxShelf;  // render/box_shelf.h
+}  // namespace plum
+
 namespace plumsg {
 
-class BoxShelf;
 
 // What the user asked for this frame; main() carries it out.
 struct UiActions {
